@@ -1,4 +1,3 @@
-
 interface SmokePolygon {
   geometry: {
     type: 'Polygon';
@@ -104,11 +103,16 @@ export class SmokeDataService {
         layerMap.set(key, []);
       }
 
-      // Convert ArcGIS ring geometry to GeoJSON polygon
+      // Convert ArcGIS ring geometry to GeoJSON polygon - fix the coordinate structure
+      const rings = feature.geometry.rings;
+      const coordinates: number[][][] = rings.map(ring => 
+        ring.map(coord => [coord[0], coord[1]]) // Ensure each coordinate is [lng, lat]
+      );
+
       const polygon: SmokePolygon = {
         geometry: {
           type: 'Polygon',
-          coordinates: [feature.geometry.rings[0] || []]
+          coordinates: coordinates
         },
         properties: {
           smoke_class: feature.attributes.smoke_class || 1,
@@ -187,11 +191,12 @@ export class SmokeDataService {
 
   // Convert concentration to color for visualization
   getConcentrationColor(concentration: number): string {
-    if (concentration < 12) return 'rgba(34, 197, 94, 0.4)';      // Good - green
-    if (concentration < 35) return 'rgba(234, 179, 8, 0.5)';      // Moderate - yellow
-    if (concentration < 55) return 'rgba(249, 115, 22, 0.6)';     // Unhealthy sensitive - orange
-    if (concentration < 150) return 'rgba(239, 68, 68, 0.7)';     // Unhealthy - red
-    return 'rgba(127, 29, 29, 0.8)';                              // Hazardous - maroon
+    if (concentration <= 12) return 'rgba(0, 228, 0, 0.6)';        // Good - Green
+    if (concentration <= 35) return 'rgba(255, 255, 0, 0.6)';      // Moderate - Yellow  
+    if (concentration <= 55) return 'rgba(255, 126, 0, 0.6)';      // Unhealthy for Sensitive - Orange
+    if (concentration <= 150) return 'rgba(255, 0, 0, 0.6)';       // Unhealthy - Red
+    if (concentration <= 250) return 'rgba(143, 63, 151, 0.6)';    // Very Unhealthy - Purple
+    return 'rgba(126, 0, 35, 0.8)';                                // Hazardous - Maroon
   }
 
   // Convert smoke class description to AQI category

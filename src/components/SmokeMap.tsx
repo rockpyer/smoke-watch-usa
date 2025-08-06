@@ -201,7 +201,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
     if (!map.current || !currentLayer) return;
 
     try {
-      console.log(`Adding NOAA smoke polygons with ${currentLayer.data.length} forecast areas`);
+      console.log(`Adding NOAA smoke polygons for ${currentLayer.timestamp.toISOString()} with ${currentLayer.data.length} forecast areas`);
       
       // Remove existing smoke layers if they exist
       if (map.current.getLayer('smoke-polygons')) {
@@ -235,7 +235,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         }
       });
 
-      // Add fill layer for smoke polygons with concentration-based coloring
+      // Add fill layer for smoke polygons with EPA AQI health-based coloring
       map.current.addLayer({
         id: 'smoke-polygons',
         type: 'fill',
@@ -243,23 +243,24 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         paint: {
           'fill-color': [
             'case',
-            ['<', ['get', 'concentration'], 12], 'rgba(34, 197, 94, 0.4)',
-            ['<', ['get', 'concentration'], 35], 'rgba(234, 179, 8, 0.5)',
-            ['<', ['get', 'concentration'], 55], 'rgba(249, 115, 22, 0.6)',
-            ['<', ['get', 'concentration'], 150], 'rgba(239, 68, 68, 0.7)',
-            'rgba(127, 29, 29, 0.8)'
+            ['<=', ['get', 'concentration'], 12], 'rgba(0, 228, 0, 0.6)',      // Good - Green
+            ['<=', ['get', 'concentration'], 35], 'rgba(255, 255, 0, 0.6)',    // Moderate - Yellow
+            ['<=', ['get', 'concentration'], 55], 'rgba(255, 126, 0, 0.6)',    // Unhealthy for Sensitive - Orange
+            ['<=', ['get', 'concentration'], 150], 'rgba(255, 0, 0, 0.6)',     // Unhealthy - Red  
+            ['<=', ['get', 'concentration'], 250], 'rgba(143, 63, 151, 0.6)',  // Very Unhealthy - Purple
+            'rgba(126, 0, 35, 0.8)'                                            // Hazardous - Maroon
           ],
           'fill-opacity': [
             'interpolate',
             ['linear'],
             ['get', 'concentration'],
-            0, 0.3,
+            0, 0.4,
             250, 0.8
           ]
         }
       });
 
-      // Add outline layer for better polygon definition
+      // Add outline layer for better polygon definition with matching colors
       map.current.addLayer({
         id: 'smoke-outlines',
         type: 'line',
@@ -267,11 +268,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         paint: {
           'line-color': [
             'case',
-            ['<', ['get', 'concentration'], 12], 'rgba(34, 197, 94, 0.8)',
-            ['<', ['get', 'concentration'], 35], 'rgba(234, 179, 8, 0.8)',
-            ['<', ['get', 'concentration'], 55], 'rgba(249, 115, 22, 0.8)',
-            ['<', ['get', 'concentration'], 150], 'rgba(239, 68, 68, 0.8)',
-            'rgba(127, 29, 29, 0.8)'
+            ['<=', ['get', 'concentration'], 12], 'rgba(0, 228, 0, 1)',        // Good - Green
+            ['<=', ['get', 'concentration'], 35], 'rgba(255, 255, 0, 1)',      // Moderate - Yellow
+            ['<=', ['get', 'concentration'], 55], 'rgba(255, 126, 0, 1)',      // Unhealthy for Sensitive - Orange
+            ['<=', ['get', 'concentration'], 150], 'rgba(255, 0, 0, 1)',       // Unhealthy - Red
+            ['<=', ['get', 'concentration'], 250], 'rgba(143, 63, 151, 1)',    // Very Unhealthy - Purple
+            'rgba(126, 0, 35, 1)'                                              // Hazardous - Maroon
           ],
           'line-width': [
             'interpolate',
@@ -290,14 +292,42 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
           const feature = e.features[0];
           const props = feature.properties;
           
+          // Determine AQI category based on concentration
+          let aqiCategory = 'Good';
+          let healthAdvice = 'Air quality is good. Enjoy outdoor activities!';
+          
+          const concentration = props?.concentration || 0;
+          if (concentration > 250) {
+            aqiCategory = 'Hazardous';
+            healthAdvice = 'Health emergency. Avoid all outdoor activities.';
+          } else if (concentration > 150) {
+            aqiCategory = 'Very Unhealthy';
+            healthAdvice = 'Health alert. Avoid outdoor activities.';
+          } else if (concentration > 55) {
+            aqiCategory = 'Unhealthy';
+            healthAdvice = 'Everyone should limit outdoor activities.';
+          } else if (concentration > 35) {
+            aqiCategory = 'Unhealthy for Sensitive Groups';
+            healthAdvice = 'Sensitive individuals should limit outdoor activities.';
+          } else if (concentration > 12) {
+            aqiCategory = 'Moderate';
+            healthAdvice = 'Moderate air quality. Most people can continue normal activities.';
+          }
+          
           new mapboxgl.Popup()
             .setLngLat(e.lngLat)
             .setHTML(`
-              <div class="p-2">
-                <h4 class="font-semibold">NOAA Smoke Forecast</h4>
-                <p class="text-sm">Level: ${props?.smoke_classdesc || 'Unknown'}</p>
-                <p class="text-sm">Concentration: ${props?.concentration || 0} μg/m³</p>
-                <p class="text-sm">Forecast Hour: ${props?.forecast_hour || 0}</p>
+              <div class="p-3">
+                <h4 class="font-semibold text-lg">NOAA Smoke Forecast</h4>
+                <div class="mt-2 space-y-1">
+                  <p class="text-sm"><strong>Air Quality:</strong> ${aqiCategory}</p>
+                  <p class="text-sm"><strong>Concentration:</strong> ${concentration} μg/m³</p>
+                  <p class="text-sm"><strong>Level:</strong> ${props?.smoke_classdesc || 'Unknown'}</p>
+                  <p class="text-sm"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
+                </div>
+                <div class="mt-3 p-2 bg-gray-50 rounded">
+                  <p class="text-xs text-gray-600">${healthAdvice}</p>
+                </div>
               </div>
             `)
             .addTo(map.current!);
@@ -539,8 +569,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
         {isMapLoaded ? (
           currentLayer ? 
-            `Displaying NOAA smoke forecast with ${currentLayer.data.length} polygon areas` :
-            "Click anywhere on the map or search for a location to view smoke forecasts"
+            `Showing NOAA smoke forecast for ${currentLayer.timestamp.toLocaleString()} with ${currentLayer.data.length} polygon areas` :
+            "No smoke forecast data available for selected time"
         ) : (
           "Loading NOAA smoke forecast data..."
         )}
