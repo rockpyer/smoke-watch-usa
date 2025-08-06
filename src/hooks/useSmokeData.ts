@@ -48,7 +48,13 @@ export const useSmokeData = (selectedTime?: Date) => {
 
   // Update current layer based on selected time
   useEffect(() => {
-    if (!selectedTime || smokeLayers.length === 0) return;
+    if (!selectedTime || smokeLayers.length === 0) {
+      console.log('Time sync skipped - selectedTime:', selectedTime?.toISOString(), 'layers:', smokeLayers.length);
+      return;
+    }
+    
+    console.log('Finding closest layer for selectedTime:', selectedTime.toISOString());
+    console.log('Available layer timestamps:', smokeLayers.map((layer, i) => `${i}: ${layer.timestamp.toISOString()}`));
     
     // Find the closest layer to the selected time
     let closestIndex = 0;
@@ -61,6 +67,9 @@ export const useSmokeData = (selectedTime?: Date) => {
         closestIndex = i;
       }
     }
+    
+    console.log(`Selected layer ${closestIndex} (${smokeLayers[closestIndex].timestamp.toISOString()}) for time ${selectedTime.toISOString()}`);
+    console.log(`Time difference: ${minDiff / 1000 / 60} minutes`);
     
     setCurrentLayerIndex(closestIndex);
   }, [selectedTime, smokeLayers]);
@@ -89,7 +98,11 @@ export const useSmokeData = (selectedTime?: Date) => {
   }, [fetchData]);
 
   const getCurrentLayer = (): SmokeLayer | null => {
-    return smokeLayers[currentLayerIndex] || null;
+    const layer = smokeLayers[currentLayerIndex] || null;
+    if (layer) {
+      console.log(`getCurrentLayer: Returning layer ${currentLayerIndex} with ${layer.data.length} polygons for time ${layer.timestamp.toISOString()}`);
+    }
+    return layer;
   };
 
   const playAnimation = () => {

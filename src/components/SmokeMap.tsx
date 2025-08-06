@@ -198,10 +198,13 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   }, [showTokenInput, mapboxToken, initializeMap]);
 
   const addSmokeLayer = useCallback(() => {
-    if (!map.current || !currentLayer) return;
+    if (!map.current || !currentLayer) {
+      console.log('addSmokeLayer skipped - map loaded:', !!map.current, 'currentLayer:', !!currentLayer);
+      return;
+    }
 
     try {
-      console.log(`Adding NOAA smoke polygons for ${currentLayer.timestamp.toISOString()} with ${currentLayer.data.length} forecast areas`);
+      console.log(`🗺️ MAP UPDATE: Adding NOAA smoke polygons for ${currentLayer.timestamp.toISOString()} with ${currentLayer.data.length} forecast areas`);
       
       // Remove existing smoke layers if they exist
       if (map.current.getLayer('smoke-polygons')) {
@@ -218,6 +221,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       const validPolygons = currentLayer.data.filter(polygon => 
         polygon.properties.concentration_ugm3 > 0
       );
+      
+      console.log(`Filtered ${currentLayer.data.length} down to ${validPolygons.length} valid polygons (removing 0 concentration)`);
 
       const features = validPolygons.map(polygon => ({
         type: 'Feature' as const,
@@ -363,15 +368,17 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         map.current!.getCanvas().style.cursor = '';
       });
 
-      console.log('NOAA smoke polygon layers added successfully');
+      console.log('✅ NOAA smoke polygon layers added successfully');
     } catch (error) {
-      console.error('Error adding NOAA smoke layers:', error);
+      console.error('❌ Error adding NOAA smoke layers:', error);
     }
-  }, [currentLayer]);
+  }, [currentLayer, onLocationSelect]);
 
   // Update smoke layer when data changes
   useEffect(() => {
+    console.log('🔄 MAP EFFECT: isMapLoaded:', isMapLoaded, 'currentLayer time:', currentLayer?.timestamp.toISOString());
     if (isMapLoaded && currentLayer) {
+      console.log('📍 Triggering addSmokeLayer for time:', currentLayer.timestamp.toISOString());
       addSmokeLayer();
     }
   }, [isMapLoaded, currentLayer, addSmokeLayer]);
