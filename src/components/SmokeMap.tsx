@@ -5,14 +5,19 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
-import { useSmokeData } from '@/hooks/useSmokeData';
+
+interface SmokeLayer {
+  timestamp: Date;
+  data: any[];
+}
 
 interface SmokeMapProps {
   onLocationSelect?: (coordinates: [number, number], locationName: string, smokeData?: any) => void;
   selectedTime?: Date;
+  currentLayer?: SmokeLayer | null;
 }
 
-const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) => {
+const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, currentLayer }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
@@ -24,8 +29,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   const [isInitializing, setIsInitializing] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Use the smoke data hook
-  const { currentLayer, isLoading: isSmokeLoading } = useSmokeData(selectedTime);
+  // Add loading state for when we don't have a current layer
+  const isSmokeLoading = !currentLayer;
 
   // Load token from localStorage on mount
   useEffect(() => {

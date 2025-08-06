@@ -14,14 +14,20 @@ const Index = () => {
   } | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | undefined>();
   
-  const { smokeLayers } = useSmokeData(selectedTime);
+  const { smokeLayers, currentLayer } = useSmokeData(selectedTime);
+  
+  console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
+  console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp.toISOString() || 'undefined'}`);
+  console.log(`🏠 INDEX: smokeLayers count: ${smokeLayers.length}`);
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
   };
 
   const handleTimeChange = (time: Date, index: number) => {
+    console.log(`🏠 INDEX: handleTimeChange called with time: ${time.toISOString()}, index: ${index}`);
     setSelectedTime(time);
+    console.log(`🏠 INDEX: selectedTime state updated to: ${time.toISOString()}`);
   };
 
   return (
@@ -49,6 +55,7 @@ const Index = () => {
             <SmokeMap 
               onLocationSelect={handleLocationSelect}
               selectedTime={selectedTime}
+              currentLayer={currentLayer}
             />
           </div>
 
