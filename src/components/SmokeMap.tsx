@@ -201,34 +201,33 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
     if (!map.current || !currentLayer) return;
 
     try {
-      console.log(`Adding smoke layer with ${currentLayer.data.length} data points`);
+      console.log(`Adding NOAA smoke polygons with ${currentLayer.data.length} forecast areas`);
       
       // Remove existing smoke layers if they exist
-      if (map.current.getLayer('smoke-layer')) {
-        map.current.removeLayer('smoke-layer');
+      if (map.current.getLayer('smoke-polygons')) {
+        map.current.removeLayer('smoke-polygons');
       }
-      if (map.current.getLayer('smoke-outline')) {
-        map.current.removeLayer('smoke-outline');
+      if (map.current.getLayer('smoke-outlines')) {
+        map.current.removeLayer('smoke-outlines');
       }
-      if (map.current.getSource('smoke-data')) {
-        map.current.removeSource('smoke-data');
+      if (map.current.getSource('smoke-forecast-data')) {
+        map.current.removeSource('smoke-forecast-data');
       }
 
-      // Convert smoke data points to GeoJSON features
-      const features = currentLayer.data.map(point => ({
+      // Convert NOAA polygon data to GeoJSON features
+      const features = currentLayer.data.map(polygon => ({
         type: 'Feature' as const,
         properties: { 
-          intensity: point.intensity,
-          aqi: Math.floor(point.intensity * 300)
+          smoke_class: polygon.properties.smoke_class,
+          smoke_classdesc: polygon.properties.smoke_classdesc,
+          concentration: polygon.properties.concentration_ugm3,
+          forecast_hour: polygon.properties.forecast_hour
         },
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [point.lng, point.lat]
-        }
+        geometry: polygon.geometry
       }));
 
-      // Add source with current smoke data
-      map.current.addSource('smoke-data', {
+      // Add source with NOAA smoke forecast polygons
+      map.current.addSource('smoke-forecast-data', {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
@@ -236,87 +235,87 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         }
       });
 
-      // Add heatmap layer for smoke visualization
+      // Add fill layer for smoke polygons with concentration-based coloring
       map.current.addLayer({
-        id: 'smoke-layer',
-        type: 'heatmap',
-        source: 'smoke-data',
-        maxzoom: 12,
+        id: 'smoke-polygons',
+        type: 'fill',
+        source: 'smoke-forecast-data',
         paint: {
-          'heatmap-weight': {
-            property: 'intensity',
-            type: 'exponential',
-            stops: [
-              [0, 0],
-              [1, 1]
-            ]
-          },
-          'heatmap-intensity': {
-            stops: [
-              [0, 1],
-              [12, 3]
-            ]
-          },
-          'heatmap-color': [
+          'fill-color': [
+            'case',
+            ['<', ['get', 'concentration'], 12], 'rgba(34, 197, 94, 0.4)',
+            ['<', ['get', 'concentration'], 35], 'rgba(234, 179, 8, 0.5)',
+            ['<', ['get', 'concentration'], 55], 'rgba(249, 115, 22, 0.6)',
+            ['<', ['get', 'concentration'], 150], 'rgba(239, 68, 68, 0.7)',
+            'rgba(127, 29, 29, 0.8)'
+          ],
+          'fill-opacity': [
             'interpolate',
             ['linear'],
-            ['heatmap-density'],
-            0, 'rgba(0, 0, 255, 0)',
-            0.1, 'rgba(34, 197, 94, 0.4)',
-            0.3, 'rgba(234, 179, 8, 0.5)',
-            0.5, 'rgba(249, 115, 22, 0.6)',
-            0.7, 'rgba(239, 68, 68, 0.7)',
-            1, 'rgba(127, 29, 29, 0.9)'
-          ],
-          'heatmap-radius': {
-            stops: [
-              [0, 20],
-              [12, 40]
-            ]
-          },
-          'heatmap-opacity': {
-            default: 0.8,
-            stops: [
-              [0, 0.8],
-              [12, 0.6]
-            ]
-          }
+            ['get', 'concentration'],
+            0, 0.3,
+            250, 0.8
+          ]
         }
       });
 
-      // Add circle layer for higher zoom levels
+      // Add outline layer for better polygon definition
       map.current.addLayer({
-        id: 'smoke-points',
-        type: 'circle',
-        source: 'smoke-data',
-        minzoom: 10,
+        id: 'smoke-outlines',
+        type: 'line',
+        source: 'smoke-forecast-data',
         paint: {
-          'circle-radius': {
-            property: 'intensity',
-            type: 'exponential',
-            stops: [
-              [0, 5],
-              [1, 20]
-            ]
-          },
-          'circle-color': [
+          'line-color': [
             'case',
-            ['<', ['get', 'intensity'], 0.2], 'rgba(34, 197, 94, 0.6)',
-            ['<', ['get', 'intensity'], 0.4], 'rgba(234, 179, 8, 0.7)',
-            ['<', ['get', 'intensity'], 0.6], 'rgba(249, 115, 22, 0.8)',
-            ['<', ['get', 'intensity'], 0.8], 'rgba(239, 68, 68, 0.9)',
-            'rgba(127, 29, 29, 0.95)'
+            ['<', ['get', 'concentration'], 12], 'rgba(34, 197, 94, 0.8)',
+            ['<', ['get', 'concentration'], 35], 'rgba(234, 179, 8, 0.8)',
+            ['<', ['get', 'concentration'], 55], 'rgba(249, 115, 22, 0.8)',
+            ['<', ['get', 'concentration'], 150], 'rgba(239, 68, 68, 0.8)',
+            'rgba(127, 29, 29, 0.8)'
           ],
-          'circle-opacity': 0.7,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-opacity': 0.5
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            5, 1,
+            10, 2
+          ],
+          'line-opacity': 0.8
         }
       });
 
-      console.log('Smoke layers added successfully');
+      // Add click handler for polygon information
+      map.current.on('click', 'smoke-polygons', (e) => {
+        if (e.features && e.features[0]) {
+          const feature = e.features[0];
+          const props = feature.properties;
+          
+          new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="p-2">
+                <h4 class="font-semibold">NOAA Smoke Forecast</h4>
+                <p class="text-sm">Level: ${props?.smoke_classdesc || 'Unknown'}</p>
+                <p class="text-sm">Concentration: ${props?.concentration || 0} μg/m³</p>
+                <p class="text-sm">Forecast Hour: ${props?.forecast_hour || 0}</p>
+              </div>
+            `)
+            .addTo(map.current!);
+        }
+      });
+
+      // Change cursor on hover
+      map.current.on('mouseenter', 'smoke-polygons', () => {
+        map.current!.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.current.on('mouseleave', 'smoke-polygons', () => {
+        map.current!.getCanvas().style.cursor = '';
+      });
+
+      console.log('NOAA smoke polygon layers added successfully');
     } catch (error) {
-      console.error('Error adding smoke layers:', error);
+      console.error('Error adding NOAA smoke layers:', error);
     }
   }, [currentLayer]);
 
@@ -492,9 +491,9 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
             <div className="text-center">
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
               <p className="text-sm text-muted-foreground">
-                {isInitializing ? 'Initializing map...' : isSmokeLoading ? 'Loading smoke data...' : 'Loading map...'}
+                {isInitializing ? 'Initializing map...' : isSmokeLoading ? 'Loading NOAA smoke forecast...' : 'Loading map...'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">This may take a few moments</p>
+              <p className="text-xs text-muted-foreground mt-1">Fetching real government data</p>
             </div>
           </Card>
         </div>
@@ -540,10 +539,10 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
         {isMapLoaded ? (
           currentLayer ? 
-            `Displaying live smoke data with ${currentLayer.data.length} monitoring points` :
+            `Displaying NOAA smoke forecast with ${currentLayer.data.length} polygon areas` :
             "Click anywhere on the map or search for a location to view smoke forecasts"
         ) : (
-          "Loading map..."
+          "Loading NOAA smoke forecast data..."
         )}
       </div>
 

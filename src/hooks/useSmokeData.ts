@@ -2,16 +2,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { smokeDataService } from '@/services/smokeDataService';
 
-interface SmokeDataPoint {
-  lat: number;
-  lng: number;
-  intensity: number;
-  timestamp: Date;
+interface SmokePolygon {
+  geometry: {
+    type: 'Polygon';
+    coordinates: number[][][];
+  };
+  properties: {
+    smoke_class: number;
+    smoke_classdesc: string;
+    concentration_ugm3: number;
+    forecast_hour: string;
+    valid_time: string;
+  };
 }
 
 interface SmokeLayer {
   timestamp: Date;
-  data: SmokeDataPoint[];
+  data: SmokePolygon[];
 }
 
 export const useSmokeData = (selectedTime?: Date) => {
@@ -27,13 +34,13 @@ export const useSmokeData = (selectedTime?: Date) => {
     setError(null);
     
     try {
-      console.log('Fetching smoke data...');
+      console.log('Fetching NOAA smoke polygon data...');
       const data = await smokeDataService.fetchSmokeData();
       setSmokeLayers(data);
-      console.log(`Loaded ${data.length} smoke layers`);
+      console.log(`Loaded ${data.length} smoke forecast layers with polygons`);
     } catch (err) {
-      console.error('Failed to fetch smoke data:', err);
-      setError('Failed to load smoke data');
+      console.error('Failed to fetch NOAA smoke data:', err);
+      setError('Failed to load NOAA smoke forecast data');
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +78,7 @@ export const useSmokeData = (selectedTime?: Date) => {
         }
         return next;
       });
-    }, 200); // 200ms per frame for smooth animation
+    }, 1000); // 1 second per frame for forecast animation
     
     return () => clearInterval(interval);
   }, [isPlaying, smokeLayers.length]);

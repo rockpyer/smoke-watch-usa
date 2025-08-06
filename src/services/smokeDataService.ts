@@ -1,20 +1,44 @@
 
-interface SmokeDataPoint {
-  lat: number;
-  lng: number;
-  intensity: number;
-  timestamp: Date;
+interface SmokePolygon {
+  geometry: {
+    type: 'Polygon';
+    coordinates: number[][][];
+  };
+  properties: {
+    smoke_class: number;
+    smoke_classdesc: string;
+    concentration_ugm3: number;
+    forecast_hour: string;
+    valid_time: string;
+  };
 }
 
 interface SmokeLayer {
   timestamp: Date;
-  data: SmokeDataPoint[];
+  data: SmokePolygon[];
+}
+
+interface ArcGISFeature {
+  geometry: {
+    rings: number[][];
+  };
+  attributes: {
+    smoke_class: number;
+    smoke_classdesc: string;
+    forecast_hour: string;
+    valid_time: string;
+  };
+}
+
+interface ArcGISResponse {
+  features: ArcGISFeature[];
 }
 
 export class SmokeDataService {
   private static instance: SmokeDataService;
   private cache = new Map<string, SmokeLayer[]>();
   private readonly CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+  private readonly ARCGIS_ENDPOINT = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/NDGD_SmokeForecast_v1/FeatureServer/0';
 
   static getInstance(): SmokeDataService {
     if (!SmokeDataService.instance) {
@@ -24,106 +48,131 @@ export class SmokeDataService {
   }
 
   async fetchSmokeData(): Promise<SmokeLayer[]> {
-    const cacheKey = 'current_smoke_data';
+    const cacheKey = 'noaa_smoke_forecast';
     const cached = this.cache.get(cacheKey);
     
     if (cached && this.isCacheValid(cacheKey)) {
-      console.log('Returning cached smoke data');
+      console.log('Returning cached NOAA smoke data');
       return cached;
     }
 
     try {
-      console.log('Fetching fresh smoke data from NOAA...');
+      console.log('Fetching NOAA smoke forecast data...');
       
-      // Try multiple NOAA endpoints for smoke data
-      const endpoints = [
-        'https://tgftp.nws.noaa.gov/SL.us008001/ST.opnl/DF.gr2/DC.ndgd/GT.aq/AR.conus/ds.smokes01.bin',
-        'https://nomads.ncep.noaa.gov/pub/data/nccf/com/hrrr/prod/',
-        'https://www.ready.noaa.gov/data/archives/'
-      ];
+      // Query ArcGIS FeatureServer for next 48 hours of smoke forecasts
+      const queryParams = new URLSearchParams({
+        'f': 'json',
+        'where': '1=1',
+        'outFields': '*',
+        'returnGeometry': 'true',
+        'spatialRel': 'esriSpatialRelIntersects',
+        'geometryType': 'esriGeometryEnvelope',
+        'inSR': '4326',
+        'outSR': '4326'
+      });
 
-      // Since the NOAA binary data requires special parsing, we'll use a proxy approach
-      // or generate realistic simulation data based on current fire activity
-      const smokeData = await this.generateRealisticSmokeData();
+      const response = await fetch(`${this.ARCGIS_ENDPOINT}/query?${queryParams}`);
       
+      if (!response.ok) {
+        throw new Error(`ArcGIS API error: ${response.status}`);
+      }
+
+      const data: ArcGISResponse = await response.json();
+      console.log(`Received ${data.features.length} smoke forecast polygons`);
+      
+      const smokeData = this.processArcGISData(data);
       this.cache.set(cacheKey, smokeData);
       return smokeData;
       
     } catch (error) {
-      console.error('Error fetching smoke data:', error);
+      console.error('Error fetching NOAA smoke data:', error);
       // Return fallback data if API fails
       return this.generateFallbackSmokeData();
     }
   }
 
-  private async generateRealisticSmokeData(): Promise<SmokeLayer[]> {
-    // Generate realistic smoke data based on known wildfire-prone areas
+  private processArcGISData(data: ArcGISResponse): SmokeLayer[] {
+    const layerMap = new Map<string, SmokePolygon[]>();
+    
+    // Group features by forecast time
+    data.features.forEach(feature => {
+      const validTime = feature.attributes.valid_time || new Date().toISOString();
+      const forecastHour = feature.attributes.forecast_hour || '0';
+      const key = `${validTime}_${forecastHour}`;
+      
+      if (!layerMap.has(key)) {
+        layerMap.set(key, []);
+      }
+
+      // Convert ArcGIS ring geometry to GeoJSON polygon
+      const polygon: SmokePolygon = {
+        geometry: {
+          type: 'Polygon',
+          coordinates: [feature.geometry.rings[0] || []]
+        },
+        properties: {
+          smoke_class: feature.attributes.smoke_class || 1,
+          smoke_classdesc: feature.attributes.smoke_classdesc || 'Light',
+          concentration_ugm3: this.smokeClassToConcentration(feature.attributes.smoke_class),
+          forecast_hour: feature.attributes.forecast_hour || '0',
+          valid_time: feature.attributes.valid_time || new Date().toISOString()
+        }
+      };
+
+      layerMap.get(key)!.push(polygon);
+    });
+
+    // Convert to time-ordered layers
     const layers: SmokeLayer[] = [];
-    const baseTime = new Date();
-    
-    // Create 24 time layers (hourly for next 24 hours)
-    for (let hour = 0; hour < 24; hour++) {
-      const timestamp = new Date(baseTime.getTime() + hour * 60 * 60 * 1000);
-      const data: SmokeDataPoint[] = [];
-      
-      // California wildfires simulation
-      this.addSmokeCluster(data, -121.0, 38.5, 0.8 - (hour * 0.02), 50);
-      this.addSmokeCluster(data, -119.5, 37.2, 0.6 - (hour * 0.01), 35);
-      
-      // Oregon/Washington smoke
-      this.addSmokeCluster(data, -122.3, 45.5, 0.7 - (hour * 0.015), 40);
-      
-      // Colorado fires
-      this.addSmokeCluster(data, -105.8, 39.2, 0.5 - (hour * 0.01), 25);
-      
-      // Montana/Idaho smoke
-      this.addSmokeCluster(data, -114.0, 47.0, 0.4 - (hour * 0.008), 30);
-      
-      layers.push({ timestamp, data });
-    }
-    
+    Array.from(layerMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([timeKey, polygons]) => {
+        const timestamp = new Date(polygons[0]?.properties.valid_time || Date.now());
+        layers.push({ timestamp, data: polygons });
+      });
+
     return layers;
   }
 
-  private addSmokeCluster(data: SmokeDataPoint[], centerLng: number, centerLat: number, baseIntensity: number, radius: number) {
-    // Create a realistic smoke plume cluster
-    const points = Math.floor(Math.random() * 50) + 20; // 20-70 points per cluster
-    
-    for (let i = 0; i < points; i++) {
-      // Generate points in a realistic smoke plume pattern (elliptical, wind-dispersed)
-      const angle = Math.random() * Math.PI * 2;
-      const distance = Math.random() * radius;
-      const windOffset = Math.random() * 0.3; // Simulate wind dispersion
-      
-      const lat = centerLat + (Math.sin(angle) * distance * 0.01) + (windOffset * 0.1);
-      const lng = centerLng + (Math.cos(angle) * distance * 0.01) + (windOffset * 0.2);
-      
-      // Intensity decreases with distance from center
-      const distanceFactor = 1 - (distance / radius);
-      const intensity = Math.max(0, baseIntensity * distanceFactor * (0.5 + Math.random() * 0.5));
-      
-      if (intensity > 0.1) { // Only include significant smoke
-        data.push({
-          lat,
-          lng,
-          intensity,
-          timestamp: new Date()
-        });
-      }
+  private smokeClassToConcentration(smokeClass: number): number {
+    // Convert smoke class to approximate μg/m³ concentration
+    switch (smokeClass) {
+      case 1: return 12;   // Light smoke
+      case 2: return 35;   // Moderate smoke
+      case 3: return 55;   // Heavy smoke
+      case 4: return 150;  // Very heavy smoke
+      case 5: return 250;  // Extreme smoke
+      default: return 0;
     }
   }
 
   private generateFallbackSmokeData(): SmokeLayer[] {
-    // Simple fallback data for when APIs are unavailable
+    // Generate fallback polygon data for when API is unavailable
     const layers: SmokeLayer[] = [];
     const baseTime = new Date();
     
-    for (let hour = 0; hour < 12; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
       const timestamp = new Date(baseTime.getTime() + hour * 60 * 60 * 1000);
-      const data: SmokeDataPoint[] = [
-        { lat: 39.7392, lng: -104.9903, intensity: 0.6, timestamp }, // Denver
-        { lat: 37.7749, lng: -122.4194, intensity: 0.8, timestamp }, // San Francisco
-        { lat: 45.5152, lng: -122.6784, intensity: 0.5, timestamp }, // Portland
+      const data: SmokePolygon[] = [
+        {
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[
+              [-122.5, 37.7],
+              [-122.3, 37.7],
+              [-122.3, 37.9],
+              [-122.5, 37.9],
+              [-122.5, 37.7]
+            ]]
+          },
+          properties: {
+            smoke_class: 2,
+            smoke_classdesc: 'Moderate',
+            concentration_ugm3: 35,
+            forecast_hour: hour.toString(),
+            valid_time: timestamp.toISOString()
+          }
+        }
       ];
       layers.push({ timestamp, data });
     }
@@ -132,22 +181,29 @@ export class SmokeDataService {
   }
 
   private isCacheValid(key: string): boolean {
-    // Simple cache validation - in real app, you'd check timestamps
-    return false; // Always fetch fresh for now
+    // For now, always fetch fresh data to get latest forecasts
+    return false;
   }
 
-  // Convert smoke intensity to AQI-like scale
-  intensityToAQI(intensity: number): number {
-    return Math.floor(intensity * 300); // Scale 0-1 intensity to 0-300 AQI
+  // Convert concentration to color for visualization
+  getConcentrationColor(concentration: number): string {
+    if (concentration < 12) return 'rgba(34, 197, 94, 0.4)';      // Good - green
+    if (concentration < 35) return 'rgba(234, 179, 8, 0.5)';      // Moderate - yellow
+    if (concentration < 55) return 'rgba(249, 115, 22, 0.6)';     // Unhealthy sensitive - orange
+    if (concentration < 150) return 'rgba(239, 68, 68, 0.7)';     // Unhealthy - red
+    return 'rgba(127, 29, 29, 0.8)';                              // Hazardous - maroon
   }
 
-  // Get color for smoke intensity
-  getIntensityColor(intensity: number): string {
-    if (intensity < 0.2) return 'rgba(34, 197, 94, 0.4)';      // Good - green
-    if (intensity < 0.4) return 'rgba(234, 179, 8, 0.5)';      // Moderate - yellow
-    if (intensity < 0.6) return 'rgba(249, 115, 22, 0.6)';     // Unhealthy sensitive - orange
-    if (intensity < 0.8) return 'rgba(239, 68, 68, 0.7)';      // Unhealthy - red
-    return 'rgba(127, 29, 29, 0.8)';                           // Hazardous - maroon
+  // Convert smoke class description to AQI category
+  getAQICategory(smokeClassDesc: string): string {
+    switch (smokeClassDesc.toLowerCase()) {
+      case 'light': return 'Good';
+      case 'moderate': return 'Moderate';
+      case 'heavy': return 'Unhealthy for Sensitive Groups';
+      case 'very heavy': return 'Unhealthy';
+      case 'extreme': return 'Very Unhealthy';
+      default: return 'Unknown';
+    }
   }
 }
 
