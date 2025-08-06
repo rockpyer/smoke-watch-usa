@@ -52,6 +52,14 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				smoke: {
+					good: 'hsl(var(--smoke-good))',
+					moderate: 'hsl(var(--smoke-moderate))',
+					'unhealthy-sensitive': 'hsl(var(--smoke-unhealthy-sensitive))',
+					unhealthy: 'hsl(var(--smoke-unhealthy))',
+					'very-unhealthy': 'hsl(var(--smoke-very-unhealthy))',
+					hazardous: 'hsl(var(--smoke-hazardous))'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -62,6 +70,10 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				}
+			},
+			backgroundImage: {
+				'sky-gradient': 'linear-gradient(180deg, hsl(var(--sky-gradient-start)), hsl(var(--sky-gradient-end)))',
+				'smoke-overlay': 'linear-gradient(45deg, hsl(var(--smoke-overlay)), transparent)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
