@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { useSmokeData } from '@/hooks/useSmokeData';
 
 interface SmokeMapProps {
   onLocationSelect?: (coordinates: [number, number], locationName: string) => void;
@@ -22,6 +23,9 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   const [mapError, setMapError] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use the smoke data hook
+  const { currentLayer, isLoading: isSmokeLoading } = useSmokeData(selectedTime);
 
   // Load token from localStorage on mount
   useEffect(() => {
@@ -58,7 +62,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       return;
     }
 
-    // Check container dimensions
     if (!checkContainerDimensions()) {
       console.log('Container not ready, retrying in 100ms...');
       setTimeout(() => initializeMap(), 100);
@@ -72,14 +75,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       
       mapboxgl.accessToken = mapboxToken;
       
-      // Clear any existing map
       if (map.current) {
         console.log('Removing existing map');
         map.current.remove();
         map.current = null;
       }
 
-      // Clear any existing timeout
       if (initTimeoutRef.current) {
         clearTimeout(initTimeoutRef.current);
       }
@@ -97,27 +98,22 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       });
 
       console.log('Map instance created, adding controls...');
-
-      // Add navigation controls
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
       let loadEventFired = false;
 
-      // Map load event
       map.current.on('load', () => {
         console.log('Map load event fired - setting loaded state');
         loadEventFired = true;
         setIsMapLoaded(true);
         setIsInitializing(false);
-        addSmokeLayer();
+        // addSmokeLayer will be called by useEffect when isMapLoaded becomes true
       });
 
-      // Style load event
       map.current.on('style.load', () => {
         console.log('Map style loaded');
       });
 
-      // Error handling
       map.current.on('error', (e) => {
         console.error('Map error event:', e.error);
         setIsInitializing(false);
@@ -131,18 +127,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         }
       });
 
-      // Force loaded state after timeout if load event doesn't fire
       initTimeoutRef.current = setTimeout(() => {
         console.log('Timeout reached - checking map state...');
         if (map.current && !loadEventFired) {
           console.log('Force loading map due to timeout');
           setIsMapLoaded(true);
           setIsInitializing(false);
-          addSmokeLayer();
         }
       }, 5000);
 
-      // Click handler
       map.current.on('click', (e) => {
         if (!isMapLoaded || !map.current) return;
         
@@ -186,7 +179,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   // Effect to initialize map when token changes
   useEffect(() => {
     if (!showTokenInput && mapboxToken) {
-      // Small delay to ensure container is ready
       const timer = setTimeout(() => {
         initializeMap();
       }, 100);
@@ -205,86 +197,135 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
     };
   }, [showTokenInput, mapboxToken, initializeMap]);
 
-  const addSmokeLayer = () => {
-    if (!map.current) return;
+  const addSmokeLayer = useCallback(() => {
+    if (!map.current || !currentLayer) return;
 
     try {
-      // Add sample smoke data
+      console.log(`Adding smoke layer with ${currentLayer.data.length} data points`);
+      
+      // Remove existing smoke layers if they exist
+      if (map.current.getLayer('smoke-layer')) {
+        map.current.removeLayer('smoke-layer');
+      }
+      if (map.current.getLayer('smoke-outline')) {
+        map.current.removeLayer('smoke-outline');
+      }
+      if (map.current.getSource('smoke-data')) {
+        map.current.removeSource('smoke-data');
+      }
+
+      // Convert smoke data points to GeoJSON features
+      const features = currentLayer.data.map(point => ({
+        type: 'Feature' as const,
+        properties: { 
+          intensity: point.intensity,
+          aqi: Math.floor(point.intensity * 300)
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [point.lng, point.lat]
+        }
+      }));
+
+      // Add source with current smoke data
       map.current.addSource('smoke-data', {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
-          features: generateSampleSmokeData()
+          features
         }
       });
 
+      // Add heatmap layer for smoke visualization
       map.current.addLayer({
         id: 'smoke-layer',
-        type: 'fill',
+        type: 'heatmap',
         source: 'smoke-data',
+        maxzoom: 12,
         paint: {
-          'fill-color': [
-            'case',
-            ['==', ['get', 'level'], 'good'], 'rgba(34, 197, 94, 0.3)',
-            ['==', ['get', 'level'], 'moderate'], 'rgba(234, 179, 8, 0.4)',
-            ['==', ['get', 'level'], 'unhealthy-sensitive'], 'rgba(249, 115, 22, 0.5)',
-            ['==', ['get', 'level'], 'unhealthy'], 'rgba(239, 68, 68, 0.6)',
-            ['==', ['get', 'level'], 'very-unhealthy'], 'rgba(190, 18, 60, 0.7)',
-            'rgba(127, 29, 29, 0.8)'
+          'heatmap-weight': {
+            property: 'intensity',
+            type: 'exponential',
+            stops: [
+              [0, 0],
+              [1, 1]
+            ]
+          },
+          'heatmap-intensity': {
+            stops: [
+              [0, 1],
+              [12, 3]
+            ]
+          },
+          'heatmap-color': [
+            'interpolate',
+            ['linear'],
+            ['heatmap-density'],
+            0, 'rgba(0, 0, 255, 0)',
+            0.1, 'rgba(34, 197, 94, 0.4)',
+            0.3, 'rgba(234, 179, 8, 0.5)',
+            0.5, 'rgba(249, 115, 22, 0.6)',
+            0.7, 'rgba(239, 68, 68, 0.7)',
+            1, 'rgba(127, 29, 29, 0.9)'
           ],
-          'fill-opacity': 0.7
+          'heatmap-radius': {
+            stops: [
+              [0, 20],
+              [12, 40]
+            ]
+          },
+          'heatmap-opacity': {
+            default: 0.8,
+            stops: [
+              [0, 0.8],
+              [12, 0.6]
+            ]
+          }
         }
       });
 
+      // Add circle layer for higher zoom levels
       map.current.addLayer({
-        id: 'smoke-outline',
-        type: 'line',
+        id: 'smoke-points',
+        type: 'circle',
         source: 'smoke-data',
+        minzoom: 10,
         paint: {
-          'line-color': '#ffffff',
-          'line-width': 1,
-          'line-opacity': 0.5
+          'circle-radius': {
+            property: 'intensity',
+            type: 'exponential',
+            stops: [
+              [0, 5],
+              [1, 20]
+            ]
+          },
+          'circle-color': [
+            'case',
+            ['<', ['get', 'intensity'], 0.2], 'rgba(34, 197, 94, 0.6)',
+            ['<', ['get', 'intensity'], 0.4], 'rgba(234, 179, 8, 0.7)',
+            ['<', ['get', 'intensity'], 0.6], 'rgba(249, 115, 22, 0.8)',
+            ['<', ['get', 'intensity'], 0.8], 'rgba(239, 68, 68, 0.9)',
+            'rgba(127, 29, 29, 0.95)'
+          ],
+          'circle-opacity': 0.7,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-opacity': 0.5
         }
       });
+
+      console.log('Smoke layers added successfully');
     } catch (error) {
       console.error('Error adding smoke layers:', error);
     }
-  };
+  }, [currentLayer]);
 
-  const generateSampleSmokeData = () => {
-    return [
-      {
-        type: 'Feature' as const,
-        properties: { level: 'moderate' },
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[
-            [-120, 35], [-118, 35], [-118, 37], [-120, 37], [-120, 35]
-          ]]
-        }
-      },
-      {
-        type: 'Feature' as const,
-        properties: { level: 'unhealthy-sensitive' },
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[
-            [-122, 38], [-120, 38], [-120, 40], [-122, 40], [-122, 38]
-          ]]
-        }
-      },
-      {
-        type: 'Feature' as const,
-        properties: { level: 'unhealthy' },
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[
-            [-115, 39], [-113, 39], [-113, 41], [-115, 41], [-115, 39]
-          ]]
-        }
-      }
-    ];
-  };
+  // Update smoke layer when data changes
+  useEffect(() => {
+    if (isMapLoaded && currentLayer) {
+      addSmokeLayer();
+    }
+  }, [isMapLoaded, currentLayer, addSmokeLayer]);
 
   const reverseGeocode = async (lng: number, lat: number) => {
     try {
@@ -352,7 +393,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       return;
     }
 
-    // Save valid token to localStorage
     localStorage.setItem('mapboxToken', trimmedToken);
     setMapError('');
     setShowTokenInput(false);
@@ -446,13 +486,13 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   return (
     <div className="relative w-full h-full">
       {/* Loading Indicator */}
-      {(isInitializing || !isMapLoaded) && (
+      {(isInitializing || !isMapLoaded || isSmokeLoading) && (
         <div className="absolute inset-0 bg-sky-gradient flex items-center justify-center z-20">
           <Card className="p-4">
             <div className="text-center">
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
               <p className="text-sm text-muted-foreground">
-                {isInitializing ? 'Initializing map...' : 'Loading map...'}
+                {isInitializing ? 'Initializing map...' : isSmokeLoading ? 'Loading smoke data...' : 'Loading map...'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">This may take a few moments</p>
             </div>
@@ -499,7 +539,9 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       {/* Map Instructions */}
       <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
         {isMapLoaded ? (
-          "Click anywhere on the map or search for a location to view smoke forecasts"
+          currentLayer ? 
+            `Displaying live smoke data with ${currentLayer.data.length} monitoring points` :
+            "Click anywhere on the map or search for a location to view smoke forecasts"
         ) : (
           "Loading map..."
         )}
