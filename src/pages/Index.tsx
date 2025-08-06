@@ -3,6 +3,7 @@ import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
 import LocationInfo from '@/components/LocationInfo';
+import { useSmokeData } from '@/hooks/useSmokeData';
 import { Cloud } from 'lucide-react';
 
 const Index = () => {
@@ -11,7 +12,9 @@ const Index = () => {
     name: string;
     smokeData?: any;
   } | null>(null);
-  const [selectedTime, setSelectedTime] = useState<Date>(new Date());
+  const [selectedTime, setSelectedTime] = useState<Date | undefined>();
+  
+  const { smokeLayers } = useSmokeData(selectedTime);
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
@@ -55,6 +58,7 @@ const Index = () => {
             <TimeControls 
               onTimeChange={handleTimeChange}
               autoPlay={false}
+              availableTimes={smokeLayers.map(layer => layer.timestamp)}
             />
 
             {/* Location Info */}

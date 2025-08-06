@@ -8,28 +8,37 @@ import { format, addHours } from 'date-fns';
 interface TimeControlsProps {
   onTimeChange?: (time: Date, index: number) => void;
   autoPlay?: boolean;
+  availableTimes?: Date[];
 }
 
-const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false }) => {
+const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [] }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [forecastTimes, setForecastTimes] = useState<Date[]>([]);
 
   useEffect(() => {
-    // Generate forecast times (current time + 72 hours, 3-hour intervals)
-    const times: Date[] = [];
-    const startTime = new Date();
-    startTime.setMinutes(0, 0, 0); // Round to nearest hour
-    
-    for (let i = 0; i <= 24; i++) { // 72 hours / 3 hour intervals = 24 steps
-      times.push(addHours(startTime, i * 3));
+    if (availableTimes.length > 0) {
+      // Use actual smoke data timestamps
+      console.log('🕐 TIME CONTROLS: Using available smoke data timestamps:', availableTimes.map(t => t.toISOString()));
+      setForecastTimes([...availableTimes]);
+    } else {
+      // Fallback: Generate forecast times (current time + 72 hours, 3-hour intervals)
+      console.log('🕐 TIME CONTROLS: No available times, generating fallback times');
+      const times: Date[] = [];
+      const startTime = new Date();
+      startTime.setMinutes(0, 0, 0); // Round to nearest hour
+      
+      for (let i = 0; i <= 24; i++) { // 72 hours / 3 hour intervals = 24 steps
+        times.push(addHours(startTime, i * 3));
+      }
+      
+      setForecastTimes(times);
     }
-    
-    setForecastTimes(times);
-  }, []);
+  }, [availableTimes]);
 
   useEffect(() => {
     if (forecastTimes.length > 0 && onTimeChange) {
+      console.log(`🕐 TIME CONTROLS: Setting selectedTime to ${forecastTimes[currentIndex].toISOString()} (index ${currentIndex})`);
       onTimeChange(forecastTimes[currentIndex], currentIndex);
     }
   }, [currentIndex, forecastTimes, onTimeChange]);
