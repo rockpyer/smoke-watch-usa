@@ -22,66 +22,70 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   const [mapError, setMapError] = useState<string>('');
 
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
+    if (!mapContainer.current || !mapboxToken) {
+      console.log('Map initialization skipped - container or token missing');
+      return;
+    }
 
     try {
-      console.log('Initializing map...');
+      console.log('Setting Mapbox token and initializing map...');
       mapboxgl.accessToken = mapboxToken;
       
-      // Force map container to have dimensions
-      if (mapContainer.current) {
-        mapContainer.current.style.width = '100%';
-        mapContainer.current.style.height = '100%';
+      // Clear any existing map
+      if (map.current) {
+        console.log('Removing existing map');
+        map.current.remove();
+        map.current = null;
       }
+
+      // Reset loading state
+      setIsMapLoaded(false);
+      setMapError('');
       
+      console.log('Creating new map instance...');
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/light-v11',
+        style: 'mapbox://styles/mapbox/streets-v12',
         center: [-98.5795, 39.8283],
         zoom: 4,
-        pitch: 0,
+        attributionControl: false
       });
 
+      console.log('Map instance created, adding controls...');
+
       // Add navigation controls
-      map.current.addControl(
-        new mapboxgl.NavigationControl({
-          visualizePitch: false,
-        }),
-        'top-right'
-      );
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-      // Add geolocate control
-      map.current.addControl(
-        new mapboxgl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true,
-          showUserHeading: true
-        }),
-        'top-right'
-      );
-
-      // Map events
+      // Map events with detailed logging
       map.current.on('load', () => {
-        console.log('Map loaded successfully');
+        console.log('Map load event fired - setting loaded state');
         setIsMapLoaded(true);
         addSmokeLayer();
       });
 
-      map.current.on('error', (e) => {
-        console.error('Map error:', e);
-        setMapError('Map failed to load. Please try refreshing.');
+      map.current.on('style.load', () => {
+        console.log('Map style loaded');
       });
 
-      // Timeout fallback - force load after 8 seconds
-      const timeout = setTimeout(() => {
-        if (!isMapLoaded && map.current) {
-          console.log('Forcing map load state due to timeout');
+      map.current.on('sourcedata', (e) => {
+        if (e.isSourceLoaded) {
+          console.log('Source data loaded:', e.sourceId);
+        }
+      });
+
+      map.current.on('error', (e) => {
+        console.error('Map error event:', e.error);
+        setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
+      });
+
+      // Force loaded state after 3 seconds if no load event
+      const forceLoadTimeout = setTimeout(() => {
+        console.log('Force loading map due to timeout');
+        if (map.current && !isMapLoaded) {
           setIsMapLoaded(true);
           addSmokeLayer();
         }
-      }, 8000);
+      }, 3000);
 
       // Click handler
       map.current.on('click', (e) => {
@@ -107,7 +111,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       });
 
       return () => {
-        clearTimeout(timeout);
+        clearTimeout(forceLoadTimeout);
         if (map.current) {
           map.current.remove();
           map.current = null;
