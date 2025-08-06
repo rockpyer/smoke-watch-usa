@@ -22,29 +22,16 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
   const [searchValue, setSearchValue] = useState('');
-  const [mapboxToken, setMapboxToken] = useState('');
-  const [showTokenInput, setShowTokenInput] = useState(true);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Hardcoded Mapbox token
+  const mapboxToken = 'pk.eyJ1IjoicnlndXltYXBzIiwiYSI6ImNtZTA3aHIxdTAxeDAybXBueDkxNXpyeG4ifQ.dso9vFYkY2QScoQ_4H86SQ';
+  
   // Add loading state for when we don't have a current layer
   const isSmokeLoading = !currentLayer;
-
-  // Load token from localStorage on mount
-  useEffect(() => {
-    const savedToken = localStorage.getItem('mapboxToken');
-    if (savedToken && validateToken(savedToken)) {
-      setMapboxToken(savedToken);
-      setShowTokenInput(false);
-    }
-  }, []);
-
-  // Validate Mapbox token format
-  const validateToken = (token: string): boolean => {
-    return token.startsWith('pk.') && token.length > 20;
-  };
 
   // Check if container has proper dimensions
   const checkContainerDimensions = useCallback((): boolean => {
@@ -57,13 +44,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
 
   // Initialize map with proper error handling
   const initializeMap = useCallback(async () => {
-    if (!mapContainer.current || !mapboxToken) {
-      console.log('Map initialization skipped - container or token missing');
-      return;
-    }
-
-    if (!validateToken(mapboxToken)) {
-      setMapError('Invalid Mapbox token format. Please check your token.');
+    if (!mapContainer.current) {
+      console.log('Map initialization skipped - container missing');
       return;
     }
 
@@ -179,19 +161,16 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         setMapError('Failed to initialize map. Please check your connection and try again.');
       }
     }
-  }, [mapboxToken, checkContainerDimensions]);
+  }, [checkContainerDimensions]);
 
-  // Effect to initialize map when token changes
+  // Effect to initialize map on mount
   useEffect(() => {
-    if (!showTokenInput && mapboxToken) {
-      const timer = setTimeout(() => {
-        initializeMap();
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-
+    const timer = setTimeout(() => {
+      initializeMap();
+    }, 100);
+    
     return () => {
+      clearTimeout(timer);
       if (initTimeoutRef.current) {
         clearTimeout(initTimeoutRef.current);
       }
@@ -200,7 +179,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         map.current = null;
       }
     };
-  }, [showTokenInput, mapboxToken, initializeMap]);
+  }, [initializeMap]);
 
   const addSmokeLayer = useCallback(() => {
     if (!map.current || !currentLayer) {
@@ -406,7 +385,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
   };
 
   const handleSearch = async () => {
-    if (!searchValue.trim() || !mapboxToken) return;
+    if (!searchValue.trim()) return;
 
     try {
       const response = await fetch(
@@ -445,78 +424,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
     }
   };
 
-  const handleTokenSubmit = () => {
-    const trimmedToken = mapboxToken.trim();
-    
-    if (!validateToken(trimmedToken)) {
-      setMapError('Invalid token format. Mapbox tokens should start with "pk." and be longer than 20 characters.');
-      return;
-    }
-
-    localStorage.setItem('mapboxToken', trimmedToken);
-    setMapError('');
-    setShowTokenInput(false);
-  };
-
   const handleRetry = () => {
     setMapError('');
     setIsMapLoaded(false);
     setIsInitializing(false);
-    if (showTokenInput) {
-      setShowTokenInput(false);
-    }
     initializeMap();
   };
-
-  const handleUseNewToken = () => {
-    localStorage.removeItem('mapboxToken');
-    setMapboxToken('');
-    setMapError('');
-    setShowTokenInput(true);
-    setIsMapLoaded(false);
-    setIsInitializing(false);
-    
-    if (map.current) {
-      map.current.remove();
-      map.current = null;
-    }
-  };
-
-  if (showTokenInput) {
-    return (
-      <div className="relative w-full h-full bg-sky-gradient flex items-center justify-center">
-        <Card className="p-6 max-w-md mx-4">
-          <div className="space-y-4">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-2">Enter Mapbox Token</h3>
-              <p className="text-sm text-muted-foreground">
-                Please enter your Mapbox public token to load the interactive map. 
-                Get yours at <a href="https://mapbox.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">mapbox.com</a>
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJ..."
-                value={mapboxToken}
-                onChange={(e) => setMapboxToken(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleTokenSubmit()}
-              />
-              {mapError && (
-                <div className="flex items-center space-x-2 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{mapError}</span>
-                </div>
-              )}
-              <Button onClick={handleTokenSubmit} className="w-full" disabled={!mapboxToken.trim()}>
-                Load Map
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
 
   if (mapError && !isInitializing) {
     return (
@@ -528,15 +441,10 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
               <h3 className="text-lg font-semibold">Map Error</h3>
             </div>
             <p className="text-sm text-muted-foreground">{mapError}</p>
-            <div className="flex flex-col space-y-2">
-              <Button onClick={handleRetry} variant="default" className="flex items-center space-x-2">
-                <RefreshCw className="h-4 w-4" />
-                <span>Retry</span>
-              </Button>
-              <Button onClick={handleUseNewToken} variant="outline">
-                Use Different Token
-              </Button>
-            </div>
+            <Button onClick={handleRetry} variant="default" className="flex items-center space-x-2">
+              <RefreshCw className="h-4 w-4" />
+              <span>Retry</span>
+            </Button>
           </div>
         </Card>
       </div>
@@ -606,20 +514,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
           "Loading NOAA smoke forecast data..."
         )}
       </div>
-
-      {/* Token management button */}
-      {isMapLoaded && (
-        <div className="absolute top-4 right-16 z-10">
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={handleUseNewToken}
-            className="bg-background/95 backdrop-blur-sm"
-          >
-            Change Token
-          </Button>
-        </div>
-      )}
     </div>
   );
 };
