@@ -39,8 +39,8 @@ const Index = () => {
             <div className="flex items-center space-x-2">
               <Cloud className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold text-foreground">USA Smoke Forecast</h1>
-                <p className="text-sm text-muted-foreground">Real-time wildfire smoke and air quality monitoring</p>
+                <h1 className="text-2xl font-bold text-foreground">North American Smoke Map</h1>
+                <p className="text-sm text-muted-foreground">Real-time wildfire smoke and air quality forecasting</p>
               </div>
             </div>
           </div>
