@@ -9,11 +9,12 @@ const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState<{
     coordinates: [number, number];
     name: string;
+    smokeData?: any;
   } | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date>(new Date());
 
-  const handleLocationSelect = (coordinates: [number, number], locationName: string) => {
-    setSelectedLocation({ coordinates, name: locationName });
+  const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
+    setSelectedLocation({ coordinates, name: locationName, smokeData });
   };
 
   const handleTimeChange = (time: Date, index: number) => {
@@ -61,6 +62,7 @@ const Index = () => {
               coordinates={selectedLocation?.coordinates}
               locationName={selectedLocation?.name}
               selectedTime={selectedTime}
+              smokeData={selectedLocation?.smokeData}
             />
 
             {/* Smoke Legend */}

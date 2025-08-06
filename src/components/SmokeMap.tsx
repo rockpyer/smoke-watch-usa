@@ -8,7 +8,7 @@ import { Search, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeData';
 
 interface SmokeMapProps {
-  onLocationSelect?: (coordinates: [number, number], locationName: string) => void;
+  onLocationSelect?: (coordinates: [number, number], locationName: string, smokeData?: any) => void;
   selectedTime?: Date;
 }
 
@@ -214,8 +214,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         map.current.removeSource('smoke-forecast-data');
       }
 
-      // Convert NOAA polygon data to GeoJSON features
-      const features = currentLayer.data.map(polygon => ({
+      // Filter out polygons with 0 concentration and convert to GeoJSON features
+      const validPolygons = currentLayer.data.filter(polygon => 
+        polygon.properties.concentration_ugm3 > 0
+      );
+
+      const features = validPolygons.map(polygon => ({
         type: 'Feature' as const,
         properties: { 
           smoke_class: polygon.properties.smoke_class,
@@ -313,6 +317,23 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
             aqiCategory = 'Moderate';
             healthAdvice = 'Moderate air quality. Most people can continue normal activities.';
           }
+
+          // Call onLocationSelect with the smoke data when clicking on polygon
+          if (onLocationSelect) {
+            reverseGeocode(e.lngLat.lng, e.lngLat.lat).then((locationName) => {
+              onLocationSelect(
+                [e.lngLat.lng, e.lngLat.lat], 
+                locationName,
+                {
+                  concentration: concentration,
+                  forecast_hour: props?.forecast_hour || '0',
+                  smoke_class: props?.smoke_class || 1,
+                  smoke_classdesc: props?.smoke_classdesc || '',
+                  valid_time: props?.valid_time || new Date().toISOString()
+                }
+              );
+            });
+          }
           
           new mapboxgl.Popup()
             .setLngLat(e.lngLat)
@@ -355,7 +376,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
     }
   }, [isMapLoaded, currentLayer, addSmokeLayer]);
 
-  const reverseGeocode = async (lng: number, lat: number) => {
+  const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
       const response = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}`
@@ -363,13 +384,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       const data = await response.json();
       
       if (data.features && data.features.length > 0) {
-        const placeName = data.features[0].place_name;
-        if (onLocationSelect) {
-          onLocationSelect([lng, lat], placeName);
-        }
+        return data.features[0].place_name;
       }
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     } catch (error) {
       console.error('Reverse geocoding failed:', error);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
   };
 
