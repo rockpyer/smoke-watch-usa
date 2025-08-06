@@ -18,19 +18,22 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   const [searchValue, setSearchValue] = useState('');
   const [mapboxToken, setMapboxToken] = useState('');
   const [showTokenInput, setShowTokenInput] = useState(true);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string>('');
 
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken) return;
 
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/satellite-streets-v12',
-      center: [-98.5795, 39.8283], // Center of USA
-      zoom: 4,
-      pitch: 0,
-    });
+    try {
+      mapboxgl.accessToken = mapboxToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/satellite-streets-v12',
+        center: [-98.5795, 39.8283], // Center of USA
+        zoom: 4,
+        pitch: 0,
+      });
 
     // Add navigation controls
     map.current.addControl(
@@ -40,49 +43,71 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       'top-right'
     );
 
-    // Add geolocate control
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
-        },
-        trackUserLocation: true,
-        showUserHeading: true
-      }),
-      'top-right'
-    );
+      // Add geolocate control
+      map.current.addControl(
+        new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true
+        }),
+        'top-right'
+      );
 
-    // Add click handler for location selection
-    map.current.on('click', (e) => {
-      const { lng, lat } = e.lngLat;
-      
-      // Remove existing marker
-      if (marker.current) {
-        marker.current.remove();
-      }
-      
-      // Add new marker
-      marker.current = new mapboxgl.Marker({
-        color: '#2563eb'
-      })
-        .setLngLat([lng, lat])
-        .addTo(map.current!);
+      // Map load event
+      map.current.on('load', () => {
+        console.log('Map loaded successfully');
+        setIsMapLoaded(true);
+        addSmokeLayer();
+      });
 
-      // Reverse geocode to get location name
-      reverseGeocode(lng, lat);
-      
-      if (onLocationSelect) {
-        onLocationSelect([lng, lat], `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-      }
-    });
+      // Map error event
+      map.current.on('error', (e) => {
+        console.error('Map error:', e);
+        setMapError('Failed to load map. Please check your Mapbox token.');
+      });
 
-    // Add smoke overlay when map loads
-    map.current.on('load', () => {
-      addSmokeLayer();
-    });
+      // Add click handler for location selection
+      map.current.on('click', (e) => {
+        if (!isMapLoaded) return;
+        
+        const { lng, lat } = e.lngLat;
+        
+        // Remove existing marker
+        if (marker.current) {
+          marker.current.remove();
+        }
+        
+        // Add new marker
+        marker.current = new mapboxgl.Marker({
+          color: '#2563eb'
+        })
+          .setLngLat([lng, lat])
+          .addTo(map.current!);
+
+        // Reverse geocode to get location name
+        reverseGeocode(lng, lat);
+        
+        if (onLocationSelect) {
+          onLocationSelect([lng, lat], `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        }
+      });
+
+      // Add smoke overlay when map loads
+      map.current.on('load', () => {
+        addSmokeLayer();
+      });
+
+    } catch (error) {
+      console.error('Failed to initialize map:', error);
+      setMapError('Failed to initialize map. Please check your Mapbox token and try again.');
+    }
 
     return () => {
-      map.current?.remove();
+      if (map.current) {
+        map.current.remove();
+      }
     };
   }, [mapboxToken]);
 
@@ -183,7 +208,10 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   };
 
   const handleSearch = async () => {
-    if (!searchValue.trim() || !mapboxToken) return;
+    if (!searchValue.trim() || !mapboxToken || !isMapLoaded) {
+      console.log('Search conditions not met:', { searchValue: !!searchValue.trim(), mapboxToken: !!mapboxToken, isMapLoaded });
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -200,22 +228,25 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
           marker.current.remove();
         }
         
-        // Add new marker
-        marker.current = new mapboxgl.Marker({
-          color: '#2563eb'
-        })
-          .setLngLat([lng, lat])
-          .addTo(map.current!);
+        // Only add marker if map is loaded and available
+        if (map.current && isMapLoaded) {
+          // Add new marker
+          marker.current = new mapboxgl.Marker({
+            color: '#2563eb'
+          })
+            .setLngLat([lng, lat])
+            .addTo(map.current);
 
-        // Fly to location
-        map.current?.flyTo({
-          center: [lng, lat],
-          zoom: 10,
-          duration: 2000
-        });
+          // Fly to location
+          map.current.flyTo({
+            center: [lng, lat],
+            zoom: 10,
+            duration: 2000
+          });
 
-        if (onLocationSelect) {
-          onLocationSelect([lng, lat], placeName);
+          if (onLocationSelect) {
+            onLocationSelect([lng, lat], placeName);
+          }
         }
       }
     } catch (error) {
@@ -226,6 +257,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   const handleTokenSubmit = () => {
     if (mapboxToken.trim()) {
       setShowTokenInput(false);
+      setMapError('');
     }
   };
 
@@ -259,8 +291,72 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
     );
   }
 
+  if (mapError) {
+    return (
+      <div className="relative w-full h-full bg-sky-gradient flex items-center justify-center">
+        <Card className="p-6 max-w-md mx-4 border-destructive">
+          <div className="space-y-4 text-center">
+            <h3 className="text-lg font-semibold text-destructive">Map Error</h3>
+            <p className="text-sm text-muted-foreground">{mapError}</p>
+            <Button 
+              onClick={() => {
+                setMapError('');
+                setShowTokenInput(true);
+              }} 
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (showTokenInput) {
+    return (
+      <div className="relative w-full h-full bg-sky-gradient flex items-center justify-center">
+        <Card className="p-6 max-w-md mx-4">
+          <div className="space-y-4">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-2">Enter Mapbox Token</h3>
+              <p className="text-sm text-muted-foreground">
+                Please enter your Mapbox public token to load the interactive map. 
+                Get yours at <a href="https://mapbox.com/" target="_blank" className="text-primary hover:underline">mapbox.com</a>
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJ..."
+                value={mapboxToken}
+                onChange={(e) => setMapboxToken(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleTokenSubmit()}
+              />
+              <Button onClick={handleTokenSubmit} className="w-full">
+                Load Map
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-full">
+      {/* Loading Indicator */}
+      {!isMapLoaded && (
+        <div className="absolute inset-0 bg-sky-gradient flex items-center justify-center z-20">
+          <Card className="p-4">
+            <div className="text-center">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Loading map...</p>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Search Controls */}
       <div className="absolute top-4 left-4 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border">
         <div className="flex items-center p-2">
@@ -272,9 +368,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              disabled={!isMapLoaded}
             />
           </div>
-          <Button size="sm" onClick={handleSearch} className="ml-2">
+          <Button 
+            size="sm" 
+            onClick={handleSearch} 
+            className="ml-2"
+            disabled={!isMapLoaded}
+          >
             <MapPin className="h-4 w-4" />
           </Button>
         </div>
@@ -285,7 +387,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       
       {/* Map Instructions */}
       <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
-        Click anywhere on the map or search for a location to view smoke forecasts
+        {isMapLoaded ? (
+          "Click anywhere on the map or search for a location to view smoke forecasts"
+        ) : (
+          "Loading map..."
+        )}
       </div>
     </div>
   );
