@@ -322,7 +322,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
                 <div class="mt-2 space-y-1">
                   <p class="text-sm"><strong>Air Quality:</strong> ${aqiCategory}</p>
                   <p class="text-sm"><strong>Concentration:</strong> ${concentration} μg/m³</p>
-                  <p class="text-sm"><strong>Level:</strong> ${props?.smoke_classdesc || 'Unknown'}</p>
                   <p class="text-sm"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
                 </div>
                 <div class="mt-3 p-2 bg-gray-50 rounded">

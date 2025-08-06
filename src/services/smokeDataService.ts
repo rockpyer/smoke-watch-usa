@@ -109,6 +109,21 @@ export class SmokeDataService {
         ring.map(coord => [coord[0], coord[1]]) // Ensure each coordinate is [lng, lat]
       );
 
+      // Extract concentration from smoke_classdesc (e.g., "63-158" -> 110.5 as midpoint)
+      const extractConcentration = (desc: string): number => {
+        if (!desc) return 0;
+        const match = desc.match(/(\d+)-(\d+)/);
+        if (match) {
+          const min = parseInt(match[1]);
+          const max = parseInt(match[2]);
+          return (min + max) / 2; // Use midpoint of range
+        }
+        const singleMatch = desc.match(/(\d+)/);
+        return singleMatch ? parseInt(singleMatch[1]) : 0;
+      };
+
+      const concentration = extractConcentration(feature.attributes.smoke_classdesc);
+
       const polygon: SmokePolygon = {
         geometry: {
           type: 'Polygon',
@@ -117,7 +132,7 @@ export class SmokeDataService {
         properties: {
           smoke_class: feature.attributes.smoke_class || 1,
           smoke_classdesc: feature.attributes.smoke_classdesc || 'Light',
-          concentration_ugm3: this.smokeClassToConcentration(feature.attributes.smoke_class),
+          concentration_ugm3: concentration,
           forecast_hour: feature.attributes.forecast_hour || '0',
           valid_time: feature.attributes.valid_time || new Date().toISOString()
         }
