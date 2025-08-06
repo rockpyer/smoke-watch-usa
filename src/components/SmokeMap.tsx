@@ -25,23 +25,30 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
     if (!mapContainer.current || !mapboxToken) return;
 
     try {
+      console.log('Initializing map...');
       mapboxgl.accessToken = mapboxToken;
+      
+      // Force map container to have dimensions
+      if (mapContainer.current) {
+        mapContainer.current.style.width = '100%';
+        mapContainer.current.style.height = '100%';
+      }
       
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/satellite-streets-v12',
-        center: [-98.5795, 39.8283], // Center of USA
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [-98.5795, 39.8283],
         zoom: 4,
         pitch: 0,
       });
 
-    // Add navigation controls
-    map.current.addControl(
-      new mapboxgl.NavigationControl({
-        visualizePitch: false,
-      }),
-      'top-right'
-    );
+      // Add navigation controls
+      map.current.addControl(
+        new mapboxgl.NavigationControl({
+          visualizePitch: false,
+        }),
+        'top-right'
+      );
 
       // Add geolocate control
       map.current.addControl(
@@ -55,38 +62,43 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         'top-right'
       );
 
-      // Map load event
+      // Map events
       map.current.on('load', () => {
         console.log('Map loaded successfully');
         setIsMapLoaded(true);
         addSmokeLayer();
       });
 
-      // Map error event
       map.current.on('error', (e) => {
         console.error('Map error:', e);
-        setMapError('Failed to load map. Please check your Mapbox token.');
+        setMapError('Map failed to load. Please try refreshing.');
       });
 
-      // Add click handler for location selection
+      // Timeout fallback - force load after 8 seconds
+      const timeout = setTimeout(() => {
+        if (!isMapLoaded && map.current) {
+          console.log('Forcing map load state due to timeout');
+          setIsMapLoaded(true);
+          addSmokeLayer();
+        }
+      }, 8000);
+
+      // Click handler
       map.current.on('click', (e) => {
-        if (!isMapLoaded) return;
+        if (!isMapLoaded || !map.current) return;
         
         const { lng, lat } = e.lngLat;
         
-        // Remove existing marker
         if (marker.current) {
           marker.current.remove();
         }
         
-        // Add new marker
         marker.current = new mapboxgl.Marker({
           color: '#2563eb'
         })
           .setLngLat([lng, lat])
-          .addTo(map.current!);
+          .addTo(map.current);
 
-        // Reverse geocode to get location name
         reverseGeocode(lng, lat);
         
         if (onLocationSelect) {
@@ -94,67 +106,66 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         }
       });
 
-      // Add smoke overlay when map loads
-      map.current.on('load', () => {
-        addSmokeLayer();
-      });
-
+      return () => {
+        clearTimeout(timeout);
+        if (map.current) {
+          map.current.remove();
+          map.current = null;
+        }
+      };
     } catch (error) {
       console.error('Failed to initialize map:', error);
-      setMapError('Failed to initialize map. Please check your Mapbox token and try again.');
+      setMapError('Failed to initialize map. Please check your connection and try again.');
     }
-
-    return () => {
-      if (map.current) {
-        map.current.remove();
-      }
-    };
   }, [mapboxToken]);
 
   const addSmokeLayer = () => {
     if (!map.current) return;
 
-    // Add a sample smoke data layer (in a real app, this would come from NOAA/weather APIs)
-    map.current.addSource('smoke-data', {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: generateSampleSmokeData()
-      }
-    });
+    try {
+      // Add sample smoke data
+      map.current.addSource('smoke-data', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: generateSampleSmokeData()
+        }
+      });
 
-    map.current.addLayer({
-      id: 'smoke-layer',
-      type: 'fill',
-      source: 'smoke-data',
-      paint: {
-        'fill-color': [
-          'case',
-          ['==', ['get', 'level'], 'good'], 'rgba(34, 197, 94, 0.3)',
-          ['==', ['get', 'level'], 'moderate'], 'rgba(234, 179, 8, 0.4)',
-          ['==', ['get', 'level'], 'unhealthy-sensitive'], 'rgba(249, 115, 22, 0.5)',
-          ['==', ['get', 'level'], 'unhealthy'], 'rgba(239, 68, 68, 0.6)',
-          ['==', ['get', 'level'], 'very-unhealthy'], 'rgba(190, 18, 60, 0.7)',
-          'rgba(127, 29, 29, 0.8)' // hazardous
-        ],
-        'fill-opacity': 0.7
-      }
-    });
+      map.current.addLayer({
+        id: 'smoke-layer',
+        type: 'fill',
+        source: 'smoke-data',
+        paint: {
+          'fill-color': [
+            'case',
+            ['==', ['get', 'level'], 'good'], 'rgba(34, 197, 94, 0.3)',
+            ['==', ['get', 'level'], 'moderate'], 'rgba(234, 179, 8, 0.4)',
+            ['==', ['get', 'level'], 'unhealthy-sensitive'], 'rgba(249, 115, 22, 0.5)',
+            ['==', ['get', 'level'], 'unhealthy'], 'rgba(239, 68, 68, 0.6)',
+            ['==', ['get', 'level'], 'very-unhealthy'], 'rgba(190, 18, 60, 0.7)',
+            'rgba(127, 29, 29, 0.8)'
+          ],
+          'fill-opacity': 0.7
+        }
+      });
 
-    map.current.addLayer({
-      id: 'smoke-outline',
-      type: 'line',
-      source: 'smoke-data',
-      paint: {
-        'line-color': '#ffffff',
-        'line-width': 1,
-        'line-opacity': 0.5
-      }
-    });
+      map.current.addLayer({
+        id: 'smoke-outline',
+        type: 'line',
+        source: 'smoke-data',
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': 1,
+          'line-opacity': 0.5
+        }
+      });
+    } catch (error) {
+      console.error('Error adding smoke layers:', error);
+    }
   };
 
   const generateSampleSmokeData = () => {
-    // Sample smoke data for demonstration
     return [
       {
         type: 'Feature' as const,
@@ -208,10 +219,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
   };
 
   const handleSearch = async () => {
-    if (!searchValue.trim() || !mapboxToken || !isMapLoaded) {
-      console.log('Search conditions not met:', { searchValue: !!searchValue.trim(), mapboxToken: !!mapboxToken, isMapLoaded });
-      return;
-    }
+    if (!searchValue.trim() || !mapboxToken) return;
 
     try {
       const response = await fetch(
@@ -223,21 +231,17 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
         const [lng, lat] = data.features[0].center;
         const placeName = data.features[0].place_name;
         
-        // Remove existing marker
         if (marker.current) {
           marker.current.remove();
         }
         
-        // Only add marker if map is loaded and available
-        if (map.current && isMapLoaded) {
-          // Add new marker
+        if (map.current) {
           marker.current = new mapboxgl.Marker({
             color: '#2563eb'
           })
             .setLngLat([lng, lat])
             .addTo(map.current);
 
-          // Fly to location
           map.current.flyTo({
             center: [lng, lat],
             zoom: 10,
@@ -313,36 +317,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
     );
   }
 
-  if (showTokenInput) {
-    return (
-      <div className="relative w-full h-full bg-sky-gradient flex items-center justify-center">
-        <Card className="p-6 max-w-md mx-4">
-          <div className="space-y-4">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-2">Enter Mapbox Token</h3>
-              <p className="text-sm text-muted-foreground">
-                Please enter your Mapbox public token to load the interactive map. 
-                Get yours at <a href="https://mapbox.com/" target="_blank" className="text-primary hover:underline">mapbox.com</a>
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJ..."
-                value={mapboxToken}
-                onChange={(e) => setMapboxToken(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleTokenSubmit()}
-              />
-              <Button onClick={handleTokenSubmit} className="w-full">
-                Load Map
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="relative w-full h-full">
       {/* Loading Indicator */}
@@ -352,6 +326,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
             <div className="text-center">
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
               <p className="text-sm text-muted-foreground">Loading map...</p>
+              <p className="text-xs text-muted-foreground mt-1">This may take a few moments</p>
             </div>
           </Card>
         </div>
@@ -368,14 +343,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-              disabled={!isMapLoaded}
             />
           </div>
           <Button 
             size="sm" 
             onClick={handleSearch} 
             className="ml-2"
-            disabled={!isMapLoaded}
           >
             <MapPin className="h-4 w-4" />
           </Button>
@@ -383,7 +356,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime }) =
       </div>
 
       {/* Map Container */}
-      <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
+      <div 
+        ref={mapContainer} 
+        className="absolute inset-0 rounded-lg" 
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          minHeight: '400px'
+        }} 
+      />
       
       {/* Map Instructions */}
       <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
