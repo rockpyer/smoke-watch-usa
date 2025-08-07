@@ -58,22 +58,12 @@ export class SmokeDataService {
     try {
       console.log('Fetching NOAA smoke forecast data...');
       
-      // Query for next 48 hours with proper date filtering
-      const now = new Date();
-      const fortyEightHoursLater = new Date(now.getTime() + (48 * 60 * 60 * 1000));
-      
-      // Convert to Unix timestamps (seconds since epoch) as expected by ArcGIS
-      const nowTimestamp = Math.floor(now.getTime() / 1000);
-      const futureTimestamp = Math.floor(fortyEightHoursLater.getTime() / 1000);
-      
-      console.log(`Querying for forecasts from ${now.toISOString()} to ${fortyEightHoursLater.toISOString()}`);
-      console.log(`Unix timestamps: ${nowTimestamp} to ${futureTimestamp}`);
-      
-      const whereClause = `todate >= ${nowTimestamp} AND todate <= ${futureTimestamp}`;
+      // Use simple query to get all available data (date filtering causes 400 errors)
+      console.log('Fetching all available NOAA smoke forecast data...');
       
       const queryParams = new URLSearchParams({
         'f': 'json',
-        'where': whereClause,
+        'where': '1=1', // Get all current data
         'outFields': '*',
         'returnGeometry': 'true',
         'spatialRel': 'esriSpatialRelIntersects',
