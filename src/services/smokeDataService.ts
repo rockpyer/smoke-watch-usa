@@ -93,11 +93,10 @@ export class SmokeDataService {
   private processArcGISData(data: ArcGISResponse): SmokeLayer[] {
     const layerMap = new Map<string, SmokePolygon[]>();
     
-    // Group features by forecast time
+    // Group features by forecast hour only (not valid_time since they're all the same)
     data.features.forEach(feature => {
-      const validTime = feature.attributes.valid_time || new Date().toISOString();
       const forecastHour = feature.attributes.forecast_hour || '0';
-      const key = `${validTime}_${forecastHour}`;
+      const key = forecastHour;
       
       if (!layerMap.has(key)) {
         layerMap.set(key, []);
@@ -141,12 +140,15 @@ export class SmokeDataService {
       layerMap.get(key)!.push(polygon);
     });
 
-    // Convert to time-ordered layers
+    // Convert to time-ordered layers based on forecast hours
     const layers: SmokeLayer[] = [];
+    const baseTime = new Date();
+    
     Array.from(layerMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .forEach(([timeKey, polygons]) => {
-        const timestamp = new Date(polygons[0]?.properties.valid_time || Date.now());
+      .sort((a, b) => parseInt(a[0]) - parseInt(b[0])) // Sort by forecast hour numerically
+      .forEach(([forecastHour, polygons]) => {
+        const hoursFromNow = parseInt(forecastHour);
+        const timestamp = new Date(baseTime.getTime() + hoursFromNow * 60 * 60 * 1000);
         layers.push({ timestamp, data: polygons });
       });
 

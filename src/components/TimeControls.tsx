@@ -105,7 +105,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
             {format(currentTime, 'MMM dd, h:mm a')}
           </div>
           <div className="text-sm text-muted-foreground">
-            {isCurrentTime ? 'Current Conditions' : `+${currentIndex * 3} hours`}
+            {isCurrentTime ? 'Current Conditions' : `+${currentIndex} hours`}
           </div>
         </div>
 
@@ -121,7 +121,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
           />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Now</span>
-            <span>+72h</span>
+            <span>+{forecastTimes.length - 1}h</span>
           </div>
         </div>
 
