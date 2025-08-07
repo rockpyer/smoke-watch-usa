@@ -58,20 +58,15 @@ export class SmokeDataService {
     try {
       console.log('Fetching NOAA smoke forecast data...');
       
-      // Use simple query to get all available data (date filtering causes 400 errors)
+      // Simplify query to get all available data
       console.log('Fetching all available NOAA smoke forecast data...');
       
       const queryParams = new URLSearchParams({
         'f': 'json',
-        'where': '1=1', // Get all current data
+        'where': '1=1',
         'outFields': '*',
         'returnGeometry': 'true',
-        'spatialRel': 'esriSpatialRelIntersects',
-        'geometryType': 'esriGeometryEnvelope',
-        'inSR': '4326',
-        'outSR': '4326',
-        'orderByFields': 'todate ASC',
-        'resultRecordCount': '4000' // Get maximum allowed records
+        'resultRecordCount': '1000'
       });
 
       const response = await fetch(`${this.ARCGIS_ENDPOINT}/query?${queryParams}`);
