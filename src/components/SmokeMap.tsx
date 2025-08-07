@@ -14,11 +14,17 @@ interface SmokeLayer {
 
 interface SmokeMapProps {
   onLocationSelect?: (coordinates: [number, number], locationName: string, smokeData?: any) => void;
+  onCitySearch?: (coordinates: { lat: number; lng: number }, cityName: string) => void;
   selectedTime?: Date;
   currentLayer?: SmokeLayer | null;
 }
 
-const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, currentLayer }) => {
+const SmokeMap: React.FC<SmokeMapProps> = ({ 
+  onLocationSelect,
+  onCitySearch, 
+  selectedTime, 
+  currentLayer 
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
@@ -563,6 +569,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
 
           if (onLocationSelect) {
             onLocationSelect([lng, lat], placeName);
+          }
+          
+          // Trigger city search callback for forecast
+          if (onCitySearch) {
+            onCitySearch({ lat, lng }, placeName);
           }
         }
       }

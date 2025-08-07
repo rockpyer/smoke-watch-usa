@@ -3,6 +3,7 @@ import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
 import LocationInfo from '@/components/LocationInfo';
+import { CityForecast } from '@/components/CityForecast';
 import { useSmokeData } from '@/hooks/useSmokeData';
 import { Cloud } from 'lucide-react';
 
@@ -13,6 +14,10 @@ const Index = () => {
     smokeData?: any;
   } | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | undefined>();
+  const [searchedCity, setSearchedCity] = useState<{
+    coordinates: { lat: number; lng: number };
+    name: string;
+  } | null>(null);
   
   const { smokeLayers, currentLayer } = useSmokeData(selectedTime);
   
@@ -22,6 +27,10 @@ const Index = () => {
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
+  };
+
+  const handleCitySearch = (coordinates: { lat: number; lng: number }, cityName: string) => {
+    setSearchedCity({ coordinates, name: cityName });
   };
 
   const handleTimeChange = (time: Date, index: number) => {
@@ -35,13 +44,21 @@ const Index = () => {
       {/* Header */}
       <header className="relative z-20 bg-background/95 backdrop-blur-sm border-b border-border shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Cloud className="h-8 w-8 text-primary" />
               <div>
                 <h1 className="text-2xl font-bold text-foreground">North American Smoke Map</h1>
                 <p className="text-sm text-muted-foreground">Real-time wildfire smoke and air quality forecasting</p>
               </div>
+            </div>
+            
+            {/* City Forecast */}
+            <div className="hidden lg:block">
+              <CityForecast 
+                cityCoordinates={searchedCity?.coordinates}
+                cityName={searchedCity?.name}
+              />
             </div>
           </div>
         </div>
@@ -54,6 +71,7 @@ const Index = () => {
           <div className="lg:col-span-3 relative">
             <SmokeMap 
               onLocationSelect={handleLocationSelect}
+              onCitySearch={handleCitySearch}
               selectedTime={selectedTime}
               currentLayer={currentLayer}
             />
