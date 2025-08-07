@@ -480,9 +480,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
                   ${props?.PctShrub ? `<p class="text-sm"><strong>Shrub Cover:</strong> ${Math.round(props.PctShrub)}%</p>` : ''}
                   ${props?.PctGrass ? `<p class="text-sm"><strong>Grass Cover:</strong> ${Math.round(props.PctGrass)}%</p>` : ''}
                 </div>
-                <div class="mt-3 p-2 bg-orange-50 rounded">
-                  <p class="text-xs text-orange-700">Real wildfire incident data from NOAA</p>
-                </div>
               </div>
             `)
             .addTo(map.current!);
