@@ -387,8 +387,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
       console.log('🔥 Adding fire radiative power data...');
       
       // Remove existing fire layers if they exist
-      if (map.current.getLayer('fire-hotspots')) {
-        map.current.removeLayer('fire-hotspots');
+      if (map.current.getLayer('fire-incidents')) {
+        map.current.removeLayer('fire-incidents');
       }
       if (map.current.getSource('fire-data')) {
         map.current.removeSource('fire-data');
@@ -403,20 +403,20 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         west: bounds.getWest()
       });
 
-      const fireFeatures = fireData.hotspots.map(hotspot => ({
+      const fireFeatures = fireData.incidents.map(incident => ({
         type: 'Feature' as const,
         properties: {
-          frp: hotspot.frp,
-          brightness: hotspot.brightness,
-          confidence: hotspot.confidence,
-          satellite: hotspot.satellite,
-          instrument: hotspot.instrument,
-          acq_date: hotspot.acq_date,
-          acq_time: hotspot.acq_time
+          IRWINID: incident.IRWINID,
+          population: incident.sum_p0010001,
+          WHPClass: incident.WHPClass,
+          PctForest: incident.PctForest,
+          PctShrub: incident.PctShrub,
+          PctGrass: incident.PctGrass,
+          Point_Count: incident.Point_Count
         },
         geometry: {
           type: 'Point' as const,
-          coordinates: [hotspot.longitude, hotspot.latitude]
+          coordinates: [incident.longitude, incident.latitude]
         }
       }));
 
@@ -429,31 +429,28 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         }
       });
 
-      // Add fire hotspots layer
+      // Add fire incidents layer (smaller sizes)
       map.current.addLayer({
-        id: 'fire-hotspots',
+        id: 'fire-incidents',
         type: 'circle',
         source: 'fire-data',
         paint: {
           'circle-radius': [
-            'interpolate',
-            ['linear'],
-            ['get', 'frp'],
-            0, 4,
-            25, 6,
-            50, 8,
-            100, 10,
-            200, 12
+            'case',
+            ['<', ['coalesce', ['get', 'population'], 0], 100], 2,
+            ['<', ['coalesce', ['get', 'population'], 0], 1000], 3,
+            ['<', ['coalesce', ['get', 'population'], 0], 5000], 4,
+            ['<', ['coalesce', ['get', 'population'], 0], 10000], 5,
+            6
           ],
           'circle-color': [
-            'interpolate',
-            ['linear'],
-            ['get', 'frp'],
-            0, '#ffff00',     // Yellow - Low intensity
-            25, '#ffa500',    // Orange - Moderate intensity
-            50, '#ff4500',    // Red-Orange - High intensity
-            100, '#ff0000',   // Red - Very high intensity
-            200, '#8b0000'    // Dark Red - Extreme intensity
+            'case',
+            ['==', ['get', 'WHPClass'], 'Very Low'], '#00ff00',
+            ['==', ['get', 'WHPClass'], 'Low'], '#ffff00',
+            ['==', ['get', 'WHPClass'], 'Moderate'], '#ffa500',
+            ['==', ['get', 'WHPClass'], 'High'], '#ff4500',
+            ['==', ['get', 'WHPClass'], 'Very High'], '#ff0000',
+            '#8b0000' // Default for unknown
           ],
           'circle-opacity': 0.8,
           'circle-stroke-width': 1,
@@ -462,34 +459,29 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         }
       });
 
-      // Add click handler for fire hotspots
-      map.current.on('click', 'fire-hotspots', (e) => {
+      // Add click handler for fire incidents
+      map.current.on('click', 'fire-incidents', (e) => {
         if (e.features && e.features[0]) {
           const feature = e.features[0];
           const props = feature.properties;
-          
-          let intensityDescription = 'Low';
-          if (props?.frp > 100) intensityDescription = 'Extreme';
-          else if (props?.frp > 50) intensityDescription = 'Very High';
-          else if (props?.frp > 25) intensityDescription = 'High';
-          else if (props?.frp > 10) intensityDescription = 'Moderate';
 
           new mapboxgl.Popup()
             .setLngLat(e.lngLat)
             .setHTML(`
               <div class="p-3">
                 <h4 class="font-semibold text-lg flex items-center">
-                  🔥 Active Fire Detection
+                  🔥 Wildfire Incident
                 </h4>
                 <div class="mt-2 space-y-1">
-                  <p class="text-sm"><strong>Fire Radiative Power:</strong> ${props?.frp || 0} MW</p>
-                  <p class="text-sm"><strong>Intensity:</strong> ${intensityDescription}</p>
-                  <p class="text-sm"><strong>Confidence:</strong> ${props?.confidence || 0}%</p>
-                  <p class="text-sm"><strong>Satellite:</strong> ${props?.satellite || 'Unknown'}</p>
-                  <p class="text-sm"><strong>Detected:</strong> ${props?.acq_date || ''} ${props?.acq_time || ''}</p>
+                  <p class="text-sm"><strong>IRWIN ID:</strong> ${props?.IRWINID || 'Unknown'}</p>
+                  <p class="text-sm"><strong>Population at Risk:</strong> ${props?.population ? props.population.toLocaleString() : 'Unknown'}</p>
+                  <p class="text-sm"><strong>Wildfire Hazard:</strong> ${props?.WHPClass || 'Unknown'}</p>
+                  ${props?.PctForest ? `<p class="text-sm"><strong>Forest Cover:</strong> ${Math.round(props.PctForest)}%</p>` : ''}
+                  ${props?.PctShrub ? `<p class="text-sm"><strong>Shrub Cover:</strong> ${Math.round(props.PctShrub)}%</p>` : ''}
+                  ${props?.PctGrass ? `<p class="text-sm"><strong>Grass Cover:</strong> ${Math.round(props.PctGrass)}%</p>` : ''}
                 </div>
                 <div class="mt-3 p-2 bg-orange-50 rounded">
-                  <p class="text-xs text-orange-700">This is the likely source of smoke in nearby areas</p>
+                  <p class="text-xs text-orange-700">Real wildfire incident data from NOAA</p>
                 </div>
               </div>
             `)
@@ -498,11 +490,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
       });
 
       // Change cursor on hover
-      map.current.on('mouseenter', 'fire-hotspots', () => {
+      map.current.on('mouseenter', 'fire-incidents', () => {
         map.current!.getCanvas().style.cursor = 'pointer';
       });
 
-      map.current.on('mouseleave', 'fire-hotspots', () => {
+      map.current.on('mouseleave', 'fire-incidents', () => {
         map.current!.getCanvas().style.cursor = '';
       });
 

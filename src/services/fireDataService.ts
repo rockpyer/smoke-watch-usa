@@ -1,22 +1,37 @@
-interface FireHotspot {
+interface WildfireIncident {
   latitude: number;
   longitude: number;
-  brightness: number;
-  scan: number;
-  track: number;
-  acq_date: string;
-  acq_time: string;
-  satellite: string;
-  instrument: string;
-  confidence: number;
-  version: string;
-  bright_t31: number;
-  frp: number; // Fire Radiative Power in MW
-  daynight: string;
+  IRWINID: string;
+  sum_p0010001?: number; // Total Population 2020
+  WHPClass?: string; // Wildfire Hazard Potential Class
+  PctForest?: number;
+  PctShrub?: number;
+  PctGrass?: number;
+  Point_Count?: number;
+}
+
+interface WildfirePerimeter {
+  geometry: any; // Polygon geometry
+  IRWINID: string;
+  sum_p0010001?: number;
+  WHPClass?: string;
+  PctForest?: number;
+  PctShrub?: number;
+  PctGrass?: number;
+}
+
+interface ArcGISFeature {
+  attributes: Record<string, any>;
+  geometry: any;
+}
+
+interface ArcGISResponse {
+  features: ArcGISFeature[];
 }
 
 interface FireData {
-  hotspots: FireHotspot[];
+  incidents: WildfireIncident[];
+  perimeters: WildfirePerimeter[];
   timestamp: string;
 }
 
@@ -25,12 +40,10 @@ export class FireDataService {
   private cache = new Map<string, FireData>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   
-  // NASA FIRMS API endpoints
-  private readonly FIRMS_MODIS_ENDPOINT = 'https://firms.modaps.eosdis.nasa.gov/mapserver/api/area/csv';
-  private readonly FIRMS_VIIRS_ENDPOINT = 'https://firms.modaps.eosdis.nasa.gov/mapserver/api/area/csv';
-  
-  // Default map key for public access (users should get their own for production)
-  private readonly DEFAULT_MAP_KEY = 'YOUR_FIRMS_MAP_KEY';
+  // ArcGIS Wildfire service endpoints
+  private readonly WILDFIRE_BASE_URL = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/Wildfire_aggregated_v1/FeatureServer';
+  private readonly INCIDENTS_LAYER = 0; // Wildfire Incidents layer
+  private readonly PERIMETERS_LAYER = 1; // Wildfire Perimeters layer
 
   static getInstance(): FireDataService {
     if (!FireDataService.instance) {
@@ -47,24 +60,18 @@ export class FireDataService {
     }
 
     try {
-      // Use CONUS bounds if none provided
-      const area = bounds || {
-        north: 50,
-        south: 25,
-        east: -65,
-        west: -125
-      };
+      // Convert WGS84 bounds to Web Mercator for ArcGIS query
+      const webMercatorBounds = bounds ? this.wgs84ToWebMercator(bounds) : null;
 
-      // Fetch both MODIS and VIIRS data for last 24 hours
-      const [modisData, viirsData] = await Promise.all([
-        this.fetchFIRMSData('MODIS_NRT', area, 1),
-        this.fetchFIRMSData('VIIRS_SNPP_NRT', area, 1)
+      // Fetch both incident points and perimeter polygons
+      const [incidents, perimeters] = await Promise.all([
+        this.fetchArcGISData(this.INCIDENTS_LAYER, webMercatorBounds),
+        this.fetchArcGISData(this.PERIMETERS_LAYER, webMercatorBounds)
       ]);
 
-      const combinedHotspots = [...modisData, ...viirsData];
-      
       const fireData: FireData = {
-        hotspots: combinedHotspots,
+        incidents: this.processIncidents(incidents),
+        perimeters: this.processPerimeters(perimeters),
         timestamp: new Date().toISOString()
       };
 
@@ -76,61 +83,102 @@ export class FireDataService {
     }
   }
 
-  private async fetchFIRMSData(source: string, area: any, dayRange: number): Promise<FireHotspot[]> {
-    // For demo purposes, we'll simulate the API call since we need a real API key
-    // In production, use: 
-    // const url = `${this.FIRMS_MODIS_ENDPOINT}/${this.DEFAULT_MAP_KEY}/${source}/${area.west},${area.south},${area.east},${area.north}/${dayRange}`;
+  private async fetchArcGISData(layerId: number, bounds?: any): Promise<ArcGISResponse> {
+    const baseUrl = `${this.WILDFIRE_BASE_URL}/${layerId}/query`;
     
-    // Return simulated fire data for demonstration
-    return this.generateSimulatedFireData(area);
-  }
+    // Build query parameters
+    const params = new URLSearchParams({
+      f: 'json',
+      where: '1=1', // Get all features
+      outFields: '*',
+      returnGeometry: 'true',
+      spatialRel: 'esriSpatialRelIntersects'
+    });
 
-  private generateSimulatedFireData(area: any): FireHotspot[] {
-    const hotspots: FireHotspot[] = [];
-    const fireCount = Math.floor(Math.random() * 15) + 5; // 5-20 fires
-
-    for (let i = 0; i < fireCount; i++) {
-      const lat = area.south + Math.random() * (area.north - area.south);
-      const lng = area.west + Math.random() * (area.east - area.west);
-      
-      // Focus some fires in known fire-prone areas (e.g., California, Colorado)
-      const isInColorado = lat >= 37 && lat <= 41 && lng >= -109 && lng <= -102;
-      const isInCalifornia = lat >= 32 && lat <= 42 && lng >= -124 && lng <= -114;
-      
-      let frp = Math.random() * 50; // Base FRP 0-50 MW
-      if (isInColorado || isInCalifornia) {
-        frp = Math.random() * 200 + 20; // Higher FRP for active fire regions
-      }
-
-      hotspots.push({
-        latitude: lat,
-        longitude: lng,
-        brightness: 300 + Math.random() * 100,
-        scan: 1.0,
-        track: 1.0,
-        acq_date: new Date().toISOString().split('T')[0],
-        acq_time: new Date().toTimeString().split(' ')[0],
-        satellite: Math.random() > 0.5 ? 'Terra' : 'Aqua',
-        instrument: Math.random() > 0.5 ? 'MODIS' : 'VIIRS',
-        confidence: Math.floor(Math.random() * 40) + 60, // 60-100%
-        version: '6.1NRT',
-        bright_t31: 280 + Math.random() * 50,
-        frp: Math.round(frp * 10) / 10,
-        daynight: 'D'
-      });
+    // Add spatial filter if bounds provided
+    if (bounds) {
+      params.append('geometry', `${bounds.xmin},${bounds.ymin},${bounds.xmax},${bounds.ymax}`);
+      params.append('geometryType', 'esriGeometryEnvelope');
+      params.append('inSR', '3857'); // Web Mercator
     }
 
-    return hotspots;
+    const url = `${baseUrl}?${params.toString()}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`ArcGIS API error: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  }
+
+  private processIncidents(response: ArcGISResponse): WildfireIncident[] {
+    return response.features.map(feature => {
+      const { attributes, geometry } = feature;
+      
+      // Convert Web Mercator coordinates to WGS84
+      const [longitude, latitude] = this.webMercatorToWGS84(geometry.x, geometry.y);
+      
+      return {
+        latitude,
+        longitude,
+        IRWINID: attributes.IRWINID || 'Unknown',
+        sum_p0010001: attributes.sum_p0010001,
+        WHPClass: attributes.WHPClass,
+        PctForest: attributes.PctForest,
+        PctShrub: attributes.PctShrub,
+        PctGrass: attributes.PctGrass,
+        Point_Count: attributes.Point_Count
+      };
+    });
+  }
+
+  private processPerimeters(response: ArcGISResponse): WildfirePerimeter[] {
+    return response.features.map(feature => {
+      const { attributes, geometry } = feature;
+      
+      return {
+        geometry,
+        IRWINID: attributes.IRWINID || 'Unknown',
+        sum_p0010001: attributes.sum_p0010001,
+        WHPClass: attributes.WHPClass,
+        PctForest: attributes.PctForest,
+        PctShrub: attributes.PctShrub,
+        PctGrass: attributes.PctGrass
+      };
+    });
+  }
+
+  private wgs84ToWebMercator(bounds: { north: number; south: number; east: number; west: number }) {
+    const toWebMercator = (lon: number, lat: number) => {
+      const x = lon * 20037508.34 / 180;
+      let y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+      y = y * 20037508.34 / 180;
+      return { x, y };
+    };
+
+    const sw = toWebMercator(bounds.west, bounds.south);
+    const ne = toWebMercator(bounds.east, bounds.north);
+
+    return {
+      xmin: sw.x,
+      ymin: sw.y,
+      xmax: ne.x,
+      ymax: ne.y
+    };
+  }
+
+  private webMercatorToWGS84(x: number, y: number): [number, number] {
+    const lon = (x / 20037508.34) * 180;
+    let lat = (y / 20037508.34) * 180;
+    lat = 180 / Math.PI * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
+    return [lon, lat];
   }
 
   private getFallbackFireData(): FireData {
     return {
-      hotspots: this.generateSimulatedFireData({
-        north: 50,
-        south: 25,
-        east: -65,
-        west: -125
-      }),
+      incidents: [],
+      perimeters: [],
       timestamp: new Date().toISOString()
     };
   }
@@ -143,22 +191,26 @@ export class FireDataService {
     return Date.now() - cacheTime < this.CACHE_DURATION;
   }
 
-  // Get color based on Fire Radiative Power
-  getFRPColor(frp: number): string {
-    if (frp < 10) return 'rgb(255, 255, 0)';     // Yellow - Low intensity
-    if (frp < 25) return 'rgb(255, 165, 0)';     // Orange - Moderate intensity  
-    if (frp < 50) return 'rgb(255, 69, 0)';      // Red-Orange - High intensity
-    if (frp < 100) return 'rgb(255, 0, 0)';      // Red - Very high intensity
-    return 'rgb(139, 0, 0)';                     // Dark Red - Extreme intensity
+  // Get color based on Wildfire Hazard Potential
+  getWHPColor(whpClass: string): string {
+    switch (whpClass?.toLowerCase()) {
+      case 'very low': return 'rgb(0, 255, 0)';      // Green
+      case 'low': return 'rgb(255, 255, 0)';         // Yellow
+      case 'moderate': return 'rgb(255, 165, 0)';    // Orange
+      case 'high': return 'rgb(255, 69, 0)';         // Red-Orange
+      case 'very high': return 'rgb(255, 0, 0)';     // Red
+      default: return 'rgb(139, 0, 0)';              // Dark Red - Unknown/Extreme
+    }
   }
 
-  // Get size based on Fire Radiative Power
-  getFRPSize(frp: number): number {
-    if (frp < 10) return 6;
-    if (frp < 25) return 8;
-    if (frp < 50) return 10;
-    if (frp < 100) return 12;
-    return 15;
+  // Get size based on population at risk (smaller sizes to not obscure smoke)
+  getIncidentSize(population?: number): number {
+    if (!population) return 2;
+    if (population < 100) return 2;
+    if (population < 1000) return 3;
+    if (population < 5000) return 4;
+    if (population < 10000) return 5;
+    return 6; // Maximum size reduced from 15 to 6
   }
 }
 
