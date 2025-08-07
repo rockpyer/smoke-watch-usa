@@ -40,7 +40,7 @@ interface ArcGISResponse {
 export class SmokeDataService {
   private static instance: SmokeDataService;
   private cache = new Map<string, SmokeLayer[]>();
-  private readonly CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+  private readonly CACHE_DURATION = 1 * 60 * 1000; // 1 minute for more frequent updates
   private readonly ARCGIS_ENDPOINT = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/NDGD_SmokeForecast_v1/FeatureServer/0';
 
   static getInstance(): SmokeDataService {

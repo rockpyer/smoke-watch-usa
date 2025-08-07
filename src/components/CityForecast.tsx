@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeData';
 
 interface CityForecastProps {
@@ -17,7 +19,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   cityCoordinates,
   cityName
 }) => {
-  const { smokeLayers } = useSmokeData();
+  const { smokeLayers, refetch, isLoading } = useSmokeData();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
 
   useEffect(() => {
@@ -97,7 +99,18 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 
   return (
     <Card className="p-3 bg-white/95 backdrop-blur-sm shadow-lg max-w-md">
-      <h3 className="text-base font-semibold mb-2 text-center">{cityName} Smoke Forecast</h3>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-base font-semibold">{cityName} Smoke Forecast</h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={refetch}
+          disabled={isLoading}
+          className="h-6 w-6 p-0"
+        >
+          <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
+      </div>
       
       {Object.keys(groupedForecast).length > 0 ? (
         <div className="space-y-3">
