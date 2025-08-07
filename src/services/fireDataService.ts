@@ -4,8 +4,8 @@ interface WildfireIncident {
   IncidentName?: string;
   FireDiscoveryDateTime?: string;
   ForestTypeGroup?: string;
-  PercentContained?: number;
-  DailyAcres?: number;
+  PercentContained?: string; // Changed to string to support "Not Available"
+  DailyAcres?: string; // Changed to string to support "Not Available"
 }
 
 interface WildfirePerimeter {
@@ -40,7 +40,7 @@ export class FireDataService {
   
   // ArcGIS Wildfire service endpoints
   private readonly WILDFIRE_BASE_URL = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/Wildfire_aggregated_v1/FeatureServer';
-  private readonly INCIDENTS_LAYER = 1; // Wildfire Incidents layer
+  private readonly INCIDENTS_LAYER = 1; // Wildfire Perimeters layer (contains incident data)
   private readonly PERIMETERS_LAYER = 0; // Wildfire Perimeters layer
 
   static getInstance(): FireDataService {
@@ -114,17 +114,33 @@ export class FireDataService {
     return response.features.map(feature => {
       const { attributes, geometry } = feature;
       
-      // Convert Web Mercator coordinates to WGS84
-      const [longitude, latitude] = this.webMercatorToWGS84(geometry.x, geometry.y);
+      // For polygon geometry, get the centroid
+      let latitude: number, longitude: number;
+      
+      if (geometry.rings) {
+        // This is a polygon, calculate centroid
+        const ring = geometry.rings[0]; // Use first ring
+        let sumX = 0, sumY = 0;
+        for (const point of ring) {
+          sumX += point[0];
+          sumY += point[1];
+        }
+        const centroidX = sumX / ring.length;
+        const centroidY = sumY / ring.length;
+        [longitude, latitude] = this.webMercatorToWGS84(centroidX, centroidY);
+      } else {
+        // This is a point
+        [longitude, latitude] = this.webMercatorToWGS84(geometry.x, geometry.y);
+      }
       
       return {
         latitude,
         longitude,
-        IncidentName: attributes.IncidentName,
-        FireDiscoveryDateTime: attributes.FireDiscoveryDateTime,
-        ForestTypeGroup: attributes.ForestTypeGroup,
-        PercentContained: attributes.PercentContained,
-        DailyAcres: attributes.DailyAcres
+        IncidentName: attributes.IncidentName || "Not Available",
+        FireDiscoveryDateTime: attributes.DateCurrent ? new Date(attributes.DateCurrent).toLocaleDateString() : "Not Available",
+        ForestTypeGroup: attributes.ForestTypeGroup || "Not Available", 
+        PercentContained: "Not Available", // Not available in this API
+        DailyAcres: attributes.GISAcres ? Math.round(attributes.GISAcres).toString() : "Not Available"
       };
     });
   }
