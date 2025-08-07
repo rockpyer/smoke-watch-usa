@@ -87,28 +87,61 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     return null;
   }
 
+  // Group forecast by date for display
+  const groupedForecast = forecastData.reduce((groups, forecast) => {
+    const date = forecast.timestamp.toLocaleDateString();
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(forecast);
+    return groups;
+  }, {} as Record<string, ForecastData[]>);
+
   return (
-    <Card className="p-4 bg-white/90 backdrop-blur-sm shadow-lg">
-      <h3 className="text-lg font-semibold mb-3">{cityName} Smoke Forecast</h3>
+    <Card className="p-3 bg-white/95 backdrop-blur-sm shadow-lg max-w-md">
+      <h3 className="text-base font-semibold mb-2 text-center">{cityName} Smoke Forecast</h3>
       
-      <div className="space-y-2">
-        {forecastData.map((forecast, index) => (
-          <div key={index} className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">
-              {forecast.timestamp.toLocaleDateString()} {forecast.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${getSmokeColor(forecast.smokeLevel)}`} />
-              <span className="text-gray-800 min-w-[80px] text-right">
-                {forecast.smokeDescription}
-              </span>
+      {Object.keys(groupedForecast).length > 0 ? (
+        <div className="space-y-3">
+          {Object.entries(groupedForecast).slice(0, 2).map(([date, dayForecasts]) => (
+            <div key={date} className="space-y-1">
+              {/* Date header */}
+              <div className="text-xs font-medium text-gray-600 text-center border-b pb-1">
+                {date}
+              </div>
+              
+              {/* Horizontal timeline */}
+              <div className="flex justify-between items-end gap-1">
+                {dayForecasts.slice(0, 8).map((forecast, index) => (
+                  <div key={index} className="flex flex-col items-center text-xs">
+                    {/* Smoke level indicator bar */}
+                    <div 
+                      className={`w-4 rounded-t-sm ${getSmokeColor(forecast.smokeLevel)} border border-gray-200`}
+                      style={{ 
+                        height: `${Math.max(8, forecast.smokeLevel * 8)}px`,
+                        minHeight: '8px'
+                      }}
+                      title={forecast.smokeDescription}
+                    />
+                    
+                    {/* Time label */}
+                    <span className="text-gray-500 mt-1 text-[10px]">
+                      {forecast.timestamp.toLocaleTimeString([], { 
+                        hour: 'numeric',
+                        hour12: true 
+                      })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Legend for the day */}
+              <div className="flex justify-center text-[10px] text-gray-500">
+                Smoke Level (1-5)
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-      
-      {forecastData.length === 0 && (
-        <p className="text-gray-500 text-sm">No smoke forecast data available for this location.</p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500 text-xs text-center">No smoke forecast data available for this location.</p>
       )}
     </Card>
   );
