@@ -101,7 +101,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
       <div className="p-4 space-y-4">
         {/* Current Time Display */}
         <div className="text-center">
-          <div className="text-xl font-bold text-foreground">
+          <div className="text-lg font-bold text-foreground">
             {currentTime.toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',

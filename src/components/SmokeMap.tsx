@@ -439,26 +439,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         type: 'circle',
         source: 'fire-data',
         paint: {
-          'circle-radius': [
-            'case',
-            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 100], 2,
-            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 1000], 3,
-            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 5000], 4,
-            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 10000], 5,
-            6
-          ],
-          'circle-color': [
-            'case',
-            ['<', ['coalesce', ['get', 'PercentContained'], 100], 20], '#ff0000',
-            ['<', ['coalesce', ['get', 'PercentContained'], 100], 50], '#ff4500',
-            ['<', ['coalesce', ['get', 'PercentContained'], 100], 80], '#ffa500',
-            ['<', ['coalesce', ['get', 'PercentContained'], 100], 95], '#ffff00',
-            '#00ff00' // 95%+ contained
-          ],
-          'circle-opacity': 0.8,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#000000',
-          'circle-stroke-opacity': 0.6
+          'circle-radius': 3,
+          'circle-color': '#ff0000',
+          'circle-opacity': 0.9,
+          'circle-stroke-width': 0.5,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-opacity': 0.9
         }
       });
 

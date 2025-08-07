@@ -13,6 +13,7 @@ interface ForecastData {
   timestamp: Date;
   smokeLevel: number;
   smokeDescription: string;
+  concentration: number;
 }
 
 export const CityForecast: React.FC<CityForecastProps> = ({
@@ -51,14 +52,15 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       forecast.push({
         timestamp: layer.timestamp,
         smokeLevel: citySmoke?.smoke_class || 0,
-        smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke'
+        smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
+        concentration: citySmoke?.concentration_ugm3 || 0
       });
       
       console.log(`🕐 Forecast entry: ${layer.timestamp.toISOString()} - Level: ${citySmoke?.smoke_class || 0}`);
     });
     
     console.log(`📊 Generated ${forecast.length} forecast entries`);
-    setForecastData(forecast.slice(0, 8)); // Show next 8 time periods
+    setForecastData(forecast.slice(0, 48)); // Show next 48 time periods if available
   }, [cityCoordinates, smokeLayers]);
 
   // Point-in-polygon check (simple ray casting)
@@ -96,80 +98,74 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     return null;
   }
 
-  // Group forecast by date for display
-  const groupedForecast = forecastData.reduce((groups, forecast) => {
-    const date = forecast.timestamp.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      timeZone: 'America/Denver' // Display in Mountain Time by default
-    });
-    if (!groups[date]) groups[date] = [];
-    groups[date].push(forecast);
-    return groups;
-  }, {} as Record<string, ForecastData[]>);
-
-  console.log('📅 Grouped forecast by date:', Object.keys(groupedForecast));
+// Timeline helpers and MT formatting
+const tz = 'America/Denver';
+const concentrationToCategory = (c: number) => {
+  if (c <= 12) return 'good';
+  if (c <= 35) return 'moderate';
+  if (c <= 55) return 'unhealthy-sensitive';
+  if (c <= 150) return 'unhealthy';
+  if (c <= 250) return 'very-unhealthy';
+  return 'hazardous';
+};
+const categoryClass: Record<string, string> = {
+  good: 'bg-smoke-good',
+  moderate: 'bg-smoke-moderate',
+  'unhealthy-sensitive': 'bg-smoke-unhealthy-sensitive',
+  unhealthy: 'bg-smoke-unhealthy',
+  'very-unhealthy': 'bg-smoke-very-unhealthy',
+  hazardous: 'bg-smoke-hazardous'
+};
+const formatMT = (d: Date) =>
+  d.toLocaleString('en-US', { hour: 'numeric', hour12: true, timeZone: tz });
+const total = forecastData.length;
+const tickIndices = [
+  0,
+  Math.min(12, total - 1),
+  Math.min(24, total - 1),
+  Math.min(36, total - 1),
+  Math.max(0, total - 1)
+];
 
   return (
-    <Card className="p-3 bg-white/95 backdrop-blur-sm shadow-lg max-w-md">
+    <Card className="p-3 bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-base font-semibold">{cityName} Smoke Forecast</h3>
+        <h3 className="text-sm font-semibold text-foreground whitespace-nowrap">
+          {cityName} • 48h Smoke Forecast <span className="ml-1 text-[10px] text-muted-foreground">(MT)</span>
+        </h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={refetch}
           disabled={isLoading}
           className="h-6 w-6 p-0"
+          aria-label="Refresh city forecast"
         >
           <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
-      
-      {Object.keys(groupedForecast).length > 0 ? (
-        <div className="space-y-3">
-          {Object.entries(groupedForecast).slice(0, 2).map(([date, dayForecasts]) => (
-            <div key={date} className="space-y-1">
-              {/* Date header */}
-              <div className="text-xs font-medium text-gray-600 text-center border-b pb-1">
-                {date}
-              </div>
-              
-              {/* Horizontal timeline */}
-              <div className="flex justify-between items-end gap-1">
-                {dayForecasts.slice(0, 8).map((forecast, index) => (
-                  <div key={index} className="flex flex-col items-center text-xs">
-                    {/* Smoke level indicator bar */}
-                    <div 
-                      className={`w-4 rounded-t-sm ${getSmokeColor(forecast.smokeLevel)} border border-gray-200`}
-                      style={{ 
-                        height: `${Math.max(8, forecast.smokeLevel * 8)}px`,
-                        minHeight: '8px'
-                      }}
-                      title={forecast.smokeDescription}
-                    />
-                    
-                    {/* Time label */}
-                    <span className="text-gray-500 mt-1 text-[10px]">
-                      {forecast.timestamp.toLocaleTimeString('en-US', { 
-                        hour: 'numeric',
-                        hour12: true,
-                        timeZone: 'America/Denver'
-                      })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Legend for the day */}
-              <div className="flex justify-center text-[10px] text-gray-500">
-                Smoke Level (1-5)
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500 text-xs text-center">No smoke forecast data available for this location.</p>
-      )}
+
+      {/* 48-hour single-line timeline */}
+      <div className="flex items-center space-x-0.5 overflow-x-auto py-1">
+        {forecastData.map((f, i) => {
+          const category = concentrationToCategory(f.concentration);
+          const colorClass = categoryClass[category] || 'bg-muted';
+          return (
+            <div
+              key={i}
+              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0`}
+              title={`${f.timestamp.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true, timeZone: tz })} • ${f.concentration.toFixed(1)} μg/m³ (${f.smokeDescription})`}
+            />
+          );
+        })}
+      </div>
+
+      {/* Time scale (single line, small) */}
+      <div className="flex justify-between text-[10px] text-muted-foreground whitespace-nowrap mt-1">
+        {tickIndices.map((idx) => (
+          <span key={idx}>{forecastData[idx] ? formatMT(forecastData[idx].timestamp) : ''}</span>
+        ))}
+      </div>
     </Card>
   );
 };
