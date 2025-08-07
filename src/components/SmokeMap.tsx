@@ -236,12 +236,21 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         paint: {
           'fill-color': [
             'case',
-            ['<=', ['get', 'concentration'], 12], 'rgba(0, 228, 0, 0.6)',      // Good - Green
-            ['<=', ['get', 'concentration'], 35], 'rgba(255, 255, 0, 0.6)',    // Moderate - Yellow
-            ['<=', ['get', 'concentration'], 55], 'rgba(255, 126, 0, 0.6)',    // Unhealthy for Sensitive - Orange
-            ['<=', ['get', 'concentration'], 150], 'rgba(255, 0, 0, 0.6)',     // Unhealthy - Red  
-            ['<=', ['get', 'concentration'], 250], 'rgba(143, 63, 151, 0.6)',  // Very Unhealthy - Purple
-            'rgba(126, 0, 35, 0.8)'                                            // Hazardous - Maroon
+            ['<=', ['get', 'concentration'], 1],   '#ffffff',
+            ['<=', ['get', 'concentration'], 2],   '#e0f7ff',
+            ['<=', ['get', 'concentration'], 4],   '#b0e5ff',
+            ['<=', ['get', 'concentration'], 6],   '#80d2ff',
+            ['<=', ['get', 'concentration'], 8],   '#66ccff',
+            ['<=', ['get', 'concentration'], 12],  '#00cc66',
+            ['<=', ['get', 'concentration'], 16],  '#66cc00',
+            ['<=', ['get', 'concentration'], 20],  '#cccc00',
+            ['<=', ['get', 'concentration'], 25],  '#ffcc00',
+            ['<=', ['get', 'concentration'], 30],  '#ff9900',
+            ['<=', ['get', 'concentration'], 40],  '#ff6600',
+            ['<=', ['get', 'concentration'], 60],  '#ff3300',
+            ['<=', ['get', 'concentration'], 100], '#cc0033',
+            ['<=', ['get', 'concentration'], 200], '#990066',
+            '#660099'  // fallback for >200
           ],
           'fill-opacity': [
             'interpolate',
