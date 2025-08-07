@@ -151,10 +151,10 @@ export class SmokeDataService {
         layerMap.set(todateStr, []);
       }
 
-      // Convert ArcGIS ring geometry to GeoJSON polygon
+      // Convert ArcGIS ring geometry from Web Mercator to WGS84 for Mapbox
       const rings = feature.geometry.rings;
       const coordinates: number[][][] = rings.map(ring => 
-        ring.map(coord => [coord[0], coord[1]]) // Ensure each coordinate is [lng, lat]
+        ring.map(coord => this.webMercatorToWGS84(coord[0], coord[1])) // Convert projection
       );
 
       // Extract concentration from smoke_classdesc (e.g., "63-158" -> 110.5 as midpoint)
@@ -265,6 +265,14 @@ export class SmokeDataService {
     console.log(`Final result: ${fullLayers.length} total layers, ${layersWithData.length} with polygon data`);
     
     return fullLayers;
+  }
+
+  // Convert Web Mercator (EPSG:3857) to WGS84 (EPSG:4326)
+  private webMercatorToWGS84(x: number, y: number): [number, number] {
+    const lng = (x / 20037508.34) * 180;
+    let lat = (y / 20037508.34) * 180;
+    lat = 180 / Math.PI * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
+    return [lng, lat];
   }
 
   private smokeClassToConcentration(smokeClass: number): number {
