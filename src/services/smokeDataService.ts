@@ -214,28 +214,55 @@ export class SmokeDataService {
       return this.generateFallbackSmokeData();
     }
 
-    const now = new Date();
-    const startTime = new Date(now.getTime() + (60 * 60 * 1000)); // Start 1 hour from now
-    const endTime = new Date(now.getTime() + (48 * 60 * 60 * 1000)); // 48 hours from now
+    console.log(`Starting with ${layers.length} actual data layers`);
+    
+    // If we have actual forecast data, use it as the base and extend around it
+    const actualTimestamps = layers.map(l => l.timestamp).sort((a, b) => a.getTime() - b.getTime());
+    const earliestForecast = actualTimestamps[0];
+    const latestForecast = actualTimestamps[actualTimestamps.length - 1];
+    
+    console.log(`Actual forecast range: ${earliestForecast.toISOString()} to ${latestForecast.toISOString()}`);
+    
+    // Create a 48-hour range starting from the earliest forecast time
+    const startTime = new Date(earliestForecast);
+    const endTime = new Date(startTime.getTime() + (47 * 60 * 60 * 1000)); // 48 hours total
     
     const fullLayers: SmokeLayer[] = [];
     
-    // Generate hourly time slots for 48 hours
+    // Generate hourly time slots for 48 hours starting from actual forecast data
     for (let time = new Date(startTime); time <= endTime; time = new Date(time.getTime() + (60 * 60 * 1000))) {
+      // Look for existing layer within 6 hours (much more flexible matching)
       const existingLayer = layers.find(layer => 
-        Math.abs(layer.timestamp.getTime() - time.getTime()) < (30 * 60 * 1000) // Within 30 minutes
+        Math.abs(layer.timestamp.getTime() - time.getTime()) < (6 * 60 * 60 * 1000) // Within 6 hours
       );
       
       if (existingLayer) {
-        fullLayers.push(existingLayer);
-      } else {
-        // Create empty layer for missing time slot
         fullLayers.push({
-          timestamp: new Date(time),
-          data: []
+          timestamp: new Date(time), // Use the generated time slot
+          data: existingLayer.data   // But use the actual polygon data
         });
+        console.log(`✓ Matched slot ${time.toISOString()} with data from ${existingLayer.timestamp.toISOString()}`);
+      } else {
+        // If we only have one timestamp, extend that data to nearby time slots (within 12 hours)
+        if (layers.length === 1 && Math.abs(layers[0].timestamp.getTime() - time.getTime()) < (12 * 60 * 60 * 1000)) {
+          fullLayers.push({
+            timestamp: new Date(time),
+            data: layers[0].data // Reuse the single forecast data
+          });
+          console.log(`✓ Extended single forecast to slot ${time.toISOString()}`);
+        } else {
+          // Create empty layer for missing time slot
+          fullLayers.push({
+            timestamp: new Date(time),
+            data: []
+          });
+          console.log(`○ Empty slot ${time.toISOString()}`);
+        }
       }
     }
+    
+    const layersWithData = fullLayers.filter(l => l.data.length > 0);
+    console.log(`Final result: ${fullLayers.length} total layers, ${layersWithData.length} with polygon data`);
     
     return fullLayers;
   }
