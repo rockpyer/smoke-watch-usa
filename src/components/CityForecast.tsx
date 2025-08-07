@@ -21,6 +21,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
 
   useEffect(() => {
+    console.log('🌆 CityForecast: useEffect triggered', { cityCoordinates, smokeLayers: smokeLayers.length });
+    
     if (!cityCoordinates || !smokeLayers.length) {
       setForecastData([]);
       return;

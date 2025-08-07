@@ -39,6 +39,8 @@ const Index = () => {
     console.log(`🏠 INDEX: selectedTime state updated to: ${time.toISOString()}`);
   };
 
+  console.log('🚀 INDEX: Component rendering...');
+
   return (
     <div className="min-h-screen bg-sky-gradient">
       {/* Header */}
