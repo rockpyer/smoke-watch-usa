@@ -58,10 +58,13 @@ export class SmokeDataService {
     try {
       console.log('Fetching NOAA smoke forecast data...');
       
-      // Query ArcGIS FeatureServer for next 48 hours of smoke forecasts
+      // Query ArcGIS FeatureServer for specific forecast hours (0, 1, 2, 3, 6, 12, 18, 24, 30, 36, 42, 48)
+      const forecastHours = [0, 1, 2, 3, 6, 12, 18, 24, 30, 36, 42, 48];
+      const whereClause = `forecast_hour IN (${forecastHours.join(',')})`;
+      
       const queryParams = new URLSearchParams({
         'f': 'json',
-        'where': '1=1',
+        'where': whereClause,
         'outFields': '*',
         'returnGeometry': 'true',
         'spatialRel': 'esriSpatialRelIntersects',
