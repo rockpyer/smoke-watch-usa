@@ -58,20 +58,18 @@ export class SmokeDataService {
     try {
       console.log('Fetching NOAA smoke forecast data...');
       
-      // Query for next 48 hours of forecasts using todate field
-      const now = Date.now();
-      const fortyEightHoursLater = now + (48 * 60 * 60 * 1000);
-      const whereClause = `todate >= ${now} AND todate <= ${fortyEightHoursLater}`;
-      
+      // Try a simple query first to get all available data
+      // ArcGIS date fields expect timestamps in milliseconds 
       const queryParams = new URLSearchParams({
         'f': 'json',
-        'where': whereClause,
+        'where': '1=1', // Get all current data
         'outFields': '*',
         'returnGeometry': 'true',
         'spatialRel': 'esriSpatialRelIntersects',
         'geometryType': 'esriGeometryEnvelope',
         'inSR': '4326',
-        'outSR': '4326'
+        'outSR': '4326',
+        'resultRecordCount': '4000' // Get maximum allowed records
       });
 
       const response = await fetch(`${this.ARCGIS_ENDPOINT}/query?${queryParams}`);
