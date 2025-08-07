@@ -93,13 +93,19 @@ export class SmokeDataService {
   private processArcGISData(data: ArcGISResponse): SmokeLayer[] {
     const layerMap = new Map<string, SmokePolygon[]>();
     
-    // Group features by forecast hour only (not valid_time since they're all the same)
-    data.features.forEach(feature => {
+    console.log(`Processing ${data.features.length} features from ArcGIS`);
+    
+    // Group features by forecast hour only
+    data.features.forEach((feature, index) => {
       const forecastHour = feature.attributes.forecast_hour || '0';
-      const key = forecastHour;
       
-      if (!layerMap.has(key)) {
-        layerMap.set(key, []);
+      // Log first few to debug
+      if (index < 5) {
+        console.log(`Feature ${index}: forecast_hour=${forecastHour}, valid_time=${feature.attributes.valid_time}`);
+      }
+      
+      if (!layerMap.has(forecastHour)) {
+        layerMap.set(forecastHour, []);
       }
 
       // Convert ArcGIS ring geometry to GeoJSON polygon - fix the coordinate structure
@@ -137,9 +143,11 @@ export class SmokeDataService {
         }
       };
 
-      layerMap.get(key)!.push(polygon);
+      layerMap.get(forecastHour)!.push(polygon);
     });
 
+    console.log(`Created ${layerMap.size} forecast hour groups:`, Array.from(layerMap.keys()).sort((a, b) => parseInt(a) - parseInt(b)));
+    
     // Convert to time-ordered layers based on forecast hours
     const layers: SmokeLayer[] = [];
     const baseTime = new Date();
@@ -149,6 +157,7 @@ export class SmokeDataService {
       .forEach(([forecastHour, polygons]) => {
         const hoursFromNow = parseInt(forecastHour);
         const timestamp = new Date(baseTime.getTime() + hoursFromNow * 60 * 60 * 1000);
+        console.log(`Layer for +${hoursFromNow}h (${timestamp.toISOString()}): ${polygons.length} polygons`);
         layers.push({ timestamp, data: polygons });
       });
 
