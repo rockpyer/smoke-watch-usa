@@ -23,7 +23,11 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
 
   useEffect(() => {
-    console.log('🌆 CityForecast: useEffect triggered', { cityCoordinates, smokeLayers: smokeLayers.length });
+    console.log('🌆 CityForecast: useEffect triggered', { 
+      cityCoordinates, 
+      smokeLayers: smokeLayers.length,
+      sampleTimestamp: smokeLayers[0]?.timestamp?.toISOString()
+    });
     
     if (!cityCoordinates || !smokeLayers.length) {
       setForecastData([]);
@@ -49,8 +53,11 @@ export const CityForecast: React.FC<CityForecastProps> = ({
         smokeLevel: citySmoke?.smoke_class || 0,
         smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke'
       });
+      
+      console.log(`🕐 Forecast entry: ${layer.timestamp.toISOString()} - Level: ${citySmoke?.smoke_class || 0}`);
     });
     
+    console.log(`📊 Generated ${forecast.length} forecast entries`);
     setForecastData(forecast.slice(0, 8)); // Show next 8 time periods
   }, [cityCoordinates, smokeLayers]);
 
@@ -91,11 +98,17 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 
   // Group forecast by date for display
   const groupedForecast = forecastData.reduce((groups, forecast) => {
-    const date = forecast.timestamp.toLocaleDateString();
+    const date = forecast.timestamp.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: 'UTC' // Show in UTC to match the data
+    });
     if (!groups[date]) groups[date] = [];
     groups[date].push(forecast);
     return groups;
   }, {} as Record<string, ForecastData[]>);
+
+  console.log('📅 Grouped forecast by date:', Object.keys(groupedForecast));
 
   return (
     <Card className="p-3 bg-white/95 backdrop-blur-sm shadow-lg max-w-md">
@@ -137,9 +150,10 @@ export const CityForecast: React.FC<CityForecastProps> = ({
                     
                     {/* Time label */}
                     <span className="text-gray-500 mt-1 text-[10px]">
-                      {forecast.timestamp.toLocaleTimeString([], { 
+                      {forecast.timestamp.toLocaleTimeString('en-US', { 
                         hour: 'numeric',
-                        hour12: true 
+                        hour12: true,
+                        timeZone: 'UTC'
                       })}
                     </span>
                   </div>

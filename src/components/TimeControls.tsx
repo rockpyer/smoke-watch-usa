@@ -102,10 +102,17 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
         {/* Current Time Display */}
         <div className="text-center">
           <div className="text-2xl font-bold text-foreground">
-            {format(currentTime, 'MMM dd, h:mm a')}
+            {currentTime.toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: 'UTC'
+            })} UTC
           </div>
           <div className="text-sm text-muted-foreground">
-            {isCurrentTime ? 'Current Conditions' : `+${currentIndex} hours`}
+            {isCurrentTime ? 'Current Conditions' : `Forecast Time`}
           </div>
         </div>
 
