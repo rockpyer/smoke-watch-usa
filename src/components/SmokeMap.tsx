@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { fireDataService } from '../services/fireDataService';
 
 interface SmokeLayer {
   timestamp: Date;
@@ -25,6 +26,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
+  const [fireDataLoaded, setFireDataLoaded] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Hardcoded Mapbox token
@@ -374,6 +376,150 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
     }
   }, [currentLayer, onLocationSelect]);
 
+  // Add fire hotspots to the map
+  const addFireLayer = useCallback(async () => {
+    if (!map.current || !isMapLoaded) {
+      console.log('addFireLayer skipped - map not ready');
+      return;
+    }
+
+    try {
+      console.log('🔥 Adding fire radiative power data...');
+      
+      // Remove existing fire layers if they exist
+      if (map.current.getLayer('fire-hotspots')) {
+        map.current.removeLayer('fire-hotspots');
+      }
+      if (map.current.getSource('fire-data')) {
+        map.current.removeSource('fire-data');
+      }
+
+      // Get current map bounds for targeted fire data
+      const bounds = map.current.getBounds();
+      const fireData = await fireDataService.fetchFireData({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest()
+      });
+
+      const fireFeatures = fireData.hotspots.map(hotspot => ({
+        type: 'Feature' as const,
+        properties: {
+          frp: hotspot.frp,
+          brightness: hotspot.brightness,
+          confidence: hotspot.confidence,
+          satellite: hotspot.satellite,
+          instrument: hotspot.instrument,
+          acq_date: hotspot.acq_date,
+          acq_time: hotspot.acq_time
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [hotspot.longitude, hotspot.latitude]
+        }
+      }));
+
+      // Add fire data source
+      map.current.addSource('fire-data', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: fireFeatures
+        }
+      });
+
+      // Add fire hotspots layer
+      map.current.addLayer({
+        id: 'fire-hotspots',
+        type: 'circle',
+        source: 'fire-data',
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['get', 'frp'],
+            0, 4,
+            25, 6,
+            50, 8,
+            100, 10,
+            200, 12
+          ],
+          'circle-color': [
+            'interpolate',
+            ['linear'],
+            ['get', 'frp'],
+            0, '#ffff00',     // Yellow - Low intensity
+            25, '#ffa500',    // Orange - Moderate intensity
+            50, '#ff4500',    // Red-Orange - High intensity
+            100, '#ff0000',   // Red - Very high intensity
+            200, '#8b0000'    // Dark Red - Extreme intensity
+          ],
+          'circle-opacity': 0.8,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#000000',
+          'circle-stroke-opacity': 0.6
+        }
+      });
+
+      // Add click handler for fire hotspots
+      map.current.on('click', 'fire-hotspots', (e) => {
+        if (e.features && e.features[0]) {
+          const feature = e.features[0];
+          const props = feature.properties;
+          
+          let intensityDescription = 'Low';
+          if (props?.frp > 100) intensityDescription = 'Extreme';
+          else if (props?.frp > 50) intensityDescription = 'Very High';
+          else if (props?.frp > 25) intensityDescription = 'High';
+          else if (props?.frp > 10) intensityDescription = 'Moderate';
+
+          new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="p-3">
+                <h4 class="font-semibold text-lg flex items-center">
+                  🔥 Active Fire Detection
+                </h4>
+                <div class="mt-2 space-y-1">
+                  <p class="text-sm"><strong>Fire Radiative Power:</strong> ${props?.frp || 0} MW</p>
+                  <p class="text-sm"><strong>Intensity:</strong> ${intensityDescription}</p>
+                  <p class="text-sm"><strong>Confidence:</strong> ${props?.confidence || 0}%</p>
+                  <p class="text-sm"><strong>Satellite:</strong> ${props?.satellite || 'Unknown'}</p>
+                  <p class="text-sm"><strong>Detected:</strong> ${props?.acq_date || ''} ${props?.acq_time || ''}</p>
+                </div>
+                <div class="mt-3 p-2 bg-orange-50 rounded">
+                  <p class="text-xs text-orange-700">This is the likely source of smoke in nearby areas</p>
+                </div>
+              </div>
+            `)
+            .addTo(map.current!);
+        }
+      });
+
+      // Change cursor on hover
+      map.current.on('mouseenter', 'fire-hotspots', () => {
+        map.current!.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.current.on('mouseleave', 'fire-hotspots', () => {
+        map.current!.getCanvas().style.cursor = '';
+      });
+
+      setFireDataLoaded(true);
+      console.log('✅ Fire radiative power data added successfully');
+    } catch (error) {
+      console.error('❌ Error adding fire data:', error);
+    }
+  }, [isMapLoaded]);
+
+  // Add fire data when map is loaded
+  useEffect(() => {
+    if (isMapLoaded && !fireDataLoaded) {
+      addFireLayer();
+    }
+  }, [isMapLoaded, fireDataLoaded, addFireLayer]);
+
   // Update smoke layer when data changes
   useEffect(() => {
     console.log('🔄 MAP EFFECT: isMapLoaded:', isMapLoaded, 'currentLayer time:', currentLayer?.timestamp.toISOString());
@@ -523,9 +669,13 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
       {/* Map Instructions */}
       <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
         {isMapLoaded ? (
-          currentLayer ? 
-            `Showing NOAA smoke forecast for ${currentLayer.timestamp.toLocaleString()} with ${currentLayer.data.length} polygon areas` :
-            "No smoke forecast data available for selected time"
+          <div className="space-y-1">
+            {currentLayer ? 
+              <div>Showing NOAA smoke forecast for {currentLayer.timestamp.toLocaleString()} with {currentLayer.data.length} polygon areas</div> :
+              <div>No smoke forecast data available for selected time</div>
+            }
+            {fireDataLoaded && <div className="text-orange-600">🔥 Active fire sources displayed</div>}
+          </div>
         ) : (
           "Loading NOAA smoke forecast data..."
         )}
