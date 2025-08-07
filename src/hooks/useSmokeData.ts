@@ -11,8 +11,8 @@ interface SmokePolygon {
     smoke_class: number;
     smoke_classdesc: string;
     concentration_ugm3: number;
-    forecast_hour: string;
-    valid_time: string;
+    todate: string;
+    referencedate: string;
   };
 }
 

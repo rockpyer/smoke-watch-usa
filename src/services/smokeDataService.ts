@@ -7,8 +7,8 @@ interface SmokePolygon {
     smoke_class: number;
     smoke_classdesc: string;
     concentration_ugm3: number;
-    forecast_hour: string;
-    valid_time: string;
+    todate: string;
+    referencedate: string;
   };
 }
 
@@ -24,8 +24,8 @@ interface ArcGISFeature {
   attributes: {
     smoke_class: number;
     smoke_classdesc: string;
-    forecast_hour: string;
-    valid_time: string;
+    todate: number; // Unix timestamp in milliseconds
+    referencedate: number; // Unix timestamp in milliseconds
   };
 }
 
@@ -58,9 +58,10 @@ export class SmokeDataService {
     try {
       console.log('Fetching NOAA smoke forecast data...');
       
-      // Query ArcGIS FeatureServer for specific forecast hours (0, 1, 2, 3, 6, 12, 18, 24, 30, 36, 42, 48)
-      const forecastHours = [0, 1, 2, 3, 6, 12, 18, 24, 30, 36, 42, 48];
-      const whereClause = `forecast_hour IN (${forecastHours.join(',')})`;
+      // Query for next 48 hours of forecasts using todate field
+      const now = Date.now();
+      const fortyEightHoursLater = now + (48 * 60 * 60 * 1000);
+      const whereClause = `todate >= ${now} AND todate <= ${fortyEightHoursLater}`;
       
       const queryParams = new URLSearchParams({
         'f': 'json',
@@ -98,20 +99,21 @@ export class SmokeDataService {
     
     console.log(`Processing ${data.features.length} features from ArcGIS`);
     
-    // Group features by forecast hour only
+    // Group features by todate timestamp
     data.features.forEach((feature, index) => {
-      const forecastHour = feature.attributes.forecast_hour || '0';
+      const todate = feature.attributes.todate;
+      const todateStr = new Date(todate).toISOString();
       
       // Log first few to debug
       if (index < 5) {
-        console.log(`Feature ${index}: forecast_hour=${forecastHour}, valid_time=${feature.attributes.valid_time}`);
+        console.log(`Feature ${index}: todate=${todate} (${todateStr}), referencedate=${feature.attributes.referencedate}`);
       }
       
-      if (!layerMap.has(forecastHour)) {
-        layerMap.set(forecastHour, []);
+      if (!layerMap.has(todateStr)) {
+        layerMap.set(todateStr, []);
       }
 
-      // Convert ArcGIS ring geometry to GeoJSON polygon - fix the coordinate structure
+      // Convert ArcGIS ring geometry to GeoJSON polygon
       const rings = feature.geometry.rings;
       const coordinates: number[][][] = rings.map(ring => 
         ring.map(coord => [coord[0], coord[1]]) // Ensure each coordinate is [lng, lat]
@@ -141,26 +143,24 @@ export class SmokeDataService {
           smoke_class: feature.attributes.smoke_class || 1,
           smoke_classdesc: feature.attributes.smoke_classdesc || 'Light',
           concentration_ugm3: concentration,
-          forecast_hour: feature.attributes.forecast_hour || '0',
-          valid_time: feature.attributes.valid_time || new Date().toISOString()
+          todate: todateStr,
+          referencedate: new Date(feature.attributes.referencedate).toISOString()
         }
       };
 
-      layerMap.get(forecastHour)!.push(polygon);
+      layerMap.get(todateStr)!.push(polygon);
     });
 
-    console.log(`Created ${layerMap.size} forecast hour groups:`, Array.from(layerMap.keys()).sort((a, b) => parseInt(a) - parseInt(b)));
+    console.log(`Created ${layerMap.size} time-based groups:`, Array.from(layerMap.keys()).sort());
     
-    // Convert to time-ordered layers based on forecast hours
+    // Convert to time-ordered layers using actual todate timestamps
     const layers: SmokeLayer[] = [];
-    const baseTime = new Date();
     
     Array.from(layerMap.entries())
-      .sort((a, b) => parseInt(a[0]) - parseInt(b[0])) // Sort by forecast hour numerically
-      .forEach(([forecastHour, polygons]) => {
-        const hoursFromNow = parseInt(forecastHour);
-        const timestamp = new Date(baseTime.getTime() + hoursFromNow * 60 * 60 * 1000);
-        console.log(`Layer for +${hoursFromNow}h (${timestamp.toISOString()}): ${polygons.length} polygons`);
+      .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()) // Sort by actual timestamp
+      .forEach(([todateStr, polygons]) => {
+        const timestamp = new Date(todateStr);
+        console.log(`Layer for ${timestamp.toISOString()}: ${polygons.length} polygons`);
         layers.push({ timestamp, data: polygons });
       });
 
@@ -202,8 +202,8 @@ export class SmokeDataService {
             smoke_class: 2,
             smoke_classdesc: 'Moderate',
             concentration_ugm3: 35,
-            forecast_hour: hour.toString(),
-            valid_time: timestamp.toISOString()
+            todate: timestamp.toISOString(),
+            referencedate: baseTime.toISOString()
           }
         }
       ];
