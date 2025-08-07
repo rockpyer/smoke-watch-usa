@@ -326,14 +326,14 @@ export class SmokeDataService {
     return false;
   }
 
-  // Convert concentration to color for visualization
+  // Convert concentration to color for visualization - NOAA standard colors
   getConcentrationColor(concentration: number): string {
-    if (concentration <= 12) return 'rgba(0, 228, 0, 0.6)';        // Good - Green
-    if (concentration <= 35) return 'rgba(255, 255, 0, 0.6)';      // Moderate - Yellow  
-    if (concentration <= 55) return 'rgba(255, 126, 0, 0.6)';      // Unhealthy for Sensitive - Orange
-    if (concentration <= 150) return 'rgba(255, 0, 0, 0.6)';       // Unhealthy - Red
-    if (concentration <= 250) return 'rgba(143, 63, 151, 0.6)';    // Very Unhealthy - Purple
-    return 'rgba(126, 0, 35, 0.8)';                                // Hazardous - Maroon
+    if (concentration <= 12) return 'rgb(0, 228, 0)';        // 0-12 μg/m³ Good - Green
+    if (concentration <= 35) return 'rgb(255, 255, 0)';      // 12-35 μg/m³ Moderate - Yellow  
+    if (concentration <= 55) return 'rgb(255, 126, 0)';      // 35-55 μg/m³ Unhealthy for Sensitive - Orange
+    if (concentration <= 150) return 'rgb(255, 0, 0)';       // 55-150 μg/m³ Unhealthy - Red
+    if (concentration <= 250) return 'rgb(143, 63, 151)';    // 150-250 μg/m³ Very Unhealthy - Purple
+    return 'rgb(126, 0, 35)';                                // 250+ μg/m³ Hazardous - Maroon
   }
 
   // Convert smoke class description to AQI category
