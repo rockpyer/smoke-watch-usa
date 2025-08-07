@@ -31,6 +31,10 @@ interface ArcGISFeature {
 
 interface ArcGISResponse {
   features: ArcGISFeature[];
+  error?: {
+    code: number;
+    message: string;
+  };
 }
 
 export class SmokeDataService {
@@ -76,7 +80,19 @@ export class SmokeDataService {
       }
 
       const data: ArcGISResponse = await response.json();
-      console.log(`Received ${data.features.length} smoke forecast polygons`);
+      
+      // Debug logging
+      console.log('=== RAW API RESPONSE ===');
+      console.log(`Response status: ${response.status}`);
+      console.log(`Raw features count: ${data.features?.length || 0}`);
+      if (data.error) {
+        console.error('API Error:', data.error);
+        throw new Error(`API Error: ${data.error.message}`);
+      }
+      if (data.features && data.features.length > 0) {
+        console.log('First feature sample:', JSON.stringify(data.features[0], null, 2));
+      }
+      console.log('========================');
       
       const smokeData = this.processArcGISData(data);
       this.cache.set(cacheKey, smokeData);
