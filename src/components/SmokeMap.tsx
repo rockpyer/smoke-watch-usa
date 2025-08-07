@@ -406,13 +406,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
       const fireFeatures = fireData.incidents.map(incident => ({
         type: 'Feature' as const,
         properties: {
-          IRWINID: incident.IRWINID,
-          population: incident.sum_p0010001,
-          WHPClass: incident.WHPClass,
-          PctForest: incident.PctForest,
-          PctShrub: incident.PctShrub,
-          PctGrass: incident.PctGrass,
-          Point_Count: incident.Point_Count
+          IncidentName: incident.IncidentName,
+          FireDiscoveryDateTime: incident.FireDiscoveryDateTime,
+          ForestTypeGroup: incident.ForestTypeGroup,
+          PercentContained: incident.PercentContained,
+          DailyAcres: incident.DailyAcres
         },
         geometry: {
           type: 'Point' as const,
@@ -437,20 +435,19 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         paint: {
           'circle-radius': [
             'case',
-            ['<', ['coalesce', ['get', 'population'], 0], 100], 2,
-            ['<', ['coalesce', ['get', 'population'], 0], 1000], 3,
-            ['<', ['coalesce', ['get', 'population'], 0], 5000], 4,
-            ['<', ['coalesce', ['get', 'population'], 0], 10000], 5,
+            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 100], 2,
+            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 1000], 3,
+            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 5000], 4,
+            ['<', ['coalesce', ['get', 'DailyAcres'], 0], 10000], 5,
             6
           ],
           'circle-color': [
             'case',
-            ['==', ['get', 'WHPClass'], 'Very Low'], '#00ff00',
-            ['==', ['get', 'WHPClass'], 'Low'], '#ffff00',
-            ['==', ['get', 'WHPClass'], 'Moderate'], '#ffa500',
-            ['==', ['get', 'WHPClass'], 'High'], '#ff4500',
-            ['==', ['get', 'WHPClass'], 'Very High'], '#ff0000',
-            '#8b0000' // Default for unknown
+            ['<', ['coalesce', ['get', 'PercentContained'], 100], 20], '#ff0000',
+            ['<', ['coalesce', ['get', 'PercentContained'], 100], 50], '#ff4500',
+            ['<', ['coalesce', ['get', 'PercentContained'], 100], 80], '#ffa500',
+            ['<', ['coalesce', ['get', 'PercentContained'], 100], 95], '#ffff00',
+            '#00ff00' // 95%+ contained
           ],
           'circle-opacity': 0.8,
           'circle-stroke-width': 1,
@@ -473,12 +470,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
                   🔥 Wildfire Incident
                 </h4>
                 <div class="mt-2 space-y-1">
-                  <p class="text-sm"><strong>IRWIN ID:</strong> ${props?.IRWINID || 'Unknown'}</p>
-                  <p class="text-sm"><strong>Population at Risk:</strong> ${props?.population ? props.population.toLocaleString() : 'Unknown'}</p>
-                  <p class="text-sm"><strong>Wildfire Hazard:</strong> ${props?.WHPClass || 'Unknown'}</p>
-                  ${props?.PctForest ? `<p class="text-sm"><strong>Forest Cover:</strong> ${Math.round(props.PctForest)}%</p>` : ''}
-                  ${props?.PctShrub ? `<p class="text-sm"><strong>Shrub Cover:</strong> ${Math.round(props.PctShrub)}%</p>` : ''}
-                  ${props?.PctGrass ? `<p class="text-sm"><strong>Grass Cover:</strong> ${Math.round(props.PctGrass)}%</p>` : ''}
+                  <p class="text-sm"><strong>Incident Name:</strong> ${props?.IncidentName || 'Not Available'}</p>
+                  <p class="text-sm"><strong>Start Date:</strong> ${props?.FireDiscoveryDateTime || 'Not Available'}</p>
+                  <p class="text-sm"><strong>Forest Type:</strong> ${props?.ForestTypeGroup || 'Not Available'}</p>
+                  <p class="text-sm"><strong>Percent Contained:</strong> ${props?.PercentContained !== undefined ? props.PercentContained + '%' : 'Not Available'}</p>
+                  <p class="text-sm"><strong>Acres:</strong> ${props?.DailyAcres !== undefined ? props.DailyAcres.toLocaleString() : 'Not Available'}</p>
                 </div>
               </div>
             `)

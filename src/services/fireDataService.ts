@@ -1,13 +1,11 @@
 interface WildfireIncident {
   latitude: number;
   longitude: number;
-  IRWINID: string;
-  sum_p0010001?: number; // Total Population 2020
-  WHPClass?: string; // Wildfire Hazard Potential Class
-  PctForest?: number;
-  PctShrub?: number;
-  PctGrass?: number;
-  Point_Count?: number;
+  IncidentName?: string;
+  FireDiscoveryDateTime?: string;
+  ForestTypeGroup?: string;
+  PercentContained?: number;
+  DailyAcres?: number;
 }
 
 interface WildfirePerimeter {
@@ -42,8 +40,8 @@ export class FireDataService {
   
   // ArcGIS Wildfire service endpoints
   private readonly WILDFIRE_BASE_URL = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/Wildfire_aggregated_v1/FeatureServer';
-  private readonly INCIDENTS_LAYER = 0; // Wildfire Incidents layer
-  private readonly PERIMETERS_LAYER = 1; // Wildfire Perimeters layer
+  private readonly INCIDENTS_LAYER = 1; // Wildfire Incidents layer
+  private readonly PERIMETERS_LAYER = 0; // Wildfire Perimeters layer
 
   static getInstance(): FireDataService {
     if (!FireDataService.instance) {
@@ -122,13 +120,11 @@ export class FireDataService {
       return {
         latitude,
         longitude,
-        IRWINID: attributes.IRWINID || 'Unknown',
-        sum_p0010001: attributes.sum_p0010001,
-        WHPClass: attributes.WHPClass,
-        PctForest: attributes.PctForest,
-        PctShrub: attributes.PctShrub,
-        PctGrass: attributes.PctGrass,
-        Point_Count: attributes.Point_Count
+        IncidentName: attributes.IncidentName,
+        FireDiscoveryDateTime: attributes.FireDiscoveryDateTime,
+        ForestTypeGroup: attributes.ForestTypeGroup,
+        PercentContained: attributes.PercentContained,
+        DailyAcres: attributes.DailyAcres
       };
     });
   }
