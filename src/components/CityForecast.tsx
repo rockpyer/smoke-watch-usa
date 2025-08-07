@@ -101,7 +101,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     const date = forecast.timestamp.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric',
-      timeZone: 'UTC' // Show in UTC to match the data
+      timeZone: 'America/Denver' // Display in Mountain Time by default
     });
     if (!groups[date]) groups[date] = [];
     groups[date].push(forecast);
@@ -153,7 +153,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
                       {forecast.timestamp.toLocaleTimeString('en-US', { 
                         hour: 'numeric',
                         hour12: true,
-                        timeZone: 'UTC'
+                        timeZone: 'America/Denver'
                       })}
                     </span>
                   </div>

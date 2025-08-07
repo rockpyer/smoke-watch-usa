@@ -19,7 +19,7 @@ interface SmokeLayer {
 
 interface ArcGISFeature {
   geometry: {
-    rings: number[][];
+    rings: number[][][];
   };
   attributes: {
     smoke_class: number;
@@ -31,6 +31,7 @@ interface ArcGISFeature {
 
 interface ArcGISResponse {
   features: ArcGISFeature[];
+  exceededTransferLimit?: boolean;
   error?: {
     code: number;
     message: string;
@@ -60,48 +61,52 @@ export class SmokeDataService {
     }
 
     try {
-      console.log('Fetching NOAA smoke forecast data...');
-      
-      // Simplify query to get all available data
-      console.log('Fetching all available NOAA smoke forecast data...');
-      
-      const queryParams = new URLSearchParams({
-        'f': 'json',
-        'where': '1=1',
-        'outFields': '*',
-        'returnGeometry': 'true',
-        'resultRecordCount': '1000'
-      });
+      console.log('Fetching NOAA smoke forecast data with pagination...');
 
-      const response = await fetch(`${this.ARCGIS_ENDPOINT}/query?${queryParams}`);
-      
-      if (!response.ok) {
-        throw new Error(`ArcGIS API error: ${response.status}`);
+      const allFeatures: ArcGISFeature[] = [];
+      const pageSize = 2000;
+      let offset = 0;
+      let page = 0;
+
+      while (true) {
+        const params = new URLSearchParams({
+          f: 'json',
+          where: '1=1',
+          outFields: 'todate,referencedate,smoke_classdesc',
+          returnGeometry: 'true',
+          orderByFields: 'todate',
+          resultRecordCount: String(pageSize),
+          resultOffset: String(offset)
+        });
+
+        const url = `${this.ARCGIS_ENDPOINT}/query?${params}`;
+        console.log(`Page ${page}: GET ${url}`);
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`ArcGIS API error: ${res.status}`);
+        }
+
+        const data: ArcGISResponse = await res.json();
+        const count = data.features?.length || 0;
+        allFeatures.push(...(data.features || []));
+        console.log(`Page ${page}: received ${count} features, total so far ${allFeatures.length}, exceededTransferLimit=${data.exceededTransferLimit}`);
+
+        if (!data.exceededTransferLimit || count === 0) {
+          break;
+        }
+        offset += pageSize;
+        page += 1;
       }
 
-      const data: ArcGISResponse = await response.json();
-      
-      // Debug logging
-      console.log('=== RAW API RESPONSE ===');
-      console.log(`Response status: ${response.status}`);
-      console.log(`Raw features count: ${data.features?.length || 0}`);
-      if (data.error) {
-        console.error('API Error:', data.error);
-        throw new Error(`API Error: ${data.error.message}`);
-      }
-      if (data.features && data.features.length > 0) {
-        console.log('First feature sample:', JSON.stringify(data.features[0], null, 2));
-      }
-      console.log('========================');
-      
-      const smokeData = this.processArcGISData(data);
+      // Process combined feature set
+      const smokeData = this.processArcGISData({ features: allFeatures });
       this.cache.set(cacheKey, smokeData);
       return smokeData;
-      
+
     } catch (error) {
       console.error('Error fetching NOAA smoke data:', error);
-      // Return fallback data if API fails
-      return this.generateFallbackSmokeData();
+      // Do not fabricate data; return empty set on failure
+      return [];
     }
   }
 
@@ -110,7 +115,7 @@ export class SmokeDataService {
     
     if (data.features.length === 0) {
       console.warn('No features received from ArcGIS API');
-      return this.generateFallbackSmokeData();
+      return [];
     }
 
     // Add detailed logging to understand the data
@@ -202,11 +207,7 @@ export class SmokeDataService {
         layers.push({ timestamp, data: polygons });
       });
 
-    // Generate 48-hour forecast from current time if we have gaps
-    const extendedLayers = this.ensureFullForecastRange(layers);
-    console.log(`Extended to ${extendedLayers.length} layers covering 48 hours`);
-    
-    return extendedLayers;
+    return layers;
   }
 
   private ensureFullForecastRange(layers: SmokeLayer[]): SmokeLayer[] {
