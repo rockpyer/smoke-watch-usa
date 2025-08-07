@@ -328,12 +328,20 @@ export class SmokeDataService {
 
   // Convert concentration to color for visualization - NOAA standard colors
   getConcentrationColor(concentration: number): string {
-    if (concentration <= 12) return 'rgb(0, 228, 0)';        // 0-12 μg/m³ Good - Green
-    if (concentration <= 35) return 'rgb(255, 255, 0)';      // 12-35 μg/m³ Moderate - Yellow  
-    if (concentration <= 55) return 'rgb(255, 126, 0)';      // 35-55 μg/m³ Unhealthy for Sensitive - Orange
-    if (concentration <= 150) return 'rgb(255, 0, 0)';       // 55-150 μg/m³ Unhealthy - Red
-    if (concentration <= 250) return 'rgb(143, 63, 151)';    // 150-250 μg/m³ Very Unhealthy - Purple
-    return 'rgb(126, 0, 35)';                                // 250+ μg/m³ Hazardous - Maroon
+    if (concentration <= 2) return 'rgb(255, 255, 255)';     // 1-2 μg/m³ - White
+    if (concentration <= 4) return 'rgb(224, 247, 255)';     // 2-4 μg/m³ - Very Light Blue
+    if (concentration <= 6) return 'rgb(176, 229, 255)';     // 4-6 μg/m³ - Light Blue
+    if (concentration <= 8) return 'rgb(128, 210, 255)';     // 6-8 μg/m³ - Medium Blue
+    if (concentration <= 12) return 'rgb(102, 204, 255)';    // 8-12 μg/m³ - Blue
+    if (concentration <= 16) return 'rgb(0, 204, 102)';      // 12-16 μg/m³ - Green
+    if (concentration <= 20) return 'rgb(102, 204, 0)';      // 16-20 μg/m³ - Yellow-Green
+    if (concentration <= 25) return 'rgb(204, 204, 0)';      // 20-25 μg/m³ - Yellow
+    if (concentration <= 30) return 'rgb(255, 204, 0)';      // 25-30 μg/m³ - Orange
+    if (concentration <= 40) return 'rgb(255, 153, 0)';      // 30-40 μg/m³ - Dark Orange
+    if (concentration <= 60) return 'rgb(255, 102, 0)';      // 40-60 μg/m³ - Red-Orange
+    if (concentration <= 100) return 'rgb(255, 51, 0)';      // 60-100 μg/m³ - Red
+    if (concentration <= 200) return 'rgb(204, 0, 51)';      // 100-200 μg/m³ - Purple
+    return 'rgb(153, 0, 153)';                               // 200+ μg/m³ - Dark Purple
   }
 
   // Convert smoke class description to AQI category

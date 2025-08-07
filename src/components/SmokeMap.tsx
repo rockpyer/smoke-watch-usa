@@ -236,12 +236,20 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         paint: {
           'fill-color': [
             'case',
-            ['<=', ['get', 'concentration'], 12],  'rgb(0, 228, 0)',        // 0-12 μg/m³ Good - Green
-            ['<=', ['get', 'concentration'], 35],  'rgb(255, 255, 0)',      // 12-35 μg/m³ Moderate - Yellow
-            ['<=', ['get', 'concentration'], 55],  'rgb(255, 126, 0)',      // 35-55 μg/m³ Unhealthy for Sensitive - Orange
-            ['<=', ['get', 'concentration'], 150], 'rgb(255, 0, 0)',        // 55-150 μg/m³ Unhealthy - Red
-            ['<=', ['get', 'concentration'], 250], 'rgb(143, 63, 151)',     // 150-250 μg/m³ Very Unhealthy - Purple
-            'rgb(126, 0, 35)'                                               // 250+ μg/m³ Hazardous - Maroon
+            ['<=', ['get', 'concentration'], 2],   'rgb(255, 255, 255)',    // 1-2 μg/m³ - White
+            ['<=', ['get', 'concentration'], 4],   'rgb(224, 247, 255)',    // 2-4 μg/m³ - Very Light Blue
+            ['<=', ['get', 'concentration'], 6],   'rgb(176, 229, 255)',    // 4-6 μg/m³ - Light Blue
+            ['<=', ['get', 'concentration'], 8],   'rgb(128, 210, 255)',    // 6-8 μg/m³ - Medium Blue
+            ['<=', ['get', 'concentration'], 12],  'rgb(102, 204, 255)',    // 8-12 μg/m³ - Blue
+            ['<=', ['get', 'concentration'], 16],  'rgb(0, 204, 102)',      // 12-16 μg/m³ - Green
+            ['<=', ['get', 'concentration'], 20],  'rgb(102, 204, 0)',      // 16-20 μg/m³ - Yellow-Green
+            ['<=', ['get', 'concentration'], 25],  'rgb(204, 204, 0)',      // 20-25 μg/m³ - Yellow
+            ['<=', ['get', 'concentration'], 30],  'rgb(255, 204, 0)',      // 25-30 μg/m³ - Orange
+            ['<=', ['get', 'concentration'], 40],  'rgb(255, 153, 0)',      // 30-40 μg/m³ - Dark Orange
+            ['<=', ['get', 'concentration'], 60],  'rgb(255, 102, 0)',      // 40-60 μg/m³ - Red-Orange
+            ['<=', ['get', 'concentration'], 100], 'rgb(255, 51, 0)',       // 60-100 μg/m³ - Red
+            ['<=', ['get', 'concentration'], 200], 'rgb(204, 0, 51)',       // 100-200 μg/m³ - Purple
+            'rgb(153, 0, 153)'                                              // 200+ μg/m³ - Dark Purple
           ],
           'fill-opacity': [
             'interpolate',
@@ -261,12 +269,20 @@ const SmokeMap: React.FC<SmokeMapProps> = ({ onLocationSelect, selectedTime, cur
         paint: {
           'line-color': [
             'case',
-            ['<=', ['get', 'concentration'], 12], 'rgb(0, 228, 0)',        // Good - Green
-            ['<=', ['get', 'concentration'], 35], 'rgb(255, 255, 0)',      // Moderate - Yellow
-            ['<=', ['get', 'concentration'], 55], 'rgb(255, 126, 0)',      // Unhealthy for Sensitive - Orange
-            ['<=', ['get', 'concentration'], 150], 'rgb(255, 0, 0)',       // Unhealthy - Red
-            ['<=', ['get', 'concentration'], 250], 'rgb(143, 63, 151)',    // Very Unhealthy - Purple
-            'rgb(126, 0, 35)'                                              // Hazardous - Maroon
+            ['<=', ['get', 'concentration'], 2],   'rgb(255, 255, 255)',    // 1-2 μg/m³ - White
+            ['<=', ['get', 'concentration'], 4],   'rgb(224, 247, 255)',    // 2-4 μg/m³ - Very Light Blue
+            ['<=', ['get', 'concentration'], 6],   'rgb(176, 229, 255)',    // 4-6 μg/m³ - Light Blue
+            ['<=', ['get', 'concentration'], 8],   'rgb(128, 210, 255)',    // 6-8 μg/m³ - Medium Blue
+            ['<=', ['get', 'concentration'], 12],  'rgb(102, 204, 255)',    // 8-12 μg/m³ - Blue
+            ['<=', ['get', 'concentration'], 16],  'rgb(0, 204, 102)',      // 12-16 μg/m³ - Green
+            ['<=', ['get', 'concentration'], 20],  'rgb(102, 204, 0)',      // 16-20 μg/m³ - Yellow-Green
+            ['<=', ['get', 'concentration'], 25],  'rgb(204, 204, 0)',      // 20-25 μg/m³ - Yellow
+            ['<=', ['get', 'concentration'], 30],  'rgb(255, 204, 0)',      // 25-30 μg/m³ - Orange
+            ['<=', ['get', 'concentration'], 40],  'rgb(255, 153, 0)',      // 30-40 μg/m³ - Dark Orange
+            ['<=', ['get', 'concentration'], 60],  'rgb(255, 102, 0)',      // 40-60 μg/m³ - Red-Orange
+            ['<=', ['get', 'concentration'], 100], 'rgb(255, 51, 0)',       // 60-100 μg/m³ - Red
+            ['<=', ['get', 'concentration'], 200], 'rgb(204, 0, 51)',       // 100-200 μg/m³ - Purple
+            'rgb(153, 0, 153)'                                              // 200+ μg/m³ - Dark Purple
           ],
           'line-width': [
             'interpolate',
