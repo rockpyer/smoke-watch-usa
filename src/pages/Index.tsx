@@ -7,9 +7,6 @@ import { CityForecast } from '@/components/CityForecast';
 import { useSmokeData } from '@/hooks/useSmokeData';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from '@/components/ui/drawer';
-import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -25,7 +22,7 @@ const Index = () => {
   
   const { smokeLayers, currentLayer } = useSmokeData(selectedTime);
   
-  const isMobile = useIsMobile();
+  
 
   const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
   
@@ -79,12 +76,12 @@ const Index = () => {
             <div className="flex items-center space-x-2">
               <Cloud className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold text-foreground">North American Smoke Map</h1>
-                <p className="text-sm text-muted-foreground">Real-time wildfire smoke and air quality forecasting</p>
+                <h1 className="text-lg md:text-2xl font-bold text-foreground">North American Smoke Map</h1>
+                <p className="text-xs md:text-sm text-muted-foreground">48 hour wildfire smoke forecasting</p>
               </div>
             </div>
             
-            {/* City Forecast */}
+            {/* City Forecast (Desktop) */}
             <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0">
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
@@ -92,11 +89,27 @@ const Index = () => {
               />
             </div>
           </div>
+
+          {/* Mobile top controls */}
+          <div className="block md:hidden mt-2 space-y-2">
+            <CityForecast 
+              cityCoordinates={searchedCity?.coordinates}
+              cityName={searchedCity?.name}
+              compact
+            />
+            <TimeControls 
+              onTimeChange={handleTimeChange}
+              autoPlay={false}
+              availableTimes={smokeLayers.map(layer => layer.timestamp)}
+              timeZone={cityTimeZone}
+              compact
+            />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="relative z-10 h-[calc(100vh-88px)]">
+      <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           {/* Map Area */}
           <div className="md:col-span-3 relative">
@@ -132,48 +145,10 @@ const Index = () => {
         </div>
 
         {/* Mobile Drawer Controls */}
-        {isMobile && (
-          <Drawer>
-            <DrawerTrigger asChild>
-              <div className="fixed bottom-4 inset-x-0 z-30 flex justify-center">
-                <Button variant="default" className="shadow-lg">
-                  Open Controls
-                </Button>
-              </div>
-            </DrawerTrigger>
-            <DrawerContent>
-              <DrawerHeader className="text-center">
-                <DrawerTitle>Smoke Forecast Controls</DrawerTitle>
-                <DrawerDescription>Timeline, location details, and legend</DrawerDescription>
-              </DrawerHeader>
-              <div className="p-4 space-y-4">
-                <CityForecast 
-                  cityCoordinates={searchedCity?.coordinates}
-                  cityName={searchedCity?.name}
-                  compact
-                />
-                <TimeControls 
-                  onTimeChange={handleTimeChange}
-                  autoPlay={false}
-                  availableTimes={smokeLayers.map(layer => layer.timestamp)}
-                  timeZone={cityTimeZone}
-                  compact
-                />
-                <LocationInfo 
-                  coordinates={selectedLocation?.coordinates}
-                  locationName={selectedLocation?.name}
-                  selectedTime={selectedTime}
-                  smokeData={selectedLocation?.smokeData}
-                />
-                <SmokeLegend />
-              </div>
-            </DrawerContent>
-          </Drawer>
-        )}
       </div>
 
       {/* Footer */}
-      <footer className="absolute bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border">
+      <footer className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border">
         <div className="container mx-auto px-4 py-2">
           <div className="flex flex-col sm:flex-row justify-between items-center text-xs text-muted-foreground">
             <div className="flex items-center space-x-4">
