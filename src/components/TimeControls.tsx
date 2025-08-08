@@ -31,14 +31,27 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
     }
     return closest;
   };
+// Stable key for availableTimes to avoid resetting index on each re-render
+const timesKey = availableTimes.map(t => t.getTime()).join(',');
+
 useEffect(() => {
   if (availableTimes.length > 0) {
     // Use actual smoke data timestamps
     console.log('🕐 TIME CONTROLS: Using available smoke data timestamps:', availableTimes.map(t => t.toISOString()));
-    setForecastTimes([...availableTimes]);
-    // Snap to current time (closest timestamp)
-    const idx = findClosestIndex(availableTimes, new Date());
-    setCurrentIndex(idx);
+
+    // Only update times if they actually changed
+    setForecastTimes((prev) => {
+      const prevKey = prev.map(t => t.getTime()).join(',');
+      const newKey = timesKey;
+      return prevKey !== newKey ? [...availableTimes] : prev;
+    });
+
+    // Snap to current time only on first init or when the dataset changed
+    setCurrentIndex((prev) => {
+      const updatedKey = forecastTimes.map(t => t.getTime()).join(',');
+      const shouldSnap = updatedKey !== timesKey || forecastTimes.length === 0;
+      return shouldSnap ? findClosestIndex(availableTimes, new Date()) : prev;
+    });
   } else {
     // Fallback: Generate forecast times (current time + 72 hours, 3-hour intervals)
     console.log('🕐 TIME CONTROLS: No available times, generating fallback times');
@@ -49,10 +62,9 @@ useEffect(() => {
       times.push(addHours(startTime, i * 3));
     }
     setForecastTimes(times);
-    const idx = findClosestIndex(times, new Date());
-    setCurrentIndex(idx);
+    setCurrentIndex(findClosestIndex(times, new Date()));
   }
-}, [availableTimes]);
+}, [timesKey]);
 
   useEffect(() => {
     if (forecastTimes.length > 0 && onTimeChange) {
