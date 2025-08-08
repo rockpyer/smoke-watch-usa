@@ -10,9 +10,10 @@ interface TimeControlsProps {
   autoPlay?: boolean;
   availableTimes?: Date[];
   timeZone?: string;
+  compact?: boolean;
 }
 
-const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [], timeZone }) => {
+const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [], timeZone, compact = false }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [forecastTimes, setForecastTimes] = useState<Date[]>([]);
@@ -129,7 +130,7 @@ const isCurrentTime = currentIndex === nowIndex;
 
   return (
     <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
-      <div className="p-4 space-y-4">
+      <div className={`${compact ? 'p-3' : 'p-4'} space-y-4`}>
         {/* Current Time Display */}
         <div className="text-center">
           <div className="text-lg font-bold text-foreground">
@@ -157,10 +158,12 @@ const isCurrentTime = currentIndex === nowIndex;
             step={1}
             className="w-full"
           />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Now</span>
-            <span>+{forecastTimes.length - 1}h</span>
-          </div>
+          {!compact && (
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Now</span>
+              <span>+{forecastTimes.length - 1}h</span>
+            </div>
+          )}
         </div>
 
         {/* Playback Controls */}
@@ -209,9 +212,11 @@ const isCurrentTime = currentIndex === nowIndex;
         </div>
 
         {/* Time Labels */}
-        <div className="text-center text-xs text-muted-foreground">
-          Frame {currentIndex + 1} of {forecastTimes.length}
-        </div>
+        {!compact && (
+          <div className="text-center text-xs text-muted-foreground">
+            Frame {currentIndex + 1} of {forecastTimes.length}
+          </div>
+        )}
       </div>
     </Card>
   );

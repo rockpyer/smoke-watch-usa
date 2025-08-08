@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
@@ -7,6 +7,9 @@ import { CityForecast } from '@/components/CityForecast';
 import { useSmokeData } from '@/hooks/useSmokeData';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from '@/components/ui/drawer';
+import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -22,7 +25,29 @@ const Index = () => {
   
   const { smokeLayers, currentLayer } = useSmokeData(selectedTime);
   
+  const isMobile = useIsMobile();
+
   const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
+  
+  useEffect(() => {
+    // SEO basics
+    document.title = 'North American Smoke Map – Real-time Forecast';
+    const desc = 'Real-time NOAA HRRR smoke forecast with wildfire perimeters and air quality.';
+    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'description');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', desc);
+    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      document.head.appendChild(link);
+    }
+    link.setAttribute('href', window.location.href);
+  }, []);
   
   console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
   console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp.toISOString() || 'undefined'}`);
@@ -59,7 +84,7 @@ const Index = () => {
             </div>
             
             {/* City Forecast */}
-            <div className="w-full lg:w-auto mt-2 lg:mt-0">
+            <div className="hidden lg:block w-full lg:w-auto mt-2 lg:mt-0">
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
@@ -83,7 +108,7 @@ const Index = () => {
           </div>
 
           {/* Controls Panel */}
-          <div className="lg:col-span-1 space-y-4 overflow-y-auto">
+          <div className="hidden lg:block lg:col-span-1 space-y-4 overflow-y-auto">
             {/* Time Controls */}
             <TimeControls 
               onTimeChange={handleTimeChange}
@@ -104,6 +129,46 @@ const Index = () => {
             <SmokeLegend />
           </div>
         </div>
+
+        {/* Mobile Drawer Controls */}
+        {isMobile && (
+          <Drawer>
+            <DrawerTrigger asChild>
+              <div className="fixed bottom-4 inset-x-0 z-30 flex justify-center">
+                <Button variant="default" className="shadow-lg">
+                  Open Controls
+                </Button>
+              </div>
+            </DrawerTrigger>
+            <DrawerContent>
+              <DrawerHeader className="text-center">
+                <DrawerTitle>Smoke Forecast Controls</DrawerTitle>
+                <DrawerDescription>Timeline, location details, and legend</DrawerDescription>
+              </DrawerHeader>
+              <div className="p-4 space-y-4">
+                <CityForecast 
+                  cityCoordinates={searchedCity?.coordinates}
+                  cityName={searchedCity?.name}
+                  compact
+                />
+                <TimeControls 
+                  onTimeChange={handleTimeChange}
+                  autoPlay={false}
+                  availableTimes={smokeLayers.map(layer => layer.timestamp)}
+                  timeZone={cityTimeZone}
+                  compact
+                />
+                <LocationInfo 
+                  coordinates={selectedLocation?.coordinates}
+                  locationName={selectedLocation?.name}
+                  selectedTime={selectedTime}
+                  smokeData={selectedLocation?.smokeData}
+                />
+                <SmokeLegend />
+              </div>
+            </DrawerContent>
+          </Drawer>
+        )}
       </div>
 
       {/* Footer */}
