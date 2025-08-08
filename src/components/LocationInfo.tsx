@@ -74,6 +74,7 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
   }
 
   const c = smokeData.concentration;
+  const aqi = concentrationToAQI(c);
 
   const getSmokeLevel = (c: number) => {
     if (c < 3) return { label: 'No Smoke', color: 'bg-smoke-none', textColor: 'text-white' };

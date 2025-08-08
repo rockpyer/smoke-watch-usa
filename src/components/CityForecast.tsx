@@ -137,7 +137,6 @@ const tickIndices = [
         <h3 className="text-sm font-semibold text-foreground whitespace-nowrap">
           {cityName} • 48h Smoke Forecast <span className="ml-1 text-[10px] text-muted-foreground">({tzShort})</span>
         </h3>
-        </h3>
         <Button
           variant="ghost"
           size="sm"
