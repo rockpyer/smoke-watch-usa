@@ -97,8 +97,33 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     }
   };
 
-  if (!cityCoordinates || !cityName || !forecastData.length) {
+  if (!cityCoordinates || !cityName) {
     return null;
+  }
+
+  if (!forecastData.length) {
+    return (
+      <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className={`${compact ? 'text-xs' : 'text-sm'} font-semibold text-foreground whitespace-nowrap`}>
+            {cityName} • 48h Smoke Forecast
+          </h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refetch}
+            disabled={isLoading}
+            className="h-6 w-6 p-0"
+            aria-label="Refresh city forecast"
+          >
+            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          {isLoading ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
+        </div>
+      </Card>
+    );
   }
 
 // Timeline helpers and local timezone formatting

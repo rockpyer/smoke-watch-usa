@@ -55,6 +55,7 @@ const Index = () => {
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
+    setSearchedCity({ coordinates: { lat: coordinates[1], lng: coordinates[0] }, name: locationName });
   };
 
   const handleCitySearch = (coordinates: { lat: number; lng: number }, cityName: string) => {
@@ -84,7 +85,7 @@ const Index = () => {
             </div>
             
             {/* City Forecast */}
-            <div className="hidden lg:block w-full lg:w-auto mt-2 lg:mt-0">
+            <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0">
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
@@ -96,9 +97,9 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="relative z-10 h-[calc(100vh-88px)]">
-        <div className="grid grid-cols-1 lg:grid-cols-4 h-full gap-4 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           {/* Map Area */}
-          <div className="lg:col-span-3 relative">
+          <div className="md:col-span-3 relative">
             <SmokeMap 
               onLocationSelect={handleLocationSelect}
               onCitySearch={handleCitySearch}
@@ -108,7 +109,7 @@ const Index = () => {
           </div>
 
           {/* Controls Panel */}
-          <div className="hidden lg:block lg:col-span-1 space-y-4 overflow-y-auto">
+          <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
             {/* Time Controls */}
             <TimeControls 
               onTimeChange={handleTimeChange}
