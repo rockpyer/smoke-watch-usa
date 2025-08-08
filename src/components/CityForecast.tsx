@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeData';
+import tzLookup from 'tz-lookup';
 
 interface CityForecastProps {
   cityCoordinates?: { lat: number; lng: number };
@@ -98,10 +99,12 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     return null;
   }
 
-// Timeline helpers and MT formatting
-const tz = 'America/Denver';
+// Timeline helpers and local timezone formatting
+const tz = cityCoordinates ? tzLookup(cityCoordinates.lat, cityCoordinates.lng) : 'America/Denver';
+const tzShort = new Date().toLocaleTimeString('en-US', { timeZone: tz, timeZoneName: 'short' }).split(' ').pop() || 'local';
 const concentrationToCategory = (c: number) => {
-  if (c <= 12) return 'good';
+  if (c < 3) return 'none';
+  if (c <= 12) return 'light';
   if (c <= 35) return 'moderate';
   if (c <= 55) return 'unhealthy-sensitive';
   if (c <= 150) return 'unhealthy';
@@ -109,14 +112,15 @@ const concentrationToCategory = (c: number) => {
   return 'hazardous';
 };
 const categoryClass: Record<string, string> = {
-  good: 'bg-smoke-good',
+  none: 'bg-smoke-none',
+  light: 'bg-smoke-light',
   moderate: 'bg-smoke-moderate',
   'unhealthy-sensitive': 'bg-smoke-unhealthy-sensitive',
   unhealthy: 'bg-smoke-unhealthy',
   'very-unhealthy': 'bg-smoke-very-unhealthy',
   hazardous: 'bg-smoke-hazardous'
 };
-const formatMT = (d: Date) =>
+const formatLocal = (d: Date) =>
   d.toLocaleString('en-US', { hour: 'numeric', hour12: true, timeZone: tz });
 const total = forecastData.length;
 const tickIndices = [
@@ -131,7 +135,8 @@ const tickIndices = [
     <Card className="p-3 bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-foreground whitespace-nowrap">
-          {cityName} • 48h Smoke Forecast <span className="ml-1 text-[10px] text-muted-foreground">(MT)</span>
+          {cityName} • 48h Smoke Forecast <span className="ml-1 text-[10px] text-muted-foreground">({tzShort})</span>
+        </h3>
         </h3>
         <Button
           variant="ghost"
@@ -150,11 +155,12 @@ const tickIndices = [
         {forecastData.map((f, i) => {
           const category = concentrationToCategory(f.concentration);
           const colorClass = categoryClass[category] || 'bg-muted';
+          const label = category === 'none' ? 'No Smoke' : category === 'light' ? 'Light Smoke' : f.smokeDescription;
           return (
             <div
               key={i}
               className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0`}
-              title={`${f.timestamp.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true, timeZone: tz })} • ${f.concentration.toFixed(1)} μg/m³ (${f.smokeDescription})`}
+              title={`${f.timestamp.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true, timeZone: tz })} • ${f.concentration.toFixed(1)} μg/m³ (${label})`}
             />
           );
         })}
@@ -163,7 +169,7 @@ const tickIndices = [
       {/* Time scale (single line, small) */}
       <div className="flex justify-between text-[10px] text-muted-foreground whitespace-nowrap mt-1">
         {tickIndices.map((idx) => (
-          <span key={idx}>{forecastData[idx] ? formatMT(forecastData[idx].timestamp) : ''}</span>
+          <span key={idx}>{forecastData[idx] ? formatLocal(forecastData[idx].timestamp) : ''}</span>
         ))}
       </div>
     </Card>

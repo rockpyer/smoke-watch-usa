@@ -6,6 +6,7 @@ import LocationInfo from '@/components/LocationInfo';
 import { CityForecast } from '@/components/CityForecast';
 import { useSmokeData } from '@/hooks/useSmokeData';
 import { Cloud } from 'lucide-react';
+import tzLookup from 'tz-lookup';
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -20,6 +21,8 @@ const Index = () => {
   } | null>(null);
   
   const { smokeLayers, currentLayer } = useSmokeData(selectedTime);
+  
+  const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
   
   console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
   console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp.toISOString() || 'undefined'}`);
@@ -56,7 +59,7 @@ const Index = () => {
             </div>
             
             {/* City Forecast */}
-            <div className="hidden lg:block">
+            <div className="w-full lg:w-auto mt-2 lg:mt-0">
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
@@ -86,6 +89,7 @@ const Index = () => {
               onTimeChange={handleTimeChange}
               autoPlay={false}
               availableTimes={smokeLayers.map(layer => layer.timestamp)}
+              timeZone={cityTimeZone}
             />
 
             {/* Location Info */}

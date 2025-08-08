@@ -73,18 +73,20 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
     );
   }
 
-  const aqi = concentrationToAQI(smokeData.concentration);
+  const c = smokeData.concentration;
 
-  const getSmokeLevel = (aqi: number) => {
-    if (aqi <= 50) return { label: 'Good', color: 'bg-smoke-good', textColor: 'text-white' };
-    if (aqi <= 100) return { label: 'Moderate', color: 'bg-smoke-moderate', textColor: 'text-black' };
-    if (aqi <= 150) return { label: 'Unhealthy for Sensitive Groups', color: 'bg-smoke-unhealthy-sensitive', textColor: 'text-white' };
-    if (aqi <= 200) return { label: 'Unhealthy', color: 'bg-smoke-unhealthy', textColor: 'text-white' };
-    if (aqi <= 300) return { label: 'Very Unhealthy', color: 'bg-smoke-very-unhealthy', textColor: 'text-white' };
+  const getSmokeLevel = (c: number) => {
+    if (c < 3) return { label: 'No Smoke', color: 'bg-smoke-none', textColor: 'text-white' };
+    if (c <= 12) return { label: 'Light Smoke', color: 'bg-smoke-light', textColor: 'text-black' };
+    const aqiVal = concentrationToAQI(c);
+    if (aqiVal <= 100) return { label: 'Moderate', color: 'bg-smoke-moderate', textColor: 'text-black' };
+    if (aqiVal <= 150) return { label: 'Unhealthy for Sensitive Groups', color: 'bg-smoke-unhealthy-sensitive', textColor: 'text-white' };
+    if (aqiVal <= 200) return { label: 'Unhealthy', color: 'bg-smoke-unhealthy', textColor: 'text-white' };
+    if (aqiVal <= 300) return { label: 'Very Unhealthy', color: 'bg-smoke-very-unhealthy', textColor: 'text-white' };
     return { label: 'Hazardous', color: 'bg-smoke-hazardous', textColor: 'text-white' };
   };
 
-  const smokeLevel = getSmokeLevel(aqi);
+  const smokeLevel = getSmokeLevel(c);
 
   return (
     <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
@@ -147,8 +149,9 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
         <div className="pt-3 border-t border-border">
           <h4 className="text-sm font-semibold text-foreground mb-2">Recommendations</h4>
           <div className="text-xs text-muted-foreground leading-relaxed">
-            {aqi <= 50 && "Great conditions for outdoor activities!"}
-            {aqi > 50 && aqi <= 100 && "Good conditions. Sensitive individuals should consider limiting prolonged outdoor activities."}
+            {c < 3 && "No smoke detected."}
+            {c >= 3 && c <= 12 && "Light Smoke — Limited air quality impact."}
+            {c > 12 && aqi <= 100 && "Moderate air quality. Most people can continue normal activities."}
             {aqi > 100 && aqi <= 150 && "Sensitive groups should limit outdoor activities. Consider moving activities indoors."}
             {aqi > 150 && "Limit outdoor activities. Consider postponing outdoor events."}
           </div>

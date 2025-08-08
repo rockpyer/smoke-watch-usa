@@ -9,9 +9,10 @@ interface TimeControlsProps {
   onTimeChange?: (time: Date, index: number) => void;
   autoPlay?: boolean;
   availableTimes?: Date[];
+  timeZone?: string;
 }
 
-const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [] }) => {
+const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [], timeZone }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [forecastTimes, setForecastTimes] = useState<Date[]>([]);
@@ -108,7 +109,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
               hour: 'numeric',
               minute: '2-digit',
               hour12: true,
-              timeZone: 'America/Denver'
+              timeZone: timeZone || 'America/Denver'
             })}
           </div>
           <div className="text-sm text-muted-foreground">

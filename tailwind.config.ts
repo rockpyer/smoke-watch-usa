@@ -52,14 +52,16 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				smoke: {
-					good: 'hsl(var(--smoke-good))',
-					moderate: 'hsl(var(--smoke-moderate))',
-					'unhealthy-sensitive': 'hsl(var(--smoke-unhealthy-sensitive))',
-					unhealthy: 'hsl(var(--smoke-unhealthy))',
-					'very-unhealthy': 'hsl(var(--smoke-very-unhealthy))',
-					hazardous: 'hsl(var(--smoke-hazardous))'
-				},
+					smoke: {
+						good: 'hsl(var(--smoke-good))',
+						light: 'hsl(var(--smoke-light))',
+						none: 'hsl(var(--smoke-none))',
+						moderate: 'hsl(var(--smoke-moderate))',
+						'unhealthy-sensitive': 'hsl(var(--smoke-unhealthy-sensitive))',
+						unhealthy: 'hsl(var(--smoke-unhealthy))',
+						'very-unhealthy': 'hsl(var(--smoke-very-unhealthy))',
+						hazardous: 'hsl(var(--smoke-hazardous))'
+					},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',

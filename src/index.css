@@ -38,6 +38,8 @@ All colors MUST be HSL.
 
     /* Smoke forecast specific colors */
     --smoke-good: 142 76% 36%;
+    --smoke-none: 142 76% 36%; /* No Smoke (green) */
+    --smoke-light: 198 100% 70%; /* Light Smoke (blue) */
     --smoke-moderate: 45 93% 47%;
     --smoke-unhealthy-sensitive: 25 95% 53%;
     --smoke-unhealthy: 4 90% 58%;
