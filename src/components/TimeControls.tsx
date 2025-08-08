@@ -17,25 +17,42 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [forecastTimes, setForecastTimes] = useState<Date[]>([]);
 
-  useEffect(() => {
-    if (availableTimes.length > 0) {
-      // Use actual smoke data timestamps
-      console.log('🕐 TIME CONTROLS: Using available smoke data timestamps:', availableTimes.map(t => t.toISOString()));
-      setForecastTimes([...availableTimes]);
-    } else {
-      // Fallback: Generate forecast times (current time + 72 hours, 3-hour intervals)
-      console.log('🕐 TIME CONTROLS: No available times, generating fallback times');
-      const times: Date[] = [];
-      const startTime = new Date();
-      startTime.setMinutes(0, 0, 0); // Round to nearest hour
-      
-      for (let i = 0; i <= 24; i++) { // 72 hours / 3 hour intervals = 24 steps
-        times.push(addHours(startTime, i * 3));
+  // Find the index of the timestamp closest to the target time
+  const findClosestIndex = (times: Date[], target: Date) => {
+    if (times.length === 0) return 0;
+    let closest = 0;
+    let minDiff = Math.abs(times[0].getTime() - target.getTime());
+    for (let i = 1; i < times.length; i++) {
+      const diff = Math.abs(times[i].getTime() - target.getTime());
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = i;
       }
-      
-      setForecastTimes(times);
     }
-  }, [availableTimes]);
+    return closest;
+  };
+useEffect(() => {
+  if (availableTimes.length > 0) {
+    // Use actual smoke data timestamps
+    console.log('🕐 TIME CONTROLS: Using available smoke data timestamps:', availableTimes.map(t => t.toISOString()));
+    setForecastTimes([...availableTimes]);
+    // Snap to current time (closest timestamp)
+    const idx = findClosestIndex(availableTimes, new Date());
+    setCurrentIndex(idx);
+  } else {
+    // Fallback: Generate forecast times (current time + 72 hours, 3-hour intervals)
+    console.log('🕐 TIME CONTROLS: No available times, generating fallback times');
+    const times: Date[] = [];
+    const startTime = new Date();
+    startTime.setMinutes(0, 0, 0); // Round to nearest hour
+    for (let i = 0; i <= 24; i++) { // 72 hours / 3 hour intervals = 24 steps
+      times.push(addHours(startTime, i * 3));
+    }
+    setForecastTimes(times);
+    const idx = findClosestIndex(times, new Date());
+    setCurrentIndex(idx);
+  }
+}, [availableTimes]);
 
   useEffect(() => {
     if (forecastTimes.length > 0 && onTimeChange) {
@@ -94,8 +111,9 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
     return null;
   }
 
-  const currentTime = forecastTimes[currentIndex];
-  const isCurrentTime = currentIndex === 0;
+const currentTime = forecastTimes[currentIndex];
+const nowIndex = findClosestIndex(forecastTimes, new Date());
+const isCurrentTime = currentIndex === nowIndex;
 
   return (
     <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
