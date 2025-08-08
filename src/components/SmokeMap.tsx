@@ -500,8 +500,14 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   // Update smoke layer when data changes
   useEffect(() => {
     console.log('🔄 MAP EFFECT: isMapLoaded:', isMapLoaded, 'currentLayer time:', currentLayer?.timestamp.toISOString());
+    console.log('🔄 MAP EFFECT: map.current exists:', !!map.current, 'currentLayer exists:', !!currentLayer);
+    
     if (isMapLoaded && currentLayer) {
       console.log('📍 Triggering addSmokeLayer for time:', currentLayer.timestamp.toISOString());
+      addSmokeLayer();
+    } else if (map.current && currentLayer && !isMapLoaded) {
+      // Force update if map exists but isMapLoaded is false (mobile fix)
+      console.log('🚨 MOBILE FIX: Force adding smoke layer despite isMapLoaded=false');
       addSmokeLayer();
     }
   }, [isMapLoaded, currentLayer, addSmokeLayer]);
