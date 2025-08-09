@@ -33,6 +33,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [mapError, setMapError] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
   const [fireDataLoaded, setFireDataLoaded] = useState(false);
+  const [lastLayerTimestamp, setLastLayerTimestamp] = useState<string>('');
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Hardcoded Mapbox token
@@ -202,17 +203,26 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
 
     try {
-      console.log(`🗺️ MAP UPDATE: Adding NOAA smoke polygons for ${currentLayer.timestamp.toISOString()} with ${currentLayer.data.length} forecast areas`);
+      const currentTimestamp = currentLayer.timestamp.toISOString();
+      console.log(`🗺️ MAP UPDATE: Adding NOAA smoke polygons for ${currentTimestamp} with ${currentLayer.data.length} forecast areas`);
+      console.log(`🔄 Last timestamp: ${lastLayerTimestamp} → Current: ${currentTimestamp}`);
       
-      // Remove existing smoke layers if they exist
-      if (map.current.getLayer('smoke-polygons')) {
-        map.current.removeLayer('smoke-polygons');
-      }
-      if (map.current.getLayer('smoke-outlines')) {
-        map.current.removeLayer('smoke-outlines');
-      }
-      if (map.current.getSource('smoke-forecast-data')) {
-        map.current.removeSource('smoke-forecast-data');
+      // Force remove existing layers every time to ensure clean update
+      try {
+        if (map.current.getLayer('smoke-polygons')) {
+          map.current.removeLayer('smoke-polygons');
+          console.log('🗑️ Removed existing smoke-polygons layer');
+        }
+        if (map.current.getLayer('smoke-outlines')) {
+          map.current.removeLayer('smoke-outlines');
+          console.log('🗑️ Removed existing smoke-outlines layer');
+        }
+        if (map.current.getSource('smoke-forecast-data')) {
+          map.current.removeSource('smoke-forecast-data');
+          console.log('🗑️ Removed existing smoke-forecast-data source');
+        }
+      } catch (e) {
+        console.log('Layer cleanup completed (some layers may not have existed)');
       }
 
       // Filter out polygons with 0 concentration and convert to GeoJSON features
@@ -220,7 +230,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         polygon.properties.concentration_ugm3 > 0
       );
       
-      console.log(`Filtered ${currentLayer.data.length} down to ${validPolygons.length} valid polygons (removing 0 concentration)`);
+      console.log(`📊 Filtered ${currentLayer.data.length} down to ${validPolygons.length} valid polygons (removing 0 concentration)`);
 
       const features = validPolygons.map(polygon => ({
         type: 'Feature' as const,
@@ -228,7 +238,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
           smoke_class: polygon.properties.smoke_class,
           smoke_classdesc: polygon.properties.smoke_classdesc,
           concentration: polygon.properties.concentration_ugm3,
-          forecast_hour: polygon.properties.forecast_hour
+          forecast_hour: polygon.properties.forecast_hour || 0
         },
         geometry: polygon.geometry
       }));
@@ -382,11 +392,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         map.current!.getCanvas().style.cursor = '';
       });
 
+      setLastLayerTimestamp(currentTimestamp);
       console.log('✅ NOAA smoke polygon layers added successfully');
     } catch (error) {
       console.error('❌ Error adding NOAA smoke layers:', error);
     }
-  }, [currentLayer, onLocationSelect]);
+  }, [currentLayer, onLocationSelect, lastLayerTimestamp]);
 
   // Add fire hotspots to the map
   const addFireLayer = useCallback(async () => {
@@ -503,13 +514,16 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
-  // Update smoke layer when data changes
+  // Update smoke layer when data changes - IMPROVED WITH FORCE UPDATE TRACKING
   useEffect(() => {
-    console.log('🔄 MAP EFFECT: currentLayer time:', currentLayer?.timestamp.toISOString());
-    console.log('🔄 MAP EFFECT: map.current exists:', !!map.current, 'currentLayer exists:', !!currentLayer);
+    const currentTimestamp = currentLayer?.timestamp.toISOString() || '';
+    console.log('🔄 MAP EFFECT: currentLayer time:', currentTimestamp);
+    console.log('🔄 MAP EFFECT: map exists:', !!map.current, 'layer exists:', !!currentLayer);
+    console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
     
     if (map.current && currentLayer) {
-      console.log('📍 Triggering addSmokeLayer for time:', currentLayer.timestamp.toISOString());
+      // Always trigger update, even if timestamp seems the same (mobile fix)
+      console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
       addSmokeLayer();
     }
   }, [currentLayer, addSmokeLayer]);

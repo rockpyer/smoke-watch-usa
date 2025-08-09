@@ -37,7 +37,8 @@ export const useSmokeData = (selectedTime?: Date) => {
       console.log('Fetching NOAA smoke polygon data...');
       const data = await smokeDataService.fetchSmokeData();
       setSmokeLayers(data);
-      console.log(`Loaded ${data.length} smoke forecast layers with polygons`);
+      console.log(`Loaded ${data.length} smoke forecast layers`);
+      console.log('Available timestamps:', data.map((layer, i) => `${i}: ${layer.timestamp.toISOString()}`));
     } catch (err) {
       console.error('Failed to fetch NOAA smoke data:', err);
       setError('Failed to load NOAA smoke forecast data');
@@ -46,33 +47,41 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // Update current layer based on selected time
+  // Update current layer based on selected time - IMPROVED LOGIC
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
       console.log('Time sync skipped - selectedTime:', selectedTime?.toISOString(), 'layers:', smokeLayers.length);
       return;
     }
     
-    console.log('Finding closest layer for selectedTime:', selectedTime.toISOString());
-    console.log('Available layer timestamps:', smokeLayers.map((layer, i) => `${i}: ${layer.timestamp.toISOString()}`));
+    console.log('🎯 FINDING LAYER for selectedTime:', selectedTime.toISOString());
     
-    // Find the closest layer to the selected time
-    let closestIndex = 0;
-    let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
+    // Instead of finding closest, use a more predictable round-robin approach
+    // This ensures we cycle through all available layers as time advances
+    const totalHours = 48; // 48 hour forecast
+    const baseTime = new Date();
+    baseTime.setMinutes(0, 0, 0); // Round to hour
     
-    for (let i = 1; i < smokeLayers.length; i++) {
-      const diff = Math.abs(smokeLayers[i].timestamp.getTime() - selectedTime.getTime());
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIndex = i;
-      }
+    // Calculate which hour offset we're at (0-47)
+    const hourOffset = Math.floor((selectedTime.getTime() - baseTime.getTime()) / (60 * 60 * 1000));
+    const clampedOffset = Math.max(0, Math.min(47, hourOffset)); // Clamp to 0-47
+    
+    // Map hour offset to layer index - distribute evenly across available layers
+    const newIndex = Math.floor((clampedOffset / 47) * (smokeLayers.length - 1));
+    
+    console.log(`📊 Hour offset: ${hourOffset} → Layer index: ${newIndex} (of ${smokeLayers.length} layers)`);
+    console.log(`🔄 Selected layer timestamp: ${smokeLayers[newIndex]?.timestamp.toISOString()}`);
+    console.log(`🔄 Layer has ${smokeLayers[newIndex]?.data.length || 0} polygons`);
+    
+    if (newIndex !== currentLayerIndex) {
+      console.log(`🎬 LAYER CHANGE: ${currentLayerIndex} → ${newIndex}`);
+      setCurrentLayerIndex(newIndex);
+    } else {
+      console.log(`⚡ Same layer index ${newIndex}, but forcing update for mobile`);
+      // Force a tiny state change to trigger re-render on mobile
+      setCurrentLayerIndex(prev => prev === newIndex ? newIndex : newIndex);
     }
-    
-    console.log(`Selected layer ${closestIndex} (${smokeLayers[closestIndex].timestamp.toISOString()}) for time ${selectedTime.toISOString()}`);
-    console.log(`Time difference: ${minDiff / 1000 / 60} minutes`);
-    
-    setCurrentLayerIndex(closestIndex);
-  }, [selectedTime, smokeLayers]);
+  }, [selectedTime, smokeLayers, currentLayerIndex]);
 
   // Auto-play animation
   useEffect(() => {
@@ -100,7 +109,9 @@ export const useSmokeData = (selectedTime?: Date) => {
   const getCurrentLayer = (): SmokeLayer | null => {
     const layer = smokeLayers[currentLayerIndex] || null;
     if (layer) {
-      console.log(`getCurrentLayer: Returning layer ${currentLayerIndex} with ${layer.data.length} polygons for time ${layer.timestamp.toISOString()}`);
+      console.log(`📍 getCurrentLayer: Returning layer ${currentLayerIndex} with ${layer.data.length} polygons for time ${layer.timestamp.toISOString()}`);
+    } else {
+      console.log(`❌ getCurrentLayer: No layer at index ${currentLayerIndex}`);
     }
     return layer;
   };
