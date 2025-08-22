@@ -97,6 +97,17 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     }
   };
 
+  // Enhanced air quality description function
+  const getAirQualityDescription = (concentration: number) => {
+    if (concentration < 3) return 'Good Air Quality';
+    if (concentration <= 12) return 'Light Smoke';
+    if (concentration <= 35) return 'Moderate Smoke';
+    if (concentration <= 55) return 'Unhealthy for Sensitive Groups';
+    if (concentration <= 150) return 'Unhealthy';
+    if (concentration <= 250) return 'Very Unhealthy';
+    return 'Hazardous';
+  };
+
   if (!cityCoordinates || !cityName) {
     return null;
   }
@@ -176,17 +187,24 @@ const tickIndices = [
         </Button>
       </div>
 
-      {/* 48-hour single-line timeline */}
+      {/* 48-hour single-line timeline with enhanced tooltips */}
       <div className="flex items-center space-x-0.5 overflow-x-auto py-1">
         {forecastData.map((f, i) => {
           const category = concentrationToCategory(f.concentration);
           const colorClass = categoryClass[category] || 'bg-muted';
-          const label = category === 'none' ? 'No Smoke' : category === 'light' ? 'Light Smoke' : f.smokeDescription;
+          const airQualityDesc = getAirQualityDescription(f.concentration);
+          
           return (
             <div
               key={i}
-              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0`}
-              title={`${f.timestamp.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true, timeZone: tz })} • ${f.concentration.toFixed(1)} μg/m³ (${label})`}
+              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-help transition-all hover:scale-110 hover:z-10 relative`}
+              title={`${f.timestamp.toLocaleString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                hour: 'numeric', 
+                hour12: true, 
+                timeZone: tz 
+              })} • ${f.concentration.toFixed(1)} μg/m³ • ${airQualityDesc}`}
             />
           );
         })}

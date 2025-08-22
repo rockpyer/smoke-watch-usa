@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
@@ -21,14 +22,46 @@ const Index = () => {
   } | null>(null);
   
   const { smokeLayers, currentLayer } = useSmokeData(selectedTime);
-  
-  
+
+  // Auto-detect user location or default to Boulder, CO
+  useEffect(() => {
+    if (searchedCity) return; // Don't override if user has already selected a city
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setSearchedCity({
+            coordinates: { lat: latitude, lng: longitude },
+            name: 'Your Location'
+          });
+          console.log('🌍 Using user location:', latitude, longitude);
+        },
+        (error) => {
+          console.log('🌍 Geolocation failed, using Boulder, CO default:', error);
+          // Default to Boulder, CO
+          setSearchedCity({
+            coordinates: { lat: 40.0150, lng: -105.2705 },
+            name: 'Boulder, CO'
+          });
+        },
+        { timeout: 5000, enableHighAccuracy: false }
+      );
+    } else {
+      console.log('🌍 Geolocation not supported, using Boulder, CO default');
+      // Default to Boulder, CO
+      setSearchedCity({
+        coordinates: { lat: 40.0150, lng: -105.2705 },
+        name: 'Boulder, CO'
+      });
+    }
+  }, [searchedCity]);
 
   const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
   
   useEffect(() => {
-    // SEO basics
-    document.title = 'North American Smoke Map – Real-time Forecast';
+    // SEO basics - updated title
+    document.title = 'Will smoke affect my mtn biking/hiking/fishing plans? – Real-time Forecast';
     const desc = 'Real-time NOAA HRRR smoke forecast with wildfire perimeters and air quality.';
     let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (!meta) {
@@ -76,7 +109,7 @@ const Index = () => {
             <div className="flex items-center space-x-2">
               <Cloud className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-lg md:text-2xl font-bold text-foreground">North American Smoke Map</h1>
+                <h1 className="text-lg md:text-2xl font-bold text-foreground">Will smoke affect my mtn biking/hiking/fishing plans?</h1>
                 <p className="text-xs md:text-sm text-muted-foreground">48 hour wildfire smoke forecasting</p>
               </div>
             </div>
