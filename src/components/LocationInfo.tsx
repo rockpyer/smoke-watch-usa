@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +42,7 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
         <div className="p-4 text-center">
           <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">
-            Click on the map or search for a location to view smoke conditions
+            Search for a location to view smoke forecast
           </p>
         </div>
       </Card>
@@ -65,7 +66,7 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
           </div>
           <div className="text-center py-4">
             <p className="text-sm text-muted-foreground">
-              No smoke forecast data available for this location and time
+              Use the forecast timeline above to see smoke conditions for this location
             </p>
           </div>
         </div>

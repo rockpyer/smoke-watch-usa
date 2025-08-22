@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Info } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeData';
 import tzLookup from 'tz-lookup';
 
@@ -197,7 +197,7 @@ const tickIndices = [
           return (
             <div
               key={i}
-              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-help transition-all hover:scale-110 hover:z-10 relative`}
+              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group`}
               title={`${f.timestamp.toLocaleString('en-US', { 
                 month: 'short', 
                 day: 'numeric', 
@@ -205,7 +205,9 @@ const tickIndices = [
                 hour12: true, 
                 timeZone: tz 
               })} • ${f.concentration.toFixed(1)} μg/m³ • ${airQualityDesc}`}
-            />
+            >
+              <Info className="h-2 w-2 text-white/70 absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            </div>
           );
         })}
       </div>
