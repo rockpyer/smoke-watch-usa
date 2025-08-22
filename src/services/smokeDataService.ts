@@ -196,7 +196,7 @@ export class SmokeDataService {
 
     console.log(`Created ${layerMap.size} time-based groups:`, Array.from(layerMap.keys()).sort());
     
-    // Convert to time-ordered layers using actual todate timestamps
+    // Convert to time-ordered layers using actual todate timestamps - NO ARTIFICIAL EXTENSION
     const layers: SmokeLayer[] = [];
     
     Array.from(layerMap.entries())
@@ -207,6 +207,7 @@ export class SmokeDataService {
         layers.push({ timestamp, data: polygons });
       });
 
+    console.log(`Final result: ${layers.length} layers with actual NOAA timestamps`);
     return layers;
   }
 

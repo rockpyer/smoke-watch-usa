@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,72 +17,45 @@ interface TimeControlsProps {
 const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [], timeZone, compact = false }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
-  const [forecastTimes, setForecastTimes] = useState<Date[]>([]);
 
-  // Find the index of the timestamp closest to the target time
-  const findClosestIndex = (times: Date[], target: Date) => {
-    if (times.length === 0) return 0;
-    let closest = 0;
-    let minDiff = Math.abs(times[0].getTime() - target.getTime());
-    for (let i = 1; i < times.length; i++) {
-      const diff = Math.abs(times[i].getTime() - target.getTime());
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = i;
+  // Use actual smoke data timestamps instead of generating our own
+  useEffect(() => {
+    if (availableTimes.length > 0) {
+      console.log('🕐 TIME CONTROLS: Using actual smoke data timestamps:', availableTimes.map(t => t.toISOString()));
+      
+      // Find the index closest to current time for initial position
+      const now = new Date();
+      let closestIndex = 0;
+      let minDiff = Math.abs(availableTimes[0].getTime() - now.getTime());
+      
+      for (let i = 1; i < availableTimes.length; i++) {
+        const diff = Math.abs(availableTimes[i].getTime() - now.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
       }
+      
+      console.log(`🕐 TIME CONTROLS: Setting initial index to ${closestIndex} (closest to now)`);
+      setCurrentIndex(closestIndex);
     }
-    return closest;
-  };
-// Stable key for availableTimes to avoid resetting index on each re-render
-const timesKey = availableTimes.map(t => t.getTime()).join(',');
-
-useEffect(() => {
-  if (availableTimes.length > 0) {
-    // Use actual smoke data timestamps
-    console.log('🕐 TIME CONTROLS: Using available smoke data timestamps:', availableTimes.map(t => t.toISOString()));
-
-    // Only update times if they actually changed
-    setForecastTimes((prev) => {
-      const prevKey = prev.map(t => t.getTime()).join(',');
-      const newKey = timesKey;
-      return prevKey !== newKey ? [...availableTimes] : prev;
-    });
-
-    // Snap to current time only on first init or when the dataset changed
-    setCurrentIndex((prev) => {
-      const updatedKey = forecastTimes.map(t => t.getTime()).join(',');
-      const shouldSnap = updatedKey !== timesKey || forecastTimes.length === 0;
-      return shouldSnap ? findClosestIndex(availableTimes, new Date()) : prev;
-    });
-  } else {
-    // Fallback: Generate forecast times (current time + 72 hours, 3-hour intervals)
-    console.log('🕐 TIME CONTROLS: No available times, generating fallback times');
-    const times: Date[] = [];
-    const startTime = new Date();
-    startTime.setMinutes(0, 0, 0); // Round to nearest hour
-    for (let i = 0; i <= 24; i++) { // 72 hours / 3 hour intervals = 24 steps
-      times.push(addHours(startTime, i * 3));
-    }
-    setForecastTimes(times);
-    setCurrentIndex(findClosestIndex(times, new Date()));
-  }
-}, [timesKey]);
+  }, [availableTimes]);
 
   useEffect(() => {
-    if (forecastTimes.length > 0 && onTimeChange) {
-      console.log(`🕐 TIME CONTROLS: Setting selectedTime to ${forecastTimes[currentIndex].toISOString()} (index ${currentIndex})`);
-      onTimeChange(forecastTimes[currentIndex], currentIndex);
+    if (availableTimes.length > 0 && onTimeChange) {
+      console.log(`🕐 TIME CONTROLS: Setting selectedTime to ${availableTimes[currentIndex]?.toISOString()} (index ${currentIndex})`);
+      onTimeChange(availableTimes[currentIndex], currentIndex);
     }
-  }, [currentIndex, forecastTimes, onTimeChange]);
+  }, [currentIndex, availableTimes, onTimeChange]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (isPlaying && forecastTimes.length > 0) {
+    if (isPlaying && availableTimes.length > 0) {
       interval = setInterval(() => {
         setCurrentIndex((prev) => {
           const next = prev + 1;
-          if (next >= forecastTimes.length) {
+          if (next >= availableTimes.length) {
             setIsPlaying(false);
             return 0;
           }
@@ -93,7 +67,7 @@ useEffect(() => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, forecastTimes.length]);
+  }, [isPlaying, availableTimes.length]);
 
   const handleSliderChange = (values: number[]) => {
     const newIndex = values[0];
@@ -111,22 +85,28 @@ useEffect(() => {
   };
 
   const handleStepForward = () => {
-    setCurrentIndex(Math.min(forecastTimes.length - 1, currentIndex + 1));
+    setCurrentIndex(Math.min(availableTimes.length - 1, currentIndex + 1));
     setIsPlaying(false);
   };
 
   const handleReset = () => {
+    // Reset to the earliest available time, not necessarily index 0
     setCurrentIndex(0);
     setIsPlaying(false);
   };
 
-  if (forecastTimes.length === 0) {
+  if (availableTimes.length === 0) {
     return null;
   }
 
-const currentTime = forecastTimes[currentIndex];
-const nowIndex = findClosestIndex(forecastTimes, new Date());
-const isCurrentTime = currentIndex === nowIndex;
+  const currentTime = availableTimes[currentIndex];
+  const now = new Date();
+  const isCurrentTime = Math.abs(currentTime.getTime() - now.getTime()) < (30 * 60 * 1000); // Within 30 minutes of now
+
+  // Calculate time range for display
+  const earliestTime = availableTimes[0];
+  const latestTime = availableTimes[availableTimes.length - 1];
+  const totalHours = Math.round((latestTime.getTime() - earliestTime.getTime()) / (1000 * 60 * 60));
 
   return (
     <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
@@ -144,7 +124,7 @@ const isCurrentTime = currentIndex === nowIndex;
             })}
           </div>
           <div className="text-sm text-muted-foreground">
-            {isCurrentTime ? 'Current Conditions' : `Forecast Time`}
+            {isCurrentTime ? 'Current Conditions' : 'Forecast Time'}
           </div>
         </div>
 
@@ -153,15 +133,15 @@ const isCurrentTime = currentIndex === nowIndex;
           <Slider
             value={[currentIndex]}
             onValueChange={handleSliderChange}
-            max={forecastTimes.length - 1}
+            max={availableTimes.length - 1}
             min={0}
             step={1}
             className="w-full"
           />
           {!compact && (
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Now</span>
-              <span>+{forecastTimes.length - 1}h</span>
+              <span>{earliestTime.toLocaleDateString()}</span>
+              <span>+{totalHours}h total</span>
             </div>
           )}
         </div>
@@ -204,7 +184,7 @@ const isCurrentTime = currentIndex === nowIndex;
             variant="outline"
             size="sm"
             onClick={handleStepForward}
-            disabled={currentIndex === forecastTimes.length - 1}
+            disabled={currentIndex === availableTimes.length - 1}
             className="h-8 w-8 p-0"
           >
             <SkipForward className="h-4 w-4" />
@@ -214,7 +194,7 @@ const isCurrentTime = currentIndex === nowIndex;
         {/* Time Labels */}
         {!compact && (
           <div className="text-center text-xs text-muted-foreground">
-            Frame {currentIndex + 1} of {forecastTimes.length}
+            Frame {currentIndex + 1} of {availableTimes.length}
           </div>
         )}
       </div>

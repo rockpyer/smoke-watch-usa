@@ -47,7 +47,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // Update current layer based on selected time - IMPROVED LOGIC
+  // Update current layer based on selected time - SIMPLIFIED APPROACH
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
       console.log('Time sync skipped - selectedTime:', selectedTime?.toISOString(), 'layers:', smokeLayers.length);
@@ -56,32 +56,31 @@ export const useSmokeData = (selectedTime?: Date) => {
     
     console.log('🎯 FINDING LAYER for selectedTime:', selectedTime.toISOString());
     
-    // Instead of finding closest, use a more predictable round-robin approach
-    // This ensures we cycle through all available layers as time advances
-    const totalHours = 48; // 48 hour forecast
-    const baseTime = new Date();
-    baseTime.setMinutes(0, 0, 0); // Round to hour
+    // Find the exact matching layer by timestamp
+    const matchingIndex = smokeLayers.findIndex(layer => 
+      layer.timestamp.getTime() === selectedTime.getTime()
+    );
     
-    // Calculate which hour offset we're at (0-47)
-    const hourOffset = Math.floor((selectedTime.getTime() - baseTime.getTime()) / (60 * 60 * 1000));
-    const clampedOffset = Math.max(0, Math.min(47, hourOffset)); // Clamp to 0-47
-    
-    // Map hour offset to layer index - distribute evenly across available layers
-    const newIndex = Math.floor((clampedOffset / 47) * (smokeLayers.length - 1));
-    
-    console.log(`📊 Hour offset: ${hourOffset} → Layer index: ${newIndex} (of ${smokeLayers.length} layers)`);
-    console.log(`🔄 Selected layer timestamp: ${smokeLayers[newIndex]?.timestamp.toISOString()}`);
-    console.log(`🔄 Layer has ${smokeLayers[newIndex]?.data.length || 0} polygons`);
-    
-    if (newIndex !== currentLayerIndex) {
-      console.log(`🎬 LAYER CHANGE: ${currentLayerIndex} → ${newIndex}`);
-      setCurrentLayerIndex(newIndex);
+    if (matchingIndex !== -1) {
+      console.log(`📊 Found exact match at index: ${matchingIndex}`);
+      setCurrentLayerIndex(matchingIndex);
     } else {
-      console.log(`⚡ Same layer index ${newIndex}, but forcing update for mobile`);
-      // Force a tiny state change to trigger re-render on mobile
-      setCurrentLayerIndex(prev => prev === newIndex ? newIndex : newIndex);
+      // If no exact match, find the closest one
+      let closestIndex = 0;
+      let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
+      
+      for (let i = 1; i < smokeLayers.length; i++) {
+        const diff = Math.abs(smokeLayers[i].timestamp.getTime() - selectedTime.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
+      }
+      
+      console.log(`📊 No exact match, using closest at index: ${closestIndex}`);
+      setCurrentLayerIndex(closestIndex);
     }
-  }, [selectedTime, smokeLayers, currentLayerIndex]);
+  }, [selectedTime, smokeLayers]);
 
   // Auto-play animation
   useEffect(() => {
