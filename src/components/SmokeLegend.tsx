@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +16,14 @@ const smokeLevels: SmokeLevel[] = [
     label: 'Good',
     color: 'bg-green-500',
     description: 'Air quality is good. Enjoy outdoor activities!',
-    concentration: '0-12 μg/m³'
+    concentration: '0-3 μg/m³'
+  },
+  {
+    level: 'light-smoke',
+    label: 'Light Smoke',
+    color: 'bg-blue-500',
+    description: 'Minimal smoke impact. Air quality is still acceptable.',
+    concentration: '3-12 μg/m³'
   },
   {
     level: 'moderate',
