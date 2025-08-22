@@ -47,14 +47,13 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // Update current layer based on selected time - SIMPLIFIED APPROACH
+  // Update current layer based on selected time - DIRECT SYNC WITH TIME CONTROLS
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
-      console.log('Time sync skipped - selectedTime:', selectedTime?.toISOString(), 'layers:', smokeLayers.length);
       return;
     }
     
-    console.log('🎯 FINDING LAYER for selectedTime:', selectedTime.toISOString());
+    console.log('🎯 SMOKE DATA: Syncing to selectedTime:', selectedTime.toISOString());
     
     // Find the exact matching layer by timestamp
     const matchingIndex = smokeLayers.findIndex(layer => 
@@ -62,7 +61,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     );
     
     if (matchingIndex !== -1) {
-      console.log(`📊 Found exact match at index: ${matchingIndex}`);
+      console.log(`📊 SMOKE DATA: Found exact match at index: ${matchingIndex}`);
       setCurrentLayerIndex(matchingIndex);
     } else {
       // If no exact match, find the closest one
@@ -77,28 +76,10 @@ export const useSmokeData = (selectedTime?: Date) => {
         }
       }
       
-      console.log(`📊 No exact match, using closest at index: ${closestIndex}`);
+      console.log(`📊 SMOKE DATA: No exact match, using closest at index: ${closestIndex}`);
       setCurrentLayerIndex(closestIndex);
     }
   }, [selectedTime, smokeLayers]);
-
-  // Auto-play animation
-  useEffect(() => {
-    if (!isPlaying || smokeLayers.length === 0) return;
-    
-    const interval = setInterval(() => {
-      setCurrentLayerIndex(prev => {
-        const next = prev + 1;
-        if (next >= smokeLayers.length) {
-          setIsPlaying(false);
-          return 0;
-        }
-        return next;
-      });
-    }, 1000); // 1 second per frame for forecast animation
-    
-    return () => clearInterval(interval);
-  }, [isPlaying, smokeLayers.length]);
 
   // Initial data fetch
   useEffect(() => {

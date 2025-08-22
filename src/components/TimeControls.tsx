@@ -18,10 +18,10 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
 
-  // Use actual smoke data timestamps instead of generating our own
+  // Initialize to closest time to now when data loads
   useEffect(() => {
     if (availableTimes.length > 0) {
-      console.log('🕐 TIME CONTROLS: Using actual smoke data timestamps:', availableTimes.map(t => t.toISOString()));
+      console.log('🕐 TIME CONTROLS: Initializing with timestamps:', availableTimes.map(t => t.toISOString()));
       
       // Find the index closest to current time for initial position
       const now = new Date();
@@ -41,13 +41,16 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
     }
   }, [availableTimes]);
 
+  // Notify parent of time changes
   useEffect(() => {
-    if (availableTimes.length > 0 && onTimeChange) {
-      console.log(`🕐 TIME CONTROLS: Setting selectedTime to ${availableTimes[currentIndex]?.toISOString()} (index ${currentIndex})`);
-      onTimeChange(availableTimes[currentIndex], currentIndex);
+    if (availableTimes.length > 0 && onTimeChange && availableTimes[currentIndex]) {
+      const selectedTime = availableTimes[currentIndex];
+      console.log(`🕐 TIME CONTROLS: Notifying parent of time change: ${selectedTime.toISOString()} (index ${currentIndex})`);
+      onTimeChange(selectedTime, currentIndex);
     }
   }, [currentIndex, availableTimes, onTimeChange]);
 
+  // Auto-play functionality
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -71,6 +74,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
 
   const handleSliderChange = (values: number[]) => {
     const newIndex = values[0];
+    console.log(`🕐 TIME CONTROLS: Slider changed to index ${newIndex}`);
     setCurrentIndex(newIndex);
     setIsPlaying(false);
   };
@@ -90,7 +94,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
   };
 
   const handleReset = () => {
-    // Reset to the earliest available time, not necessarily index 0
+    // Reset to the earliest available time
     setCurrentIndex(0);
     setIsPlaying(false);
   };
