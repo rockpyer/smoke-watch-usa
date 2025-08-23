@@ -40,10 +40,18 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [needsToken, setNeedsToken] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check if we have a valid token on mount
+  // Check if we have a valid token on mount - IMPROVED
   useEffect(() => {
-    if (!hasValidMapboxToken()) {
+    console.log('Checking for valid token on mount...');
+    const hasToken = hasValidMapboxToken();
+    console.log('Has valid token:', hasToken);
+    
+    if (!hasToken) {
+      console.log('No valid token found, showing token input');
       setNeedsToken(true);
+    } else {
+      console.log('Valid token found, proceeding with map initialization');
+      setNeedsToken(false);
     }
   }, []);
 
@@ -59,14 +67,17 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     return hasValidDimensions;
   }, []);
 
-  // Initialize map with proper error handling and secure token
+  // Initialize map with proper error handling and secure token - IMPROVED
   const initializeMap = useCallback(async () => {
+    console.log('initializeMap called');
+    
     if (!mapContainer.current) {
       console.log('Map initialization skipped - container missing');
       return;
     }
 
     if (!hasValidMapboxToken()) {
+      console.log('Map initialization skipped - no valid token');
       setNeedsToken(true);
       return;
     }
@@ -83,6 +94,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       console.log('Setting Mapbox token and initializing map...');
       
       mapboxgl.accessToken = config.mapboxToken!;
+      console.log('Mapbox token set successfully');
       
       if (map.current) {
         console.log('Removing existing map');
@@ -110,40 +122,52 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
       let loadEventFired = false;
+      let loadTimeout: NodeJS.Timeout;
+
+      // Set a shorter timeout to prevent infinite loading
+      loadTimeout = setTimeout(() => {
+        console.log('Load timeout reached - forcing map ready state');
+        if (!loadEventFired) {
+          loadEventFired = true;
+          setIsMapLoaded(true);
+          setIsInitializing(false);
+        }
+      }, 3000); // Reduced from 5000 to 3000
 
       map.current.on('load', () => {
-        console.log('Map load event fired - setting loaded state');
-        loadEventFired = true;
-        setIsMapLoaded(true);
-        setIsInitializing(false);
-        // addSmokeLayer will be called by useEffect when isMapLoaded becomes true
+        console.log('Map load event fired');
+        if (!loadEventFired) {
+          loadEventFired = true;
+          clearTimeout(loadTimeout);
+          setIsMapLoaded(true);
+          setIsInitializing(false);
+        }
       });
 
       map.current.on('style.load', () => {
         console.log('Map style loaded');
+        if (!loadEventFired) {
+          loadEventFired = true;
+          clearTimeout(loadTimeout);
+          setIsMapLoaded(true);
+          setIsInitializing(false);
+        }
       });
 
       map.current.on('error', (e) => {
         console.error('Map error event:', e.error);
+        clearTimeout(loadTimeout);
         setIsInitializing(false);
         
-        if (e.error?.message?.includes('Unauthorized')) {
+        if (e.error?.message?.includes('Unauthorized') || e.error?.message?.includes('401')) {
           setMapError('Invalid Mapbox token. Please check your token and try again.');
+          setNeedsToken(true);
         } else if (e.error?.message?.includes('Network')) {
           setMapError('Network error. Please check your connection and try again.');
         } else {
           setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
         }
       });
-
-      initTimeoutRef.current = setTimeout(() => {
-        console.log('Timeout reached - checking map state...');
-        if (map.current && !loadEventFired) {
-          console.log('Force loading map due to timeout');
-          setIsMapLoaded(true);
-          setIsInitializing(false);
-        }
-      }, 5000);
 
       map.current.on('click', (e) => {
         if (!isMapLoaded || !map.current) return;
@@ -172,7 +196,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       setIsInitializing(false);
       
       if (error instanceof Error) {
-        if (error.message.includes('Unauthorized')) {
+        if (error.message.includes('Unauthorized') || error.message.includes('401')) {
           setMapError('Invalid Mapbox token. Please verify your token is correct.');
           setNeedsToken(true);
         } else if (error.message.includes('container')) {
@@ -186,14 +210,20 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [checkContainerDimensions]);
 
-  // Effect to initialize map on mount
+  // Effect to initialize map on mount - IMPROVED
   useEffect(() => {
-    const timer = setTimeout(() => {
-      initializeMap();
-    }, 100);
-    
+    console.log('Mount effect running, needsToken:', needsToken);
+    if (!needsToken) {
+      const timer = setTimeout(() => {
+        initializeMap();
+      }, 100);
+      
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+
     return () => {
-      clearTimeout(timer);
       if (initTimeoutRef.current) {
         clearTimeout(initTimeoutRef.current);
       }
@@ -202,7 +232,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         map.current = null;
       }
     };
-  }, [initializeMap]);
+  }, [initializeMap, needsToken]);
 
   const addSmokeLayer = useCallback(() => {
     if (!map.current || !currentLayer) {
@@ -648,9 +678,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   };
 
   const handleTokenSet = () => {
+    console.log('Token set successfully, reinitializing map...');
     setNeedsToken(false);
     setMapError('');
-    initializeMap();
+    setIsInitializing(false);
+    setIsMapLoaded(false);
+    // Small delay to ensure state is updated
+    setTimeout(() => {
+      initializeMap();
+    }, 100);
   };
 
   // Show token input if needed
