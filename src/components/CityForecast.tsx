@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ interface CityForecastProps {
   cityCoordinates?: { lat: number; lng: number };
   cityName?: string;
   compact?: boolean;
+  selectedTime?: Date;
 }
 
 interface ForecastData {
@@ -21,7 +23,8 @@ interface ForecastData {
 export const CityForecast: React.FC<CityForecastProps> = ({
   cityCoordinates,
   cityName,
-  compact = false
+  compact = false,
+  selectedTime
 }) => {
   const { smokeLayers, refetch, isLoading } = useSmokeData();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
@@ -160,6 +163,8 @@ const categoryClass: Record<string, string> = {
 };
 const formatLocal = (d: Date) =>
   d.toLocaleString('en-US', { hour: 'numeric', hour12: true, timeZone: tz });
+const formatDate = (d: Date) =>
+  d.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: tz });
 const total = forecastData.length;
 const tickIndices = [
   0,
@@ -168,6 +173,27 @@ const tickIndices = [
   Math.min(36, total - 1),
   Math.max(0, total - 1)
 ];
+
+// Find current time index for highlighting
+let currentTimeIndex = -1;
+if (selectedTime) {
+  currentTimeIndex = forecastData.findIndex(f => 
+    Math.abs(f.timestamp.getTime() - selectedTime.getTime()) < 30 * 60 * 1000 // Within 30 minutes
+  );
+}
+
+// Generate date labels - only show date when it changes
+const dateLabels: Array<{index: number, date: string}> = [];
+let lastDate = '';
+tickIndices.forEach(idx => {
+  if (forecastData[idx]) {
+    const currentDate = formatDate(forecastData[idx].timestamp);
+    if (currentDate !== lastDate) {
+      dateLabels.push({index: idx, date: currentDate});
+      lastDate = currentDate;
+    }
+  }
+});
 
   return (
     <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
@@ -187,17 +213,38 @@ const tickIndices = [
         </Button>
       </div>
 
+      {/* Date labels - positioned above the timeline */}
+      <div className="relative mb-1">
+        <div className="flex justify-between text-[9px] text-muted-foreground font-medium h-3">
+          {dateLabels.map(({index, date}) => {
+            const position = (index / Math.max(1, total - 1)) * 100;
+            return (
+              <div 
+                key={index} 
+                className="absolute transform -translate-x-1/2" 
+                style={{left: `${position}%`}}
+              >
+                {date}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* 48-hour single-line timeline with enhanced tooltips */}
       <div className="flex items-center space-x-0.5 overflow-x-auto py-1">
         {forecastData.map((f, i) => {
           const category = concentrationToCategory(f.concentration);
           const colorClass = categoryClass[category] || 'bg-muted';
           const airQualityDesc = getAirQualityDescription(f.concentration);
+          const isCurrentTime = i === currentTimeIndex;
           
           return (
             <div
               key={i}
-              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group`}
+              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${
+                isCurrentTime ? 'ring-2 ring-black ring-inset' : ''
+              }`}
               title={`${f.timestamp.toLocaleString('en-US', { 
                 month: 'short', 
                 day: 'numeric', 
