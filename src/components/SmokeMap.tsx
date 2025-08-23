@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { fireDataService } from '../services/fireDataService';
-import FireLegend from './FireLegend';
 
 interface SmokeLayer {
   timestamp: Date;
@@ -659,13 +658,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
           </Button>
         </div>
       </div>
-
-      {/* Fire Legend */}
-      {fireDataLoaded && (
-        <div className="absolute top-4 right-4 z-10">
-          <FireLegend />
-        </div>
-      )}
 
       {/* Map Container */}
       <div 
