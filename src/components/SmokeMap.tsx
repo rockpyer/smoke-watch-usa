@@ -650,7 +650,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
 
             map.current.flyTo({
               center: [lng, lat],
-              zoom: 7,
+              zoom: 6,
               duration: 2000
             });
 
