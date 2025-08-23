@@ -156,7 +156,7 @@ const Index = () => {
 
           {/* Controls Panel */}
           <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
-            {/* Time Controls */}
+            {/* Time Controls - SINGLE INSTANCE */}
             <TimeControls 
               onTimeChange={handleTimeChange}
               autoPlay={false}
