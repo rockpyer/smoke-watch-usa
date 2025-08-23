@@ -47,7 +47,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // Update current layer based on selected time - FIXED SYNCHRONIZATION
+  // Update current layer based on selected time - SIMPLIFIED SYNC
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
       return;
@@ -62,10 +62,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     
     if (matchingIndex !== -1) {
       console.log(`📊 SMOKE DATA: Found exact match at index: ${matchingIndex}`);
-      if (currentLayerIndex !== matchingIndex) {
-        console.log(`📊 SMOKE DATA: Updating currentLayerIndex from ${currentLayerIndex} to ${matchingIndex}`);
-        setCurrentLayerIndex(matchingIndex);
-      }
+      setCurrentLayerIndex(matchingIndex);
     } else {
       // If no exact match, find the closest one
       let closestIndex = 0;
@@ -80,12 +77,9 @@ export const useSmokeData = (selectedTime?: Date) => {
       }
       
       console.log(`📊 SMOKE DATA: No exact match, using closest at index: ${closestIndex}`);
-      if (currentLayerIndex !== closestIndex) {
-        console.log(`📊 SMOKE DATA: Updating currentLayerIndex from ${currentLayerIndex} to ${closestIndex}`);
-        setCurrentLayerIndex(closestIndex);
-      }
+      setCurrentLayerIndex(closestIndex);
     }
-  }, [selectedTime, smokeLayers, currentLayerIndex]);
+  }, [selectedTime, smokeLayers]);
 
   // Initial data fetch
   useEffect(() => {

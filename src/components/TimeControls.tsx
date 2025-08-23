@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -17,11 +17,12 @@ interface TimeControlsProps {
 const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [], timeZone, compact = false }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const hasInitialized = useRef(false);
 
-  // Initialize to closest time to now when data loads
+  // Initialize to closest time to now ONLY ONCE when data loads
   useEffect(() => {
-    if (availableTimes.length > 0) {
-      console.log('🕐 TIME CONTROLS: Initializing with timestamps:', availableTimes.map(t => t.toISOString()));
+    if (availableTimes.length > 0 && !hasInitialized.current) {
+      console.log('🕐 TIME CONTROLS: First-time initialization with timestamps');
       
       // Find the index closest to current time for initial position
       const now = new Date();
@@ -38,12 +39,13 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
       
       console.log(`🕐 TIME CONTROLS: Setting initial index to ${closestIndex} (closest to now)`);
       setCurrentIndex(closestIndex);
+      hasInitialized.current = true;
     }
-  }, [availableTimes]);
+  }, [availableTimes.length]); // Only depend on length, not the full array
 
   // Notify parent of time changes
   useEffect(() => {
-    if (availableTimes.length > 0 && onTimeChange && availableTimes[currentIndex]) {
+    if (availableTimes.length > 0 && onTimeChange && availableTimes[currentIndex] && hasInitialized.current) {
       const selectedTime = availableTimes[currentIndex];
       console.log(`🕐 TIME CONTROLS: Notifying parent of time change: ${selectedTime.toISOString()} (index ${currentIndex})`);
       onTimeChange(selectedTime, currentIndex);
@@ -74,7 +76,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
 
   const handleSliderChange = (values: number[]) => {
     const newIndex = values[0];
-    console.log(`🕐 TIME CONTROLS: Slider changed to index ${newIndex}`);
+    console.log(`🕐 TIME CONTROLS: User manually changed slider to index ${newIndex}`);
     setCurrentIndex(newIndex);
     setIsPlaying(false);
   };
