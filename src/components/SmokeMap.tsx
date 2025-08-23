@@ -650,7 +650,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
 
             map.current.flyTo({
               center: [lng, lat],
-              zoom: 7,
+              zoom: 11,
               duration: 2000
             });
 
@@ -678,7 +678,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   };
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = sanitizeSearchInput(e.target.value);
+    // Don't sanitize spaces from the input, just set the raw value
+    const value = e.target.value;
     setSearchValue(value);
   };
 
