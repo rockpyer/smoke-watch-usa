@@ -34,6 +34,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [isInitializing, setIsInitializing] = useState(false);
   const [fireDataLoaded, setFireDataLoaded] = useState(false);
   const [lastLayerTimestamp, setLastLayerTimestamp] = useState<string>('');
+  const [fireDataError, setFireDataError] = useState<string>('');
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Hardcoded Mapbox token
@@ -99,11 +100,19 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       let loadEventFired = false;
 
       map.current.on('load', () => {
-        console.log('Map load event fired - setting loaded state');
+        console.log('🗺️ Map load event fired - setting loaded state');
         loadEventFired = true;
         setIsMapLoaded(true);
         setIsInitializing(false);
-        // addSmokeLayer will be called by useEffect when isMapLoaded becomes true
+        
+        // Immediately try to add smoke layer if we have data
+        if (currentLayer) {
+          console.log('🔥 Map loaded with existing currentLayer - adding smoke immediately');
+          setTimeout(() => addSmokeLayer(), 100);
+        }
+        
+        // Load fire data
+        setTimeout(() => addFireLayer(), 200);
       });
 
       map.current.on('style.load', () => {
@@ -170,7 +179,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         setMapError('Failed to initialize map. Please check your connection and try again.');
       }
     }
-  }, [checkContainerDimensions]);
+  }, [checkContainerDimensions, currentLayer]);
 
   // Effect to initialize map on mount
   useEffect(() => {
@@ -192,13 +201,14 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
 
   const addSmokeLayer = useCallback(() => {
     if (!map.current || !currentLayer) {
-      console.log('addSmokeLayer skipped - map loaded:', !!map.current, 'currentLayer:', !!currentLayer);
+      console.log('🚫 addSmokeLayer skipped - map loaded:', !!map.current, 'currentLayer:', !!currentLayer);
       return;
     }
 
     // Check if map style is loaded (more reliable than isMapLoaded on mobile)
     if (!map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded yet, waiting...');
+      console.log('⏳ Map style not loaded yet, retrying in 500ms...');
+      setTimeout(() => addSmokeLayer(), 500);
       return;
     }
 
@@ -399,26 +409,40 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [currentLayer, onLocationSelect, lastLayerTimestamp]);
 
-  // Add fire hotspots to the map
+  // Add fire hotspots to the map - IMPROVED WITH BETTER ERROR HANDLING
   const addFireLayer = useCallback(async () => {
     if (!map.current || !isMapLoaded) {
-      console.log('addFireLayer skipped - map not ready');
+      console.log('🔥 addFireLayer skipped - map not ready');
       return;
     }
 
     try {
-      console.log('🔥 Adding fire radiative power data...');
+      console.log('🔥 Starting fire data fetch...');
+      setFireDataError('');
       
       // Remove existing fire layers if they exist
-      if (map.current.getLayer('fire-incidents')) {
-        map.current.removeLayer('fire-incidents');
-      }
-      if (map.current.getSource('fire-data')) {
-        map.current.removeSource('fire-data');
+      try {
+        if (map.current.getLayer('fire-incidents')) {
+          map.current.removeLayer('fire-incidents');
+          console.log('🗑️ Removed existing fire-incidents layer');
+        }
+        if (map.current.getSource('fire-data')) {
+          map.current.removeSource('fire-data');
+          console.log('🗑️ Removed existing fire-data source');
+        }
+      } catch (e) {
+        console.log('Fire layer cleanup completed');
       }
 
       // Get current map bounds for targeted fire data
       const bounds = map.current.getBounds();
+      console.log('🗺️ Map bounds:', {
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest()
+      });
+
       const fireData = await fireDataService.fetchFireData({
         north: bounds.getNorth(),
         south: bounds.getSouth(),
@@ -426,20 +450,37 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         west: bounds.getWest()
       });
 
-      const fireFeatures = fireData.incidents.map(incident => ({
-        type: 'Feature' as const,
-        properties: {
-          IncidentName: incident.IncidentName,
-          FireDiscoveryDateTime: incident.FireDiscoveryDateTime,
-          ForestTypeGroup: incident.ForestTypeGroup,
-          PercentContained: incident.PercentContained,
-          DailyAcres: incident.DailyAcres
-        },
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [incident.longitude, incident.latitude]
-        }
-      }));
+      console.log(`🔥 Received fire data: ${fireData.incidents.length} incidents, ${fireData.perimeters.length} perimeters`);
+
+      if (fireData.incidents.length === 0) {
+        console.log('🔥 No fire incidents in current map bounds');
+        setFireDataLoaded(true);
+        return;
+      }
+
+      const fireFeatures = fireData.incidents.map((incident, index) => {
+        console.log(`🔥 Processing incident ${index}:`, {
+          name: incident.IncidentName,
+          lat: incident.latitude,
+          lng: incident.longitude,
+          acres: incident.DailyAcres
+        });
+        
+        return {
+          type: 'Feature' as const,
+          properties: {
+            IncidentName: incident.IncidentName,
+            FireDiscoveryDateTime: incident.FireDiscoveryDateTime,
+            ForestTypeGroup: incident.ForestTypeGroup,
+            PercentContained: incident.PercentContained,
+            DailyAcres: incident.DailyAcres
+          },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [incident.longitude, incident.latitude]
+          }
+        };
+      });
 
       // Add fire data source
       map.current.addSource('fire-data', {
@@ -456,12 +497,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         type: 'circle',
         source: 'fire-data',
         paint: {
-          'circle-radius': 3,
+          'circle-radius': 4,
           'circle-color': '#ff0000',
-          'circle-opacity': 0.9,
-          'circle-stroke-width': 0.5,
+          'circle-opacity': 1.0,
+          'circle-stroke-width': 1,
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-opacity': 0.9
+          'circle-stroke-opacity': 1.0
         }
       });
 
@@ -501,32 +542,35 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       });
 
       setFireDataLoaded(true);
-      console.log('✅ Fire radiative power data added successfully');
+      console.log('✅ Fire data added successfully');
     } catch (error) {
       console.error('❌ Error adding fire data:', error);
+      setFireDataError(`Failed to load fire data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, [isMapLoaded]);
 
-  // Add fire data when map is loaded
+  // Add fire data when map is loaded - IMPROVED TIMING
   useEffect(() => {
-    if (isMapLoaded && !fireDataLoaded) {
-      addFireLayer();
+    if (isMapLoaded && !fireDataLoaded && !fireDataError) {
+      console.log('🔥 Map ready, attempting to load fire data...');
+      // Add a small delay to ensure map is fully ready
+      setTimeout(() => addFireLayer(), 1000);
     }
-  }, [isMapLoaded, fireDataLoaded, addFireLayer]);
+  }, [isMapLoaded, fireDataLoaded, fireDataError, addFireLayer]);
 
   // Update smoke layer when data changes - IMPROVED WITH FORCE UPDATE TRACKING
   useEffect(() => {
     const currentTimestamp = currentLayer?.timestamp.toISOString() || '';
     console.log('🔄 MAP EFFECT: currentLayer time:', currentTimestamp);
     console.log('🔄 MAP EFFECT: map exists:', !!map.current, 'layer exists:', !!currentLayer);
-    console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
+    console.log('🔄 MAP EFFECT: isMapLoaded:', isMapLoaded);
     
-    if (map.current && currentLayer) {
-      // Always trigger update, even if timestamp seems the same (mobile fix)
+    if (map.current && currentLayer && isMapLoaded) {
+      // Always trigger update
       console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
       addSmokeLayer();
     }
-  }, [currentLayer, addSmokeLayer]);
+  }, [currentLayer, addSmokeLayer, isMapLoaded]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
@@ -670,7 +714,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         }} 
       />
       
-      {/* Map Instructions */}
+      {/* Map Instructions - IMPROVED WITH FIRE STATUS */}
       <div className="absolute bottom-16 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
         {isMapLoaded ? (
           <div className="space-y-1">
@@ -682,6 +726,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 <span>Active fire sources displayed</span>
+              </div>
+            )}
+            {fireDataError && (
+              <div className="flex items-center gap-2 text-orange-600">
+                <AlertCircle className="w-3 h-3" />
+                <span className="text-xs">Fire data unavailable</span>
               </div>
             )}
           </div>
