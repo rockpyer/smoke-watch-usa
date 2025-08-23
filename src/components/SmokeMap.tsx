@@ -671,7 +671,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       />
       
       {/* Map Instructions */}
-      <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
+      <div className="absolute bottom-16 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-sm text-muted-foreground max-w-xs">
         {isMapLoaded ? (
           <div className="space-y-1">
             {currentLayer ? 
