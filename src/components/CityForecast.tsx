@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Info } from 'lucide-react';
@@ -89,6 +88,94 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     return inside;
   };
 
+  // Memoize timeline calculations to reduce re-renders
+  const timelineData = useMemo(() => {
+    if (!forecastData.length) return null;
+
+    const tz = cityCoordinates ? tzLookup(cityCoordinates.lat, cityCoordinates.lng) : 'America/Denver';
+    const tzShort = new Date().toLocaleTimeString('en-US', { timeZone: tz, timeZoneName: 'short' }).split(' ').pop() || 'local';
+    
+    const concentrationToCategory = (c: number) => {
+      if (c < 3) return 'none';
+      if (c <= 12) return 'light';
+      if (c <= 35) return 'moderate';
+      if (c <= 55) return 'unhealthy-sensitive';
+      if (c <= 150) return 'unhealthy';
+      if (c <= 250) return 'very-unhealthy';
+      return 'hazardous';
+    };
+
+    const categoryClass: Record<string, string> = {
+      none: 'bg-smoke-none',
+      light: 'bg-smoke-light',
+      moderate: 'bg-smoke-moderate',
+      'unhealthy-sensitive': 'bg-smoke-unhealthy-sensitive',
+      unhealthy: 'bg-smoke-unhealthy',
+      'very-unhealthy': 'bg-smoke-very-unhealthy',
+      hazardous: 'bg-smoke-hazardous'
+    };
+
+    const formatLocal = (d: Date) =>
+      d.toLocaleString('en-US', { hour: 'numeric', hour12: true, timeZone: tz });
+    const formatDate = (d: Date) =>
+      d.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: tz });
+
+    const total = forecastData.length;
+    const tickIndices = [
+      0,
+      Math.min(12, total - 1),
+      Math.min(24, total - 1),
+      Math.min(36, total - 1),
+      Math.max(0, total - 1)
+    ];
+
+    // Find current time index for highlighting - more precise matching
+    let currentTimeIndex = -1;
+    if (selectedTime) {
+      // First try exact timestamp match
+      currentTimeIndex = forecastData.findIndex(f => 
+        f.timestamp.getTime() === selectedTime.getTime()
+      );
+      
+      // If no exact match, find closest within 30 minutes
+      if (currentTimeIndex === -1) {
+        let closestDiff = Infinity;
+        forecastData.forEach((f, i) => {
+          const diff = Math.abs(f.timestamp.getTime() - selectedTime.getTime());
+          if (diff < closestDiff && diff < 30 * 60 * 1000) { // Within 30 minutes
+            closestDiff = diff;
+            currentTimeIndex = i;
+          }
+        });
+      }
+    }
+
+    // Generate date labels - only show date when it changes
+    const dateLabels: Array<{index: number, date: string}> = [];
+    let lastDate = '';
+    tickIndices.forEach(idx => {
+      if (forecastData[idx]) {
+        const currentDate = formatDate(forecastData[idx].timestamp);
+        if (currentDate !== lastDate) {
+          dateLabels.push({index: idx, date: currentDate});
+          lastDate = currentDate;
+        }
+      }
+    });
+
+    return {
+      tz,
+      tzShort,
+      concentrationToCategory,
+      categoryClass,
+      formatLocal,
+      total,
+      tickIndices,
+      currentTimeIndex,
+      dateLabels
+    };
+  }, [forecastData, selectedTime, cityCoordinates]);
+
   const getSmokeColor = (smokeLevel: number) => {
     switch (smokeLevel) {
       case 1: return 'bg-green-500';
@@ -115,7 +202,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     return null;
   }
 
-  if (!forecastData.length) {
+  if (!forecastData.length || !timelineData) {
     return (
       <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
         <div className="flex items-center justify-between mb-2">
@@ -140,60 +227,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     );
   }
 
-// Timeline helpers and local timezone formatting
-const tz = cityCoordinates ? tzLookup(cityCoordinates.lat, cityCoordinates.lng) : 'America/Denver';
-const tzShort = new Date().toLocaleTimeString('en-US', { timeZone: tz, timeZoneName: 'short' }).split(' ').pop() || 'local';
-const concentrationToCategory = (c: number) => {
-  if (c < 3) return 'none';
-  if (c <= 12) return 'light';
-  if (c <= 35) return 'moderate';
-  if (c <= 55) return 'unhealthy-sensitive';
-  if (c <= 150) return 'unhealthy';
-  if (c <= 250) return 'very-unhealthy';
-  return 'hazardous';
-};
-const categoryClass: Record<string, string> = {
-  none: 'bg-smoke-none',
-  light: 'bg-smoke-light',
-  moderate: 'bg-smoke-moderate',
-  'unhealthy-sensitive': 'bg-smoke-unhealthy-sensitive',
-  unhealthy: 'bg-smoke-unhealthy',
-  'very-unhealthy': 'bg-smoke-very-unhealthy',
-  hazardous: 'bg-smoke-hazardous'
-};
-const formatLocal = (d: Date) =>
-  d.toLocaleString('en-US', { hour: 'numeric', hour12: true, timeZone: tz });
-const formatDate = (d: Date) =>
-  d.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: tz });
-const total = forecastData.length;
-const tickIndices = [
-  0,
-  Math.min(12, total - 1),
-  Math.min(24, total - 1),
-  Math.min(36, total - 1),
-  Math.max(0, total - 1)
-];
-
-// Find current time index for highlighting
-let currentTimeIndex = -1;
-if (selectedTime) {
-  currentTimeIndex = forecastData.findIndex(f => 
-    Math.abs(f.timestamp.getTime() - selectedTime.getTime()) < 30 * 60 * 1000 // Within 30 minutes
-  );
-}
-
-// Generate date labels - only show date when it changes
-const dateLabels: Array<{index: number, date: string}> = [];
-let lastDate = '';
-tickIndices.forEach(idx => {
-  if (forecastData[idx]) {
-    const currentDate = formatDate(forecastData[idx].timestamp);
-    if (currentDate !== lastDate) {
-      dateLabels.push({index: idx, date: currentDate});
-      lastDate = currentDate;
-    }
-  }
-});
+  const { tz, tzShort, concentrationToCategory, categoryClass, formatLocal, total, tickIndices, currentTimeIndex, dateLabels } = timelineData;
 
   return (
     <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>

@@ -119,6 +119,7 @@ const Index = () => {
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
+                selectedTime={selectedTime}
               />
             </div>
           </div>
@@ -128,6 +129,7 @@ const Index = () => {
             <CityForecast 
               cityCoordinates={searchedCity?.coordinates}
               cityName={searchedCity?.name}
+              selectedTime={selectedTime}
               compact
             />
             <TimeControls 
