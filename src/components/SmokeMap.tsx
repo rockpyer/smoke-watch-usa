@@ -51,22 +51,153 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     return hasValidDimensions;
   }, []);
 
-  const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}`
-      );
-      const data = await response.json();
-      
-      if (data.features && data.features.length > 0) {
-        return data.features[0].place_name;
-      }
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    } catch (error) {
-      console.error('Reverse geocoding failed:', error);
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  // Initialize map with proper error handling
+  const initializeMap = useCallback(async () => {
+    if (!mapContainer.current) {
+      console.log('Map initialization skipped - container missing');
+      return;
     }
-  };
+
+    if (!checkContainerDimensions()) {
+      console.log('Container not ready, retrying in 100ms...');
+      setTimeout(() => initializeMap(), 100);
+      return;
+    }
+
+    try {
+      setIsInitializing(true);
+      setMapError('');
+      console.log('Setting Mapbox token and initializing map...');
+      
+      mapboxgl.accessToken = mapboxToken;
+      
+      if (map.current) {
+        console.log('Removing existing map');
+        map.current.remove();
+        map.current = null;
+      }
+
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+
+      setIsMapLoaded(false);
+      
+      console.log('Creating new map instance...');
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [-98.5795, 39.8283],
+        zoom: 4,
+        attributionControl: false,
+        preserveDrawingBuffer: true
+      });
+
+      console.log('Map instance created, adding controls...');
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+      let loadEventFired = false;
+
+      map.current.on('load', () => {
+        console.log('Map load event fired - setting loaded state');
+        loadEventFired = true;
+        setIsMapLoaded(true);
+        setIsInitializing(false);
+      });
+
+      // Wait for style to be fully loaded before adding layers
+      map.current.on('style.load', () => {
+        console.log('Map style loaded - ready for layers');
+        // Add initial layers when style is ready
+        if (currentLayer) {
+          console.log('Adding smoke layer on style load');
+          addSmokeLayer();
+        }
+        if (!fireDataLoaded) {
+          console.log('Adding fire layer on style load');
+          addFireLayer();
+        }
+      });
+
+      map.current.on('error', (e) => {
+        console.error('Map error event:', e.error);
+        setIsInitializing(false);
+        
+        if (e.error?.message?.includes('Unauthorized')) {
+          setMapError('Invalid Mapbox token. Please check your token and try again.');
+        } else if (e.error?.message?.includes('Network')) {
+          setMapError('Network error. Please check your connection and try again.');
+        } else {
+          setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
+        }
+      });
+
+      initTimeoutRef.current = setTimeout(() => {
+        console.log('Timeout reached - checking map state...');
+        if (map.current && !loadEventFired) {
+          console.log('Force loading map due to timeout');
+          setIsMapLoaded(true);
+          setIsInitializing(false);
+        }
+      }, 5000);
+
+      map.current.on('click', (e) => {
+        if (!isMapLoaded || !map.current) return;
+        
+        const { lng, lat } = e.lngLat;
+        
+        if (marker.current) {
+          marker.current.remove();
+        }
+        
+        marker.current = new mapboxgl.Marker({
+          color: '#2563eb'
+        })
+          .setLngLat([lng, lat])
+          .addTo(map.current);
+
+        reverseGeocode(lng, lat);
+        
+        if (onLocationSelect) {
+          onLocationSelect([lng, lat], `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        }
+      });
+
+    } catch (error) {
+      console.error('Failed to initialize map:', error);
+      setIsInitializing(false);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Unauthorized')) {
+          setMapError('Invalid Mapbox token. Please verify your token is correct.');
+        } else if (error.message.includes('container')) {
+          setMapError('Map container error. Please try refreshing the page.');
+        } else {
+          setMapError(`Initialization failed: ${error.message}`);
+        }
+      } else {
+        setMapError('Failed to initialize map. Please check your connection and try again.');
+      }
+    }
+  }, [checkContainerDimensions, currentLayer, fireDataLoaded, addSmokeLayer, addFireLayer]);
+
+  // Effect to initialize map on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      initializeMap();
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [initializeMap]);
 
   const addSmokeLayer = useCallback(() => {
     if (!map.current || !currentLayer) {
@@ -393,154 +524,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded]);
 
-  // Initialize map with proper error handling
-  const initializeMap = useCallback(async () => {
-    if (!mapContainer.current) {
-      console.log('Map initialization skipped - container missing');
-      return;
-    }
-
-    if (!checkContainerDimensions()) {
-      console.log('Container not ready, retrying in 100ms...');
-      setTimeout(() => initializeMap(), 100);
-      return;
-    }
-
-    try {
-      setIsInitializing(true);
-      setMapError('');
-      console.log('Setting Mapbox token and initializing map...');
-      
-      mapboxgl.accessToken = mapboxToken;
-      
-      if (map.current) {
-        console.log('Removing existing map');
-        map.current.remove();
-        map.current = null;
-      }
-
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
-
-      setIsMapLoaded(false);
-      
-      console.log('Creating new map instance...');
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [-98.5795, 39.8283],
-        zoom: 4,
-        attributionControl: false,
-        preserveDrawingBuffer: true
-      });
-
-      console.log('Map instance created, adding controls...');
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-      let loadEventFired = false;
-
-      map.current.on('load', () => {
-        console.log('Map load event fired - setting loaded state');
-        loadEventFired = true;
-        setIsMapLoaded(true);
-        setIsInitializing(false);
-      });
-
-      // Wait for style to be fully loaded before adding layers
-      map.current.on('style.load', () => {
-        console.log('Map style loaded - ready for layers');
-        // Add initial layers when style is ready
-        if (currentLayer) {
-          console.log('Adding smoke layer on style load');
-          addSmokeLayer();
-        }
-        if (!fireDataLoaded) {
-          console.log('Adding fire layer on style load');
-          addFireLayer();
-        }
-      });
-
-      map.current.on('error', (e) => {
-        console.error('Map error event:', e.error);
-        setIsInitializing(false);
-        
-        if (e.error?.message?.includes('Unauthorized')) {
-          setMapError('Invalid Mapbox token. Please check your token and try again.');
-        } else if (e.error?.message?.includes('Network')) {
-          setMapError('Network error. Please check your connection and try again.');
-        } else {
-          setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
-        }
-      });
-
-      initTimeoutRef.current = setTimeout(() => {
-        console.log('Timeout reached - checking map state...');
-        if (map.current && !loadEventFired) {
-          console.log('Force loading map due to timeout');
-          setIsMapLoaded(true);
-          setIsInitializing(false);
-        }
-      }, 5000);
-
-      map.current.on('click', (e) => {
-        if (!isMapLoaded || !map.current) return;
-        
-        const { lng, lat } = e.lngLat;
-        
-        if (marker.current) {
-          marker.current.remove();
-        }
-        
-        marker.current = new mapboxgl.Marker({
-          color: '#2563eb'
-        })
-          .setLngLat([lng, lat])
-          .addTo(map.current);
-
-        reverseGeocode(lng, lat);
-        
-        if (onLocationSelect) {
-          onLocationSelect([lng, lat], `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-        }
-      });
-
-    } catch (error) {
-      console.error('Failed to initialize map:', error);
-      setIsInitializing(false);
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Unauthorized')) {
-          setMapError('Invalid Mapbox token. Please verify your token is correct.');
-        } else if (error.message.includes('container')) {
-          setMapError('Map container error. Please try refreshing the page.');
-        } else {
-          setMapError(`Initialization failed: ${error.message}`);
-        }
-      } else {
-        setMapError('Failed to initialize map. Please check your connection and try again.');
-      }
-    }
-  }, [checkContainerDimensions, currentLayer, fireDataLoaded, addSmokeLayer, addFireLayer]);
-
-  // Effect to initialize map on mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      initializeMap();
-    }, 100);
-    
-    return () => {
-      clearTimeout(timer);
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, [initializeMap]);
-
   // Add fire data when map is loaded
   useEffect(() => {
     if (isMapLoaded && !fireDataLoaded) {
@@ -558,6 +541,23 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       addSmokeLayer();
     }
   }, [currentLayer, addSmokeLayer]);
+
+  const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}`
+      );
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+        return data.features[0].place_name;
+      }
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchValue.trim()) return;
