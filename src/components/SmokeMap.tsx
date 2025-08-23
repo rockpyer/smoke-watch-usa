@@ -103,11 +103,20 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         loadEventFired = true;
         setIsMapLoaded(true);
         setIsInitializing(false);
-        // addSmokeLayer will be called by useEffect when isMapLoaded becomes true
       });
 
+      // Wait for style to be fully loaded before adding layers
       map.current.on('style.load', () => {
-        console.log('Map style loaded');
+        console.log('Map style loaded - ready for layers');
+        // Add initial layers when style is ready
+        if (currentLayer) {
+          console.log('Adding smoke layer on style load');
+          addSmokeLayer();
+        }
+        if (!fireDataLoaded) {
+          console.log('Adding fire layer on style load');
+          addFireLayer();
+        }
       });
 
       map.current.on('error', (e) => {
@@ -170,7 +179,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         setMapError('Failed to initialize map. Please check your connection and try again.');
       }
     }
-  }, [checkContainerDimensions]);
+  }, [checkContainerDimensions, currentLayer, fireDataLoaded, addSmokeLayer, addFireLayer]);
 
   // Effect to initialize map on mount
   useEffect(() => {
@@ -196,9 +205,9 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       return;
     }
 
-    // Check if map style is loaded (more reliable than isMapLoaded on mobile)
+    // Ensure map style is loaded before adding layers
     if (!map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded yet, waiting...');
+      console.log('⏳ Map style not loaded yet, waiting for style.load event...');
       return;
     }
 
@@ -406,8 +415,14 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       return;
     }
 
+    // Ensure map style is loaded before adding layers
+    if (!map.current.isStyleLoaded()) {
+      console.log('⏳ Fire layer: Map style not loaded yet, waiting...');
+      return;
+    }
+
     try {
-      console.log('🔥 Adding fire radiative power data...');
+      console.log('🔥 Adding fire data...');
       
       // Remove existing fire layers if they exist
       if (map.current.getLayer('fire-incidents')) {
@@ -425,6 +440,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         east: bounds.getEast(),
         west: bounds.getWest()
       });
+
+      console.log(`🔥 Fetched ${fireData.incidents.length} fire incidents`);
 
       const fireFeatures = fireData.incidents.map(incident => ({
         type: 'Feature' as const,
@@ -501,7 +518,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       });
 
       setFireDataLoaded(true);
-      console.log('✅ Fire radiative power data added successfully');
+      console.log('✅ Fire data added successfully');
     } catch (error) {
       console.error('❌ Error adding fire data:', error);
     }
@@ -514,15 +531,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
-  // Update smoke layer when data changes - IMPROVED WITH FORCE UPDATE TRACKING
+  // Update smoke layer when data changes
   useEffect(() => {
     const currentTimestamp = currentLayer?.timestamp.toISOString() || '';
     console.log('🔄 MAP EFFECT: currentLayer time:', currentTimestamp);
-    console.log('🔄 MAP EFFECT: map exists:', !!map.current, 'layer exists:', !!currentLayer);
-    console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
     
-    if (map.current && currentLayer) {
-      // Always trigger update, even if timestamp seems the same (mobile fix)
+    if (map.current && currentLayer && map.current.isStyleLoaded()) {
       console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
       addSmokeLayer();
     }
