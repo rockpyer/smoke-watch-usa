@@ -62,7 +62,7 @@ const Index = () => {
   useEffect(() => {
     // SEO basics - updated title
     document.title = 'Will smoke affect my biking/hiking/fishing plans? – Real-time Forecast';
-    const desc = 'Real-time NOAA HRRR smoke forecast with wildfire perimeters and air quality.';
+    const desc = 'Real-time NOAA HRRR smoke forecast with wildfire locations and air quality.';
     let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (!meta) {
       meta = document.createElement('meta');
@@ -109,7 +109,7 @@ const Index = () => {
             <div className="flex items-center space-x-2">
               <Cloud className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-lg md:text-2xl font-bold text-foreground">Will smoke affect my mtn biking/hiking/fishing plans?</h1>
+                <h1 className="text-lg md:text-2xl font-bold text-foreground">Will smoke affect my biking/hiking/fishing plans?</h1>
                 <p className="text-xs md:text-sm text-muted-foreground">48 hour wildfire smoke forecasting</p>
               </div>
             </div>
