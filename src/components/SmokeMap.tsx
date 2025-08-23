@@ -678,7 +678,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
               <div>Showing NOAA smoke forecast for {currentLayer.timestamp.toLocaleString()} with {currentLayer.data.length} polygon areas</div> :
               <div>No smoke forecast data available for selected time</div>
             }
-            {fireDataLoaded && <div className="text-orange-600">🔥 Active fire sources displayed</div>}
+            {fireDataLoaded && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span>Active fire sources displayed</span>
+              </div>
+            )}
           </div>
         ) : (
           "Loading NOAA smoke forecast data..."
