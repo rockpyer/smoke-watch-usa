@@ -38,6 +38,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [fireDataLoaded, setFireDataLoaded] = useState(false);
   const [lastLayerTimestamp, setLastLayerTimestamp] = useState<string>('');
   const [needsToken, setNeedsToken] = useState(false);
+  const [smokeLayerReady, setSmokeLayerReady] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if we have a valid token on mount - IMPROVED
@@ -107,6 +108,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       }
 
       setIsMapLoaded(false);
+      setSmokeLayerReady(false);
       
       console.log('Creating new map instance...');
       map.current = new mapboxgl.Map({
@@ -124,33 +126,36 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       let loadEventFired = false;
       let loadTimeout: NodeJS.Timeout;
 
-      // Set a shorter timeout to prevent infinite loading
+      // Set a timeout to prevent infinite loading
       loadTimeout = setTimeout(() => {
         console.log('Load timeout reached - forcing map ready state');
         if (!loadEventFired) {
           loadEventFired = true;
           setIsMapLoaded(true);
           setIsInitializing(false);
+          setSmokeLayerReady(true);
         }
-      }, 3000); // Reduced from 5000 to 3000
+      }, 3000);
 
       map.current.on('load', () => {
-        console.log('Map load event fired');
+        console.log('Map load event fired - map is ready for layers');
         if (!loadEventFired) {
           loadEventFired = true;
           clearTimeout(loadTimeout);
           setIsMapLoaded(true);
           setIsInitializing(false);
+          setSmokeLayerReady(true);
         }
       });
 
       map.current.on('style.load', () => {
-        console.log('Map style loaded');
+        console.log('Map style loaded - style is ready');
         if (!loadEventFired) {
           loadEventFired = true;
           clearTimeout(loadTimeout);
           setIsMapLoaded(true);
           setIsInitializing(false);
+          setSmokeLayerReady(true);
         }
       });
 
@@ -235,14 +240,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   }, [initializeMap, needsToken]);
 
   const addSmokeLayer = useCallback(() => {
-    if (!map.current || !currentLayer) {
-      console.log('addSmokeLayer skipped - map loaded:', !!map.current, 'currentLayer:', !!currentLayer);
+    if (!map.current || !currentLayer || !smokeLayerReady) {
+      console.log('addSmokeLayer skipped - map ready:', !!map.current, 'currentLayer:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady);
       return;
     }
 
-    // Check if map style is loaded (more reliable than isMapLoaded on mobile)
+    // Double-check if map style is loaded (more reliable check)
     if (!map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded yet, waiting...');
+      console.log('⏳ Map style not loaded yet, retrying in 500ms...');
+      setTimeout(() => addSmokeLayer(), 500);
       return;
     }
 
@@ -441,7 +447,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     } catch (error) {
       console.error('❌ Error adding NOAA smoke layers:', error);
     }
-  }, [currentLayer, onLocationSelect, lastLayerTimestamp]);
+  }, [currentLayer, onLocationSelect, lastLayerTimestamp, smokeLayerReady]);
 
   // Add fire hotspots to the map
   const addFireLayer = useCallback(async () => {
@@ -558,19 +564,26 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
-  // Update smoke layer when data changes - IMPROVED WITH FORCE UPDATE TRACKING
+  // FIXED: Update smoke layer when data changes OR when map becomes ready
   useEffect(() => {
     const currentTimestamp = currentLayer?.timestamp.toISOString() || '';
     console.log('🔄 MAP EFFECT: currentLayer time:', currentTimestamp);
-    console.log('🔄 MAP EFFECT: map exists:', !!map.current, 'layer exists:', !!currentLayer);
+    console.log('🔄 MAP EFFECT: map exists:', !!map.current, 'layer exists:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady);
     console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
     
-    if (map.current && currentLayer) {
-      // Always trigger update, even if timestamp seems the same (mobile fix)
+    if (map.current && currentLayer && smokeLayerReady) {
       console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
       addSmokeLayer();
     }
-  }, [currentLayer, addSmokeLayer]);
+  }, [currentLayer, addSmokeLayer, smokeLayerReady]);
+
+  // ADDED: Ensure smoke layer is added when map becomes ready and we have data
+  useEffect(() => {
+    if (smokeLayerReady && currentLayer && !lastLayerTimestamp) {
+      console.log('🎯 Map ready and we have smoke data - adding initial layer');
+      addSmokeLayer();
+    }
+  }, [smokeLayerReady, currentLayer, addSmokeLayer, lastLayerTimestamp]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
@@ -717,13 +730,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   return (
     <div className="relative w-full h-full">
       {/* Loading Indicator */}
-      {(isInitializing || !isMapLoaded || isSmokeLoading) && (
+      {(isInitializing || !isMapLoaded || isSmokeLoading || !smokeLayerReady) && (
         <div className="absolute inset-0 bg-sky-gradient flex items-center justify-center z-20">
           <Card className="p-4">
             <div className="text-center">
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
               <p className="text-sm text-muted-foreground">
-                {isInitializing ? 'Initializing map...' : isSmokeLoading ? 'Loading NOAA smoke forecast...' : 'Loading map...'}
+                {isInitializing ? 'Initializing map...' : 
+                 !smokeLayerReady ? 'Preparing map layers...' :
+                 isSmokeLoading ? 'Loading NOAA smoke forecast...' : 'Loading map...'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Fetching real government data</p>
             </div>
