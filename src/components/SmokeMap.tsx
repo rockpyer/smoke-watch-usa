@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { fireDataService } from '../services/fireDataService';
+import { config, hasValidMapboxToken } from '@/utils/config';
+import { sanitizeSearchInput, validateSearchInput, debounce } from '@/utils/inputValidation';
+import MapboxTokenInput from './MapboxTokenInput';
 
 interface SmokeLayer {
   timestamp: Date;
@@ -34,11 +37,16 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [isInitializing, setIsInitializing] = useState(false);
   const [fireDataLoaded, setFireDataLoaded] = useState(false);
   const [lastLayerTimestamp, setLastLayerTimestamp] = useState<string>('');
+  const [needsToken, setNeedsToken] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Hardcoded Mapbox token
-  const mapboxToken = 'pk.eyJ1IjoicnlndXltYXBzIiwiYSI6ImNtZTA3aHIxdTAxeDAybXBueDkxNXpyeG4ifQ.dso9vFYkY2QScoQ_4H86SQ';
-  
+  // Check if we have a valid token on mount
+  useEffect(() => {
+    if (!hasValidMapboxToken()) {
+      setNeedsToken(true);
+    }
+  }, []);
+
   // Add loading state for when we don't have a current layer
   const isSmokeLoading = !currentLayer;
 
@@ -51,10 +59,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     return hasValidDimensions;
   }, []);
 
-  // Initialize map with proper error handling
+  // Initialize map with proper error handling and secure token
   const initializeMap = useCallback(async () => {
     if (!mapContainer.current) {
       console.log('Map initialization skipped - container missing');
+      return;
+    }
+
+    if (!hasValidMapboxToken()) {
+      setNeedsToken(true);
       return;
     }
 
@@ -69,7 +82,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       setMapError('');
       console.log('Setting Mapbox token and initializing map...');
       
-      mapboxgl.accessToken = mapboxToken;
+      mapboxgl.accessToken = config.mapboxToken!;
       
       if (map.current) {
         console.log('Removing existing map');
@@ -161,6 +174,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       if (error instanceof Error) {
         if (error.message.includes('Unauthorized')) {
           setMapError('Invalid Mapbox token. Please verify your token is correct.');
+          setNeedsToken(true);
         } else if (error.message.includes('container')) {
           setMapError('Map container error. Please try refreshing the page.');
         } else {
@@ -530,9 +544,18 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
+      if (!hasValidMapboxToken()) {
+        return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
+
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${config.mapboxToken}`
       );
+      
+      if (!response.ok) {
+        throw new Error('Geocoding request failed');
+      }
+      
       const data = await response.json();
       
       if (data.features && data.features.length > 0) {
@@ -545,57 +568,95 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchValue.trim()) return;
+  const debouncedSearch = useCallback(
+    debounce(async (searchTerm: string) => {
+      if (!searchTerm.trim() || !hasValidMapboxToken()) return;
 
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchValue)}.json?country=us&access_token=${mapboxToken}`
-      );
-      const data = await response.json();
+      const sanitizedInput = sanitizeSearchInput(searchTerm);
       
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].center;
-        const placeName = data.features[0].place_name;
+      if (!validateSearchInput(sanitizedInput)) {
+        console.warn('Invalid search input detected');
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(sanitizedInput)}.json?country=us&access_token=${config.mapboxToken}`
+        );
         
-        if (marker.current) {
-          marker.current.remove();
+        if (!response.ok) {
+          throw new Error('Search request failed');
         }
         
-        if (map.current) {
-          marker.current = new mapboxgl.Marker({
-            color: '#2563eb'
-          })
-            .setLngLat([lng, lat])
-            .addTo(map.current);
-
-          map.current.flyTo({
-            center: [lng, lat],
-            zoom: 7,
-            duration: 2000
-          });
-
-          if (onLocationSelect) {
-            onLocationSelect([lng, lat], placeName);
+        const data = await response.json();
+        
+        if (data.features && data.features.length > 0) {
+          const [lng, lat] = data.features[0].center;
+          const placeName = data.features[0].place_name;
+          
+          if (marker.current) {
+            marker.current.remove();
           }
           
-          // Trigger city search callback for forecast
-          if (onCitySearch) {
-            onCitySearch({ lat, lng }, placeName);
+          if (map.current) {
+            marker.current = new mapboxgl.Marker({
+              color: '#2563eb'
+            })
+              .setLngLat([lng, lat])
+              .addTo(map.current);
+
+            map.current.flyTo({
+              center: [lng, lat],
+              zoom: 7,
+              duration: 2000
+            });
+
+            if (onLocationSelect) {
+              onLocationSelect([lng, lat], placeName);
+            }
+            
+            if (onCitySearch) {
+              onCitySearch({ lat, lng }, placeName);
+            }
           }
         }
+      } catch (error) {
+        console.error('Geocoding failed:', error);
       }
-    } catch (error) {
-      console.error('Geocoding failed:', error);
+    }, 500),
+    [onLocationSelect, onCitySearch]
+  );
+
+  const handleSearch = () => {
+    const sanitizedInput = sanitizeSearchInput(searchValue);
+    if (validateSearchInput(sanitizedInput)) {
+      debouncedSearch(sanitizedInput);
     }
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = sanitizeSearchInput(e.target.value);
+    setSearchValue(value);
   };
 
   const handleRetry = () => {
     setMapError('');
     setIsMapLoaded(false);
     setIsInitializing(false);
+    setNeedsToken(false);
     initializeMap();
   };
+
+  const handleTokenSet = () => {
+    setNeedsToken(false);
+    setMapError('');
+    initializeMap();
+  };
+
+  // Show token input if needed
+  if (needsToken) {
+    return <MapboxTokenInput onTokenSet={handleTokenSet} />;
+  }
 
   if (mapError && !isInitializing) {
     return (
@@ -642,10 +703,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
             <Input
               placeholder="Search city, ZIP code..."
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              onChange={handleSearchInputChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
               disabled={!isMapLoaded}
+              maxLength={100}
             />
           </div>
           <Button 
