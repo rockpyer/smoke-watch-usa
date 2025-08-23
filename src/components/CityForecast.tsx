@@ -9,6 +9,7 @@ interface CityForecastProps {
   cityCoordinates?: { lat: number; lng: number };
   cityName?: string;
   compact?: boolean;
+  currentTimeIndex?: number;
 }
 
 interface ForecastData {
@@ -21,7 +22,8 @@ interface ForecastData {
 export const CityForecast: React.FC<CityForecastProps> = ({
   cityCoordinates,
   cityName,
-  compact = false
+  compact = false,
+  currentTimeIndex = 0
 }) => {
   const { smokeLayers, refetch, isLoading } = useSmokeData();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
@@ -169,6 +171,29 @@ const tickIndices = [
   Math.max(0, total - 1)
 ];
 
+// Generate date markers for midnight transitions
+const getDateMarkers = () => {
+  const markers: { index: number; date: string }[] = [];
+  let lastDate = '';
+  
+  forecastData.forEach((f, i) => {
+    const currentDate = f.timestamp.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      timeZone: tz 
+    });
+    
+    if (currentDate !== lastDate && i > 0) {
+      markers.push({ index: i, date: currentDate });
+    }
+    lastDate = currentDate;
+  });
+  
+  return markers;
+};
+
+const dateMarkers = getDateMarkers();
+
   return (
     <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
       <div className="flex items-center justify-between mb-2">
@@ -187,17 +212,35 @@ const tickIndices = [
         </Button>
       </div>
 
-      {/* 48-hour single-line timeline with enhanced tooltips */}
+      {/* Date markers */}
+      <div className="relative mb-1">
+        <div className="flex items-center space-x-0.5">
+          {forecastData.map((_, i) => (
+            <div key={i} className="w-2 sm:w-2.5 flex-shrink-0">
+              {dateMarkers.find(m => m.index === i) && (
+                <div className="text-[9px] text-muted-foreground whitespace-nowrap transform -translate-x-1/2 absolute">
+                  {dateMarkers.find(m => m.index === i)?.date}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 48-hour single-line timeline with enhanced tooltips and current frame highlight */}
       <div className="flex items-center space-x-0.5 overflow-x-auto py-1">
         {forecastData.map((f, i) => {
           const category = concentrationToCategory(f.concentration);
           const colorClass = categoryClass[category] || 'bg-muted';
           const airQualityDesc = getAirQualityDescription(f.concentration);
+          const isCurrentFrame = i === currentTimeIndex;
           
           return (
             <div
               key={i}
-              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group`}
+              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${
+                isCurrentFrame ? 'ring-2 ring-black ring-offset-1' : ''
+              }`}
               title={`${f.timestamp.toLocaleString('en-US', { 
                 month: 'short', 
                 day: 'numeric', 
