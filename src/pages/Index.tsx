@@ -61,7 +61,7 @@ const Index = () => {
   
   useEffect(() => {
     // SEO basics - updated title
-    document.title = 'Will smoke affect my mtn biking/hiking/fishing plans? – Real-time Forecast';
+    document.title = 'Will smoke affect my biking/hiking/fishing plans? – Real-time Forecast';
     const desc = 'Real-time NOAA HRRR smoke forecast with wildfire perimeters and air quality.';
     let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (!meta) {
