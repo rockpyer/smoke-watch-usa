@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Info } from 'lucide-react';
@@ -27,14 +27,11 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 }) => {
   const { smokeLayers, refetch, isLoading } = useSmokeData();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
+  
+  // Use ref to prevent unnecessary re-renders
+  const lastSelectedTimeRef = useRef<Date | null>(null);
 
   useEffect(() => {
-    console.log('🌆 CityForecast: useEffect triggered', { 
-      cityCoordinates, 
-      smokeLayers: smokeLayers.length,
-      sampleTimestamp: smokeLayers[0]?.timestamp?.toISOString()
-    });
-    
     if (!cityCoordinates || !smokeLayers.length) {
       setForecastData([]);
       return;
@@ -60,11 +57,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
         smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
         concentration: citySmoke?.concentration_ugm3 || 0
       });
-      
-      console.log(`🕐 Forecast entry: ${layer.timestamp.toISOString()} - Level: ${citySmoke?.smoke_class || 0}`);
     });
     
-    console.log(`📊 Generated ${forecast.length} forecast entries`);
     setForecastData(forecast.slice(0, 48)); // Show next 48 time periods if available
   }, [cityCoordinates, smokeLayers]);
 
@@ -88,7 +82,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     return inside;
   };
 
-  // Memoize timeline calculations to reduce re-renders
+  // Memoize timeline calculations and current time index - OPTIMIZED
   const timelineData = useMemo(() => {
     if (!forecastData.length) return null;
 
@@ -129,24 +123,32 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       Math.max(0, total - 1)
     ];
 
-    // Find current time index for highlighting - more precise matching
+    // Find current time index for highlighting - STABLE calculation
     let currentTimeIndex = -1;
     if (selectedTime) {
-      // First try exact timestamp match
-      currentTimeIndex = forecastData.findIndex(f => 
-        f.timestamp.getTime() === selectedTime.getTime()
-      );
+      // Only recalculate if selectedTime actually changed
+      const timeChanged = !lastSelectedTimeRef.current || 
+        lastSelectedTimeRef.current.getTime() !== selectedTime.getTime();
       
-      // If no exact match, find closest within 30 minutes
-      if (currentTimeIndex === -1) {
-        let closestDiff = Infinity;
-        forecastData.forEach((f, i) => {
-          const diff = Math.abs(f.timestamp.getTime() - selectedTime.getTime());
-          if (diff < closestDiff && diff < 30 * 60 * 1000) { // Within 30 minutes
-            closestDiff = diff;
-            currentTimeIndex = i;
-          }
-        });
+      if (timeChanged) {
+        lastSelectedTimeRef.current = selectedTime;
+        
+        // First try exact timestamp match
+        currentTimeIndex = forecastData.findIndex(f => 
+          f.timestamp.getTime() === selectedTime.getTime()
+        );
+        
+        // If no exact match, find closest within 30 minutes
+        if (currentTimeIndex === -1) {
+          let closestDiff = Infinity;
+          forecastData.forEach((f, i) => {
+            const diff = Math.abs(f.timestamp.getTime() - selectedTime.getTime());
+            if (diff < closestDiff && diff < 30 * 60 * 1000) { // Within 30 minutes
+              closestDiff = diff;
+              currentTimeIndex = i;
+            }
+          });
+        }
       }
     }
 
@@ -187,7 +189,6 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     }
   };
 
-  // Enhanced air quality description function
   const getAirQualityDescription = (concentration: number) => {
     if (concentration < 3) return 'Good Air Quality';
     if (concentration <= 12) return 'Light Smoke';

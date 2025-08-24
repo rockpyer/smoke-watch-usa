@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { smokeDataService } from '@/services/smokeDataService';
 
 interface SmokePolygon {
@@ -27,6 +27,10 @@ export const useSmokeData = (selectedTime?: Date) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Use refs to prevent unnecessary re-renders
+  const lastSelectedTimeRef = useRef<Date | null>(null);
+  const lastSyncedIndexRef = useRef<number>(-1);
 
   // Fetch smoke data
   const fetchData = useCallback(async () => {
@@ -38,7 +42,6 @@ export const useSmokeData = (selectedTime?: Date) => {
       const data = await smokeDataService.fetchSmokeData();
       setSmokeLayers(data);
       console.log(`Loaded ${data.length} smoke forecast layers`);
-      console.log('Available timestamps:', data.map((layer, i) => `${i}: ${layer.timestamp.toISOString()}`));
     } catch (err) {
       console.error('Failed to fetch NOAA smoke data:', err);
       setError('Failed to load NOAA smoke forecast data');
@@ -47,23 +50,30 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // Update current layer based on selected time - SIMPLIFIED SYNC
+  // Update current layer based on selected time - OPTIMIZED with refs
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
       return;
     }
     
-    console.log('🎯 SMOKE DATA: Syncing to selectedTime:', selectedTime.toISOString());
+    // Only sync if the time actually changed
+    const timeChanged = !lastSelectedTimeRef.current || 
+      lastSelectedTimeRef.current.getTime() !== selectedTime.getTime();
+    
+    if (!timeChanged) {
+      return; // Skip if time hasn't actually changed
+    }
+    
+    lastSelectedTimeRef.current = selectedTime;
     
     // Find the exact matching layer by timestamp
     const matchingIndex = smokeLayers.findIndex(layer => 
       layer.timestamp.getTime() === selectedTime.getTime()
     );
     
-    if (matchingIndex !== -1) {
-      console.log(`📊 SMOKE DATA: Found exact match at index: ${matchingIndex}`);
-      setCurrentLayerIndex(matchingIndex);
-    } else {
+    let targetIndex = matchingIndex;
+    
+    if (matchingIndex === -1) {
       // If no exact match, find the closest one
       let closestIndex = 0;
       let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
@@ -75,9 +85,14 @@ export const useSmokeData = (selectedTime?: Date) => {
           closestIndex = i;
         }
       }
-      
-      console.log(`📊 SMOKE DATA: No exact match, using closest at index: ${closestIndex}`);
-      setCurrentLayerIndex(closestIndex);
+      targetIndex = closestIndex;
+    }
+    
+    // Only update if index actually changed
+    if (targetIndex !== lastSyncedIndexRef.current) {
+      console.log(`📊 SMOKE DATA: Syncing to index ${targetIndex} for time: ${selectedTime.toISOString()}`);
+      setCurrentLayerIndex(targetIndex);
+      lastSyncedIndexRef.current = targetIndex;
     }
   }, [selectedTime, smokeLayers]);
 
@@ -88,11 +103,6 @@ export const useSmokeData = (selectedTime?: Date) => {
 
   const getCurrentLayer = (): SmokeLayer | null => {
     const layer = smokeLayers[currentLayerIndex] || null;
-    if (layer) {
-      console.log(`📍 getCurrentLayer: Returning layer ${currentLayerIndex} with ${layer.data.length} polygons for time ${layer.timestamp.toISOString()}`);
-    } else {
-      console.log(`❌ getCurrentLayer: No layer at index ${currentLayerIndex}`);
-    }
     return layer;
   };
 
