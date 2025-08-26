@@ -5,6 +5,7 @@ import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
 import LocationInfo from '@/components/LocationInfo';
 import { CityForecast } from '@/components/CityForecast';
+import { ForecastSkeleton } from '@/components/LoadingSkeleton';
 import { useSmokeData } from '@/hooks/useSmokeData';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
@@ -21,7 +22,7 @@ const Index = () => {
     name: string;
   } | null>(null);
   
-  const { smokeLayers, currentLayer } = useSmokeData(selectedTime);
+  const { smokeLayers, currentLayer, isLoading } = useSmokeData(selectedTime);
 
   // Auto-detect user location or default to Boulder, CO
   useEffect(() => {
@@ -114,24 +115,32 @@ const Index = () => {
               </div>
             </div>
             
-            {/* City Forecast (Desktop) */}
-            <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0">
+            {/* City Forecast (Desktop) - Fixed height container to prevent layout shift */}
+            <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px]">
+              {searchedCity && !isLoading ? (
+                <CityForecast 
+                  cityCoordinates={searchedCity?.coordinates}
+                  cityName={searchedCity?.name}
+                  selectedTime={selectedTime}
+                />
+              ) : (
+                <ForecastSkeleton />
+              )}
+            </div>
+          </div>
+
+          {/* Mobile top controls - Fixed height container */}
+          <div className="block md:hidden mt-2 space-y-2 min-h-[120px]">
+            {searchedCity && !isLoading ? (
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
                 selectedTime={selectedTime}
+                compact
               />
-            </div>
-          </div>
-
-          {/* Mobile top controls */}
-          <div className="block md:hidden mt-2 space-y-2">
-            <CityForecast 
-              cityCoordinates={searchedCity?.coordinates}
-              cityName={searchedCity?.name}
-              selectedTime={selectedTime}
-              compact
-            />
+            ) : (
+              <ForecastSkeleton compact />
+            )}
             <TimeControls 
               onTimeChange={handleTimeChange}
               autoPlay={false}
@@ -143,7 +152,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content - Fixed height to prevent layout shift */}
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           {/* Map Area */}
