@@ -40,15 +40,22 @@ export const useBackgroundProcessing = () => {
     });
 
     try {
-      await BackgroundProcessor.processWithProgress(
+      const results: any[] = [];
+      
+      await BackgroundProcessor.processInMicroChunks(
         items,
-        processor,
-        (progress) => {
-          startTransition(() => {
-            setState(prev => ({ ...prev, progress }));
-          });
+        async (item, index) => {
+          const result = await processor(item, index);
+          results.push(result);
         },
-        abortControllerRef.current.signal
+        {
+          onProgress: (completed, total) => {
+            startTransition(() => {
+              setState(prev => ({ ...prev, progress: completed / total }));
+            });
+          },
+          signal: abortControllerRef.current!.signal
+        }
       );
       
       startTransition(() => {
@@ -59,9 +66,9 @@ export const useBackgroundProcessing = () => {
         });
       });
       
-      onComplete?.();
+      onComplete?.(results);
     } catch (error) {
-      if (!abortControllerRef.current.signal.aborted) {
+      if (!abortControllerRef.current?.signal.aborted) {
         startTransition(() => {
           setState({
             isProcessing: false,
