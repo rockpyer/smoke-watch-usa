@@ -1,8 +1,9 @@
+
 import React, { useState, useCallback } from 'react';
 import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
-import CityForecast from '@/components/CityForecast';
+import { CityForecast } from '@/components/CityForecast';
 import SmokeLegend from '@/components/SmokeLegend';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -127,13 +128,10 @@ const Index = () => {
             {/* Location Info */}
             {selectedLocation && (
               <LocationInfo
-                location={{
-                  name: selectedLocation.name,
-                  coordinates: selectedLocation.coordinates,
-                  timezone: cityTimeZone
-                }}
+                coordinates={selectedLocation.coordinates}
+                locationName={selectedLocation.name}
+                selectedTime={selectedTime}
                 smokeData={selectedLocation.smokeData}
-                currentTime={selectedTime}
               />
             )}
 
