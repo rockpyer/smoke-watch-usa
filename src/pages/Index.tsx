@@ -109,7 +109,7 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px]">
+            <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px] max-w-2xl">
               {searchedCity && !isLoading ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
@@ -122,7 +122,7 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="block md:hidden mt-2 space-y-2 min-h-[120px]">
+          <div className="block md:hidden mt-2 space-y-2 min-h-[140px]">
             {searchedCity && !isLoading ? (
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
@@ -146,7 +146,7 @@ const Index = () => {
 
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
-          <div className="md:col-span-3 relative min-h-[400px]">
+          <div className="md:col-span-3 relative min-h-[400px] h-full">
             {!isLoading && smokeLayers.length > 0 ? (
               <SmokeMap 
                 onLocationSelect={handleLocationSelect}
@@ -159,7 +159,7 @@ const Index = () => {
             )}
           </div>
 
-          <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
+          <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto h-full">
             <TimeControls 
               onTimeChange={handleTimeChange}
               autoPlay={false}
