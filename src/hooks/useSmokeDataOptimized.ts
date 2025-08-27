@@ -56,11 +56,12 @@ const timeSlicedProcess = <T>(
 
 export const useSmokeData = (selectedTime?: Date) => {
   const [smokeLayers, setSmokeLayers] = useState<SmokeLayer[]>([]);
-  const [currentLayerIndex, setCurrentLayerIndex] = useState(0); // Start at 0 for immediate rendering
+  const [currentLayerIndex, setCurrentLayerIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [initialSelectedTime, setInitialSelectedTime] = useState<Date | null>(null);
   
   // Use refs to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
@@ -92,7 +93,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // Initialize currentLayerIndex when smokeLayers first loads
+  // Initialize currentLayerIndex and set initial selected time when smokeLayers first loads
   useEffect(() => {
     if (smokeLayers.length > 0 && !initializedRef.current) {
       // Find the closest time to now for initial layer selection
@@ -108,8 +109,10 @@ export const useSmokeData = (selectedTime?: Date) => {
         }
       }
       
-      console.log(`🚀 SMOKE DATA: Initializing currentLayerIndex to ${closestIndex} (closest to now: ${smokeLayers[closestIndex].timestamp.toISOString()})`);
+      const initialTime = smokeLayers[closestIndex].timestamp;
+      console.log(`🚀 SMOKE DATA: Initializing currentLayerIndex to ${closestIndex} and initialSelectedTime to: ${initialTime.toISOString()}`);
       setCurrentLayerIndex(closestIndex);
+      setInitialSelectedTime(initialTime);
       lastSyncedIndexRef.current = closestIndex;
       initializedRef.current = true;
     }
@@ -207,6 +210,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     isPlaying,
     isSyncing,
     totalLayers: smokeLayers.length,
+    initialSelectedTime,
     playAnimation,
     pauseAnimation,
     resetAnimation,

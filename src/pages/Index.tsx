@@ -21,29 +21,15 @@ const Index = () => {
     name: string;
   } | null>(null);
   
-  const { smokeLayers, currentLayer, isLoading } = useSmokeData(selectedTime);
+  const { smokeLayers, currentLayer, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
 
-  // Initialize selectedTime when smoke layers first become available
+  // Use the hook's initial selected time instead of calculating it separately
   useEffect(() => {
-    if (smokeLayers.length > 0 && !selectedTime) {
-      // Find the closest time to now for initial selection
-      const now = new Date();
-      let closestIndex = 0;
-      let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - now.getTime());
-      
-      for (let i = 1; i < smokeLayers.length; i++) {
-        const diff = Math.abs(smokeLayers[i].timestamp.getTime() - now.getTime());
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestIndex = i;
-        }
-      }
-      
-      const initialTime = smokeLayers[closestIndex].timestamp;
-      console.log(`🏠 INDEX: Initializing selectedTime to closest time: ${initialTime.toISOString()}`);
-      setSelectedTime(initialTime);
+    if (initialSelectedTime && !selectedTime) {
+      console.log(`🏠 INDEX: Using hook's initialSelectedTime: ${initialSelectedTime.toISOString()}`);
+      setSelectedTime(initialSelectedTime);
     }
-  }, [smokeLayers.length, selectedTime]);
+  }, [initialSelectedTime, selectedTime]);
 
   useEffect(() => {
     if (searchedCity) return;
