@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback } from 'react';
 import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
@@ -139,11 +140,12 @@ const Index = () => {
             {selectedLocation && (
               <div className="flex-1 min-h-0">
                 <CityForecast
-                  location={selectedLocation.coordinates}
+                  cityCoordinates={{
+                    lat: selectedLocation.coordinates[1],
+                    lng: selectedLocation.coordinates[0]
+                  }}
                   cityName={selectedLocation.name}
                   selectedTime={selectedTime}
-                  availableTimes={availableTimes}
-                  timeZone={cityTimeZone}
                   compact={true}
                 />
               </div>
