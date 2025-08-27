@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { smokeDataService } from '@/services/smokeDataService';
-import { AsyncProcessor } from '@/utils/asyncProcessor';
 
 interface SmokePolygon {
   geometry: {
@@ -22,6 +21,40 @@ interface SmokeLayer {
   data: SmokePolygon[];
 }
 
+// Optimize heavy operations with time-slicing to prevent blocking
+const timeSlicedProcess = <T>(
+  items: T[],
+  processor: (item: T, index: number) => void,
+  chunkSize: number = 50
+): Promise<void> => {
+  return new Promise((resolve) => {
+    let index = 0;
+    
+    const processChunk = () => {
+      const endIndex = Math.min(index + chunkSize, items.length);
+      
+      for (let i = index; i < endIndex; i++) {
+        processor(items[i], i);
+      }
+      
+      index = endIndex;
+      
+      if (index < items.length) {
+        // Use scheduler.postTask if available, fallback to setTimeout
+        if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
+          (window as any).scheduler.postTask(processChunk, { priority: 'background' });
+        } else {
+          setTimeout(processChunk, 0);
+        }
+      } else {
+        resolve();
+      }
+    };
+    
+    processChunk();
+  });
+};
+
 export const useSmokeData = (selectedTime?: Date) => {
   const [smokeLayers, setSmokeLayers] = useState<SmokeLayer[]>([]);
   const [currentLayerIndex, setCurrentLayerIndex] = useState(0);
@@ -32,16 +65,9 @@ export const useSmokeData = (selectedTime?: Date) => {
   // Use refs to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
   const lastSyncedIndexRef = useRef<number>(-1);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Optimized fetch with aggressive chunking
+  // Optimized fetch with time-sliced processing
   const fetchData = useCallback(async () => {
-    // Cancel any existing fetch
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    abortControllerRef.current = new AbortController();
     setIsLoading(true);
     setError(null);
     
@@ -49,44 +75,23 @@ export const useSmokeData = (selectedTime?: Date) => {
       console.log('Fetching NOAA smoke polygon data...');
       const data = await smokeDataService.fetchSmokeData();
       
-      // Check if request was aborted
-      if (abortControllerRef.current.signal.aborted) {
-        return;
-      }
-      
-      // Process data in very small chunks to minimize blocking
+      // Process data in time-sliced chunks to prevent blocking
       const processedLayers: SmokeLayer[] = [];
+      await timeSlicedProcess(data, (layer) => {
+        processedLayers.push(layer);
+      });
       
-      await AsyncProcessor.processInChunks(
-        data,
-        async (layer) => {
-          processedLayers.push(layer);
-        },
-        { 
-          chunkSize: 15, 
-          timeSlice: 3,
-          priority: 'background'
-        }
-      );
-      
-      // Final check before setting state
-      if (!abortControllerRef.current.signal.aborted) {
-        setSmokeLayers(processedLayers);
-        console.log(`Loaded ${processedLayers.length} smoke forecast layers`);
-      }
+      setSmokeLayers(processedLayers);
+      console.log(`Loaded ${processedLayers.length} smoke forecast layers`);
     } catch (err) {
-      if (!abortControllerRef.current.signal.aborted) {
-        console.error('Failed to fetch NOAA smoke data:', err);
-        setError('Failed to load NOAA smoke forecast data');
-      }
+      console.error('Failed to fetch NOAA smoke data:', err);
+      setError('Failed to load NOAA smoke forecast data');
     } finally {
-      if (!abortControllerRef.current.signal.aborted) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   }, []);
 
-  // Optimized layer sync with micro-batching
+  // Optimized layer sync with debouncing
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
       return;
@@ -102,41 +107,28 @@ export const useSmokeData = (selectedTime?: Date) => {
     
     lastSelectedTimeRef.current = selectedTime;
     
-    // Use scheduler API for non-urgent calculations with minimal work
-    const processSync = async () => {
-      // Yield immediately to prevent blocking
-      await AsyncProcessor.defer(0);
+    // Use requestIdleCallback for non-urgent calculations
+    const processSync = () => {
+      // Find the exact matching layer by timestamp
+      const matchingIndex = smokeLayers.findIndex(layer => 
+        layer.timestamp.getTime() === selectedTime.getTime()
+      );
       
-      // Find matching layer with early exit optimization
-      let targetIndex = 0;
-      let minDiff = Infinity;
+      let targetIndex = matchingIndex;
       
-      // Process in small batches
-      const batchSize = 20;
-      for (let i = 0; i < smokeLayers.length; i += batchSize) {
-        const endIndex = Math.min(i + batchSize, smokeLayers.length);
+      if (matchingIndex === -1) {
+        // If no exact match, find the closest one
+        let closestIndex = 0;
+        let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
         
-        for (let j = i; j < endIndex; j++) {
-          const diff = Math.abs(smokeLayers[j].timestamp.getTime() - selectedTime.getTime());
-          if (diff === 0) {
-            // Exact match found, exit immediately
-            targetIndex = j;
-            minDiff = 0;
-            break;
-          }
+        for (let i = 1; i < smokeLayers.length; i++) {
+          const diff = Math.abs(smokeLayers[i].timestamp.getTime() - selectedTime.getTime());
           if (diff < minDiff) {
             minDiff = diff;
-            targetIndex = j;
+            closestIndex = i;
           }
         }
-        
-        // Break if exact match found
-        if (minDiff === 0) break;
-        
-        // Yield control between batches
-        if (i + batchSize < smokeLayers.length) {
-          await AsyncProcessor.defer(1);
-        }
+        targetIndex = closestIndex;
       }
       
       // Only update if index actually changed
@@ -147,24 +139,19 @@ export const useSmokeData = (selectedTime?: Date) => {
       }
     };
     
-    // Schedule with background priority
+    // Use scheduler API or requestIdleCallback to prevent blocking
     if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
       (window as any).scheduler.postTask(processSync, { priority: 'background' });
+    } else if ('requestIdleCallback' in window) {
+      requestIdleCallback(processSync);
     } else {
-      AsyncProcessor.defer(0).then(processSync);
+      setTimeout(processSync, 0);
     }
   }, [selectedTime, smokeLayers]);
 
   // Initial data fetch
   useEffect(() => {
     fetchData();
-    
-    // Cleanup on unmount
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
   }, [fetchData]);
 
   const getCurrentLayer = (): SmokeLayer | null => {
