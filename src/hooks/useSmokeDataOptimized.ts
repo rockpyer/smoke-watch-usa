@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { smokeDataService } from '@/services/smokeDataService';
 
@@ -57,7 +56,7 @@ const timeSlicedProcess = <T>(
 
 export const useSmokeData = (selectedTime?: Date) => {
   const [smokeLayers, setSmokeLayers] = useState<SmokeLayer[]>([]);
-  const [currentLayerIndex, setCurrentLayerIndex] = useState(-1); // Start with -1 to indicate "not synced yet"
+  const [currentLayerIndex, setCurrentLayerIndex] = useState(0); // Start at 0 for immediate rendering
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -66,6 +65,7 @@ export const useSmokeData = (selectedTime?: Date) => {
   // Use refs to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
   const lastSyncedIndexRef = useRef<number>(-1);
+  const initializedRef = useRef<boolean>(false);
 
   // Optimized fetch with time-sliced processing
   const fetchData = useCallback(async () => {
@@ -91,6 +91,29 @@ export const useSmokeData = (selectedTime?: Date) => {
       setIsLoading(false);
     }
   }, []);
+
+  // Initialize currentLayerIndex when smokeLayers first loads
+  useEffect(() => {
+    if (smokeLayers.length > 0 && !initializedRef.current) {
+      // Find the closest time to now for initial layer selection
+      const now = new Date();
+      let closestIndex = 0;
+      let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - now.getTime());
+      
+      for (let i = 1; i < smokeLayers.length; i++) {
+        const diff = Math.abs(smokeLayers[i].timestamp.getTime() - now.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
+      }
+      
+      console.log(`🚀 SMOKE DATA: Initializing currentLayerIndex to ${closestIndex} (closest to now: ${smokeLayers[closestIndex].timestamp.toISOString()})`);
+      setCurrentLayerIndex(closestIndex);
+      lastSyncedIndexRef.current = closestIndex;
+      initializedRef.current = true;
+    }
+  }, [smokeLayers]);
 
   // FIXED: Synchronous layer sync to prevent double rendering
   useEffect(() => {
@@ -158,11 +181,7 @@ export const useSmokeData = (selectedTime?: Date) => {
   }, [fetchData]);
 
   const getCurrentLayer = (): SmokeLayer | null => {
-    // Only return a layer if we have a valid index (not -1) and the layer exists
-    if (currentLayerIndex === -1 || !smokeLayers[currentLayerIndex]) {
-      return null;
-    }
-    return smokeLayers[currentLayerIndex];
+    return smokeLayers[currentLayerIndex] || null;
   };
 
   const playAnimation = () => {
