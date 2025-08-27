@@ -61,6 +61,7 @@ export const useSmokeData = (selectedTime?: Date) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Use refs to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
@@ -91,7 +92,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // Optimized layer sync with debouncing
+  // FIXED: Synchronous layer sync to prevent double rendering
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
       return;
@@ -105,48 +106,50 @@ export const useSmokeData = (selectedTime?: Date) => {
       return;
     }
     
+    setIsSyncing(true);
     lastSelectedTimeRef.current = selectedTime;
     
-    // Use requestIdleCallback for non-urgent calculations
-    const processSync = () => {
-      // Find the exact matching layer by timestamp
-      const matchingIndex = smokeLayers.findIndex(layer => 
-        layer.timestamp.getTime() === selectedTime.getTime()
-      );
-      
-      let targetIndex = matchingIndex;
-      
-      if (matchingIndex === -1) {
-        // If no exact match, find the closest one
-        let closestIndex = 0;
-        let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
-        
-        for (let i = 1; i < smokeLayers.length; i++) {
-          const diff = Math.abs(smokeLayers[i].timestamp.getTime() - selectedTime.getTime());
-          if (diff < minDiff) {
-            minDiff = diff;
-            closestIndex = i;
-          }
-        }
-        targetIndex = closestIndex;
-      }
-      
-      // Only update if index actually changed
-      if (targetIndex !== lastSyncedIndexRef.current) {
-        console.log(`📊 SMOKE DATA: Syncing to index ${targetIndex} for time: ${selectedTime.toISOString()}`);
-        setCurrentLayerIndex(targetIndex);
-        lastSyncedIndexRef.current = targetIndex;
-      }
-    };
+    // SYNCHRONOUS layer finding - no async deferrals
+    const matchingIndex = smokeLayers.findIndex(layer => 
+      layer.timestamp.getTime() === selectedTime.getTime()
+    );
     
-    // Use scheduler API or requestIdleCallback to prevent blocking
-    if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
-      (window as any).scheduler.postTask(processSync, { priority: 'background' });
-    } else if ('requestIdleCallback' in window) {
-      requestIdleCallback(processSync);
-    } else {
-      setTimeout(processSync, 0);
+    let targetIndex = matchingIndex;
+    
+    if (matchingIndex === -1) {
+      // Binary search for closest time - O(log n) performance
+      let left = 0;
+      let right = smokeLayers.length - 1;
+      let closestIndex = 0;
+      let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
+      
+      while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        const diff = Math.abs(smokeLayers[mid].timestamp.getTime() - selectedTime.getTime());
+        
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = mid;
+        }
+        
+        if (smokeLayers[mid].timestamp.getTime() < selectedTime.getTime()) {
+          left = mid + 1;
+        } else {
+          right = mid - 1;
+        }
+      }
+      
+      targetIndex = closestIndex;
     }
+    
+    // Only update if index actually changed
+    if (targetIndex !== lastSyncedIndexRef.current) {
+      console.log(`📊 SMOKE DATA: Syncing SYNCHRONOUSLY to index ${targetIndex} for time: ${selectedTime.toISOString()}`);
+      setCurrentLayerIndex(targetIndex);
+      lastSyncedIndexRef.current = targetIndex;
+    }
+    
+    setIsSyncing(false);
   }, [selectedTime, smokeLayers]);
 
   // Initial data fetch
@@ -180,6 +183,7 @@ export const useSmokeData = (selectedTime?: Date) => {
     isLoading,
     error,
     isPlaying,
+    isSyncing,
     totalLayers: smokeLayers.length,
     playAnimation,
     pauseAnimation,

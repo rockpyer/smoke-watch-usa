@@ -39,6 +39,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [lastLayerTimestamp, setLastLayerTimestamp] = useState<string>('');
   const [needsToken, setNeedsToken] = useState(false);
   const [smokeLayerReady, setSmokeLayerReady] = useState(false);
+  const [isUpdatingLayers, setIsUpdatingLayers] = useState(false); // ADDED: Prevent conflicts
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if we have a valid token on mount - IMPROVED
@@ -240,17 +241,12 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   }, [initializeMap, needsToken]);
 
   const addSmokeLayer = useCallback(() => {
-    if (!map.current || !currentLayer || !smokeLayerReady) {
-      console.log('addSmokeLayer skipped - map ready:', !!map.current, 'currentLayer:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady);
+    if (!map.current || !currentLayer || !smokeLayerReady || isUpdatingLayers) {
+      console.log('addSmokeLayer skipped - guards failed');
       return;
     }
 
-    // Double-check if map style is loaded (more reliable check)
-    if (!map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded yet, retrying in 500ms...');
-      setTimeout(() => addSmokeLayer(), 500);
-      return;
-    }
+    setIsUpdatingLayers(true);
 
     try {
       const currentTimestamp = currentLayer.timestamp.toISOString();
@@ -446,8 +442,10 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       console.log('✅ NOAA smoke polygon layers added successfully');
     } catch (error) {
       console.error('❌ Error adding NOAA smoke layers:', error);
+    } finally {
+      setIsUpdatingLayers(false);
     }
-  }, [currentLayer, onLocationSelect, lastLayerTimestamp, smokeLayerReady]);
+  }, [currentLayer, onLocationSelect, lastLayerTimestamp, smokeLayerReady, isUpdatingLayers]);
 
   // Add fire hotspots to the map
   const addFireLayer = useCallback(async () => {
@@ -564,26 +562,37 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
-  // FIXED: Update smoke layer when data changes OR when map becomes ready
+  // CONSOLIDATED: Single effect to handle smoke layer updates with proper guards
   useEffect(() => {
     const currentTimestamp = currentLayer?.timestamp.toISOString() || '';
     console.log('🔄 MAP EFFECT: currentLayer time:', currentTimestamp);
-    console.log('🔄 MAP EFFECT: map exists:', !!map.current, 'layer exists:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady);
+    console.log('🔄 MAP EFFECT: map ready:', !!map.current, 'layer exists:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady, 'updating:', isUpdatingLayers);
     console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
     
-    if (map.current && currentLayer && smokeLayerReady) {
-      console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
-      addSmokeLayer();
+    // GUARD: Only proceed if everything is ready and timestamp actually changed
+    if (!map.current || !currentLayer || !smokeLayerReady || isUpdatingLayers) {
+      return;
     }
-  }, [currentLayer, addSmokeLayer, smokeLayerReady]);
-
-  // ADDED: Ensure smoke layer is added when map becomes ready and we have data
-  useEffect(() => {
-    if (smokeLayerReady && currentLayer && !lastLayerTimestamp) {
-      console.log('🎯 Map ready and we have smoke data - adding initial layer');
-      addSmokeLayer();
+    
+    // GUARD: Only update if timestamp actually changed
+    if (currentTimestamp === lastLayerTimestamp) {
+      console.log('🔄 MAP EFFECT: Timestamp unchanged, skipping update');
+      return;
     }
-  }, [smokeLayerReady, currentLayer, addSmokeLayer, lastLayerTimestamp]);
+    
+    // GUARD: Ensure map style is fully loaded
+    if (!map.current.isStyleLoaded()) {
+      console.log('⏳ Map style not loaded yet, retrying in 200ms...');
+      setTimeout(() => {
+        // Re-trigger this effect by clearing and setting timestamp
+        setLastLayerTimestamp('');
+      }, 200);
+      return;
+    }
+    
+    console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
+    addSmokeLayer();
+  }, [currentLayer, smokeLayerReady, isUpdatingLayers, lastLayerTimestamp]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {

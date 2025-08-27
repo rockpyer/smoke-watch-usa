@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Play, Pause, SkipBack, SkipForward, RotateCcw } from 'lucide-react';
 import { format, addHours } from 'date-fns';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface TimeControlsProps {
   onTimeChange?: (time: Date, index: number) => void;
@@ -18,6 +19,9 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const hasInitialized = useRef(false);
+  
+  // ADDED: Debounce the current index to prevent rapid updates
+  const debouncedIndex = useDebounce(currentIndex, 150);
 
   // Initialize to closest time to now ONLY ONCE when data loads
   useEffect(() => {
@@ -43,14 +47,14 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
     }
   }, [availableTimes.length]); // Only depend on length, not the full array
 
-  // Notify parent of time changes
+  // FIXED: Use debounced index to prevent rapid fire updates
   useEffect(() => {
-    if (availableTimes.length > 0 && onTimeChange && availableTimes[currentIndex] && hasInitialized.current) {
-      const selectedTime = availableTimes[currentIndex];
-      console.log(`🕐 TIME CONTROLS: Notifying parent of time change: ${selectedTime.toISOString()} (index ${currentIndex})`);
-      onTimeChange(selectedTime, currentIndex);
+    if (availableTimes.length > 0 && onTimeChange && availableTimes[debouncedIndex] && hasInitialized.current) {
+      const selectedTime = availableTimes[debouncedIndex];
+      console.log(`🕐 TIME CONTROLS: Notifying parent of DEBOUNCED time change: ${selectedTime.toISOString()} (index ${debouncedIndex})`);
+      onTimeChange(selectedTime, debouncedIndex);
     }
-  }, [currentIndex, availableTimes, onTimeChange]);
+  }, [debouncedIndex, availableTimes, onTimeChange]);
 
   // Auto-play functionality
   useEffect(() => {
@@ -86,17 +90,22 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
   };
 
   const handleStepBack = () => {
-    setCurrentIndex(Math.max(0, currentIndex - 1));
+    const newIndex = Math.max(0, currentIndex - 1);
+    console.log(`🕐 TIME CONTROLS: Step back to index ${newIndex}`);
+    setCurrentIndex(newIndex);
     setIsPlaying(false);
   };
 
   const handleStepForward = () => {
-    setCurrentIndex(Math.min(availableTimes.length - 1, currentIndex + 1));
+    const newIndex = Math.min(availableTimes.length - 1, currentIndex + 1);
+    console.log(`🕐 TIME CONTROLS: Step forward to index ${newIndex}`);
+    setCurrentIndex(newIndex);
     setIsPlaying(false);
   };
 
   const handleReset = () => {
     // Reset to the earliest available time
+    console.log('🕐 TIME CONTROLS: Reset to index 0');
     setCurrentIndex(0);
     setIsPlaying(false);
   };
