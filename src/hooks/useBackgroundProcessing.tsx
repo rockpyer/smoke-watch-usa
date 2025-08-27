@@ -18,10 +18,10 @@ export const useBackgroundProcessing = () => {
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const processInBackground = useCallback(async <T>(
+  const processInBackground = useCallback(async <T, R>(
     items: T[],
-    processor: (item: T, index: number) => void | Promise<void>,
-    onComplete?: (results?: any) => void
+    processor: (item: T, index: number) => R | Promise<R>,
+    onComplete?: (results: R[]) => void
   ) => {
     // Cancel any existing processing
     if (abortControllerRef.current) {
@@ -40,7 +40,7 @@ export const useBackgroundProcessing = () => {
     });
 
     try {
-      const results: any[] = [];
+      const results: R[] = [];
       
       await BackgroundProcessor.processInMicroChunks(
         items,
