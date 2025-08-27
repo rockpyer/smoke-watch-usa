@@ -23,6 +23,28 @@ const Index = () => {
   
   const { smokeLayers, currentLayer, isLoading } = useSmokeData(selectedTime);
 
+  // Initialize selectedTime when smoke layers first become available
+  useEffect(() => {
+    if (smokeLayers.length > 0 && !selectedTime) {
+      // Find the closest time to now for initial selection
+      const now = new Date();
+      let closestIndex = 0;
+      let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - now.getTime());
+      
+      for (let i = 1; i < smokeLayers.length; i++) {
+        const diff = Math.abs(smokeLayers[i].timestamp.getTime() - now.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
+      }
+      
+      const initialTime = smokeLayers[closestIndex].timestamp;
+      console.log(`🏠 INDEX: Initializing selectedTime to closest time: ${initialTime.toISOString()}`);
+      setSelectedTime(initialTime);
+    }
+  }, [smokeLayers.length, selectedTime]);
+
   useEffect(() => {
     if (searchedCity) return;
 
