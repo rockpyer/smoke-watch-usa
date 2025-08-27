@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
 import LocationInfo from '@/components/LocationInfo';
 import { CityForecast } from '@/components/CityForecast';
-import { ForecastSkeleton } from '@/components/LoadingSkeleton';
+import { ForecastSkeleton, MapSkeleton } from '@/components/LoadingSkeleton';
 import { useSmokeData } from '@/hooks/useSmokeData';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
@@ -155,14 +154,18 @@ const Index = () => {
       {/* Main Content - Fixed height to prevent layout shift */}
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
-          {/* Map Area */}
-          <div className="md:col-span-3 relative">
-            <SmokeMap 
-              onLocationSelect={handleLocationSelect}
-              onCitySearch={handleCitySearch}
-              selectedTime={selectedTime}
-              currentLayer={currentLayer}
-            />
+          {/* Map Area - Fixed dimensions container */}
+          <div className="md:col-span-3 relative min-h-[400px]">
+            {!isLoading && smokeLayers.length > 0 ? (
+              <SmokeMap 
+                onLocationSelect={handleLocationSelect}
+                onCitySearch={handleCitySearch}
+                selectedTime={selectedTime}
+                currentLayer={currentLayer}
+              />
+            ) : (
+              <MapSkeleton />
+            )}
           </div>
 
           {/* Controls Panel */}
