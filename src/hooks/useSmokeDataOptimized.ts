@@ -57,7 +57,7 @@ const timeSlicedProcess = <T>(
 
 export const useSmokeData = (selectedTime?: Date) => {
   const [smokeLayers, setSmokeLayers] = useState<SmokeLayer[]>([]);
-  const [currentLayerIndex, setCurrentLayerIndex] = useState(0);
+  const [currentLayerIndex, setCurrentLayerIndex] = useState(-1); // Start with -1 to indicate "not synced yet"
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -158,8 +158,11 @@ export const useSmokeData = (selectedTime?: Date) => {
   }, [fetchData]);
 
   const getCurrentLayer = (): SmokeLayer | null => {
-    const layer = smokeLayers[currentLayerIndex] || null;
-    return layer;
+    // Only return a layer if we have a valid index (not -1) and the layer exists
+    if (currentLayerIndex === -1 || !smokeLayers[currentLayerIndex]) {
+      return null;
+    }
+    return smokeLayers[currentLayerIndex];
   };
 
   const playAnimation = () => {
