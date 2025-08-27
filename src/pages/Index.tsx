@@ -7,7 +7,9 @@ import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
 
 // Import lazy components
-import { SmokeMap, LocationInfo, SmokeLegend, CityForecast } from '@/components/LazyComponents';
+import { SmokeMap, LocationInfo, SmokeLegend } from '@/components/LazyComponents';
+// Import CityForecast directly to ensure proper functionality
+import { CityForecast } from '@/components/CityForecastOptimized';
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -111,7 +113,7 @@ const Index = () => {
             
             <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px] max-w-2xl">
               <Suspense fallback={<ForecastSkeleton />}>
-                {searchedCity && !isLoading ? (
+                {searchedCity ? (
                   <CityForecast 
                     cityCoordinates={searchedCity?.coordinates}
                     cityName={searchedCity?.name}
@@ -126,7 +128,7 @@ const Index = () => {
 
           <div className="block md:hidden mt-2 space-y-2 min-h-[140px]">
             <Suspense fallback={<ForecastSkeleton compact />}>
-              {searchedCity && !isLoading ? (
+              {searchedCity ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
                   cityName={searchedCity?.name}
