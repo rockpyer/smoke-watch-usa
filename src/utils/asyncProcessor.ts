@@ -1,8 +1,8 @@
 
 // Utility for breaking up heavy work into smaller chunks to prevent main-thread blocking
 export class AsyncProcessor {
-  private static readonly DEFAULT_CHUNK_SIZE = 15; // Reduced from 25
-  private static readonly DEFAULT_TIME_SLICE = 2; // Reduced from 5ms
+  private static readonly DEFAULT_CHUNK_SIZE = 5; // Reduced from 15
+  private static readonly DEFAULT_TIME_SLICE = 0.5; // Reduced from 2ms
 
   static async processInChunks<T>(
     items: T[],
@@ -29,7 +29,7 @@ export class AsyncProcessor {
       for (let i = index; i < endIndex; i++) {
         await processor(items[i], i);
         
-        // Break earlier if we've exceeded our smaller time slice
+        // Break much earlier if we've exceeded our tiny time slice
         if (performance.now() - startTime > timeSlice) {
           index = i + 1;
           break;
@@ -54,34 +54,52 @@ export class AsyncProcessor {
     priority: 'background' | 'user-blocking' | 'user-visible'
   ): Promise<void> {
     return new Promise(resolve => {
-      // Use scheduler API if available - prefer background priority for FID
+      // Use scheduler API with strict background priority
       if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
         (window as any).scheduler.postTask(
           async () => {
             await callback();
             resolve();
           },
-          { priority: priority === 'user-blocking' ? 'user-blocking' : 'background' }
+          { priority: 'background' } // Always use background priority for main-thread work
         );
       }
-      // Use requestIdleCallback for all background tasks to improve FID
+      // Use MessageChannel for immediate yielding (better than requestIdleCallback)
+      else if (typeof MessageChannel !== 'undefined') {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = async () => {
+          await callback();
+          resolve();
+        };
+        channel.port2.postMessage(null);
+      }
+      // Use requestIdleCallback only as fallback
       else if ('requestIdleCallback' in window) {
         requestIdleCallback(async () => {
           await callback();
           resolve();
         });
       }
-      // Fallback to setTimeout with minimal delay
+      // Final fallback
       else {
         setTimeout(async () => {
           await callback();
           resolve();
-        }, 1); // Reduced from 0 to ensure yielding
+        }, 0);
       }
     });
   }
 
-  static async defer(ms: number = 1): Promise<void> { // Increased default from 0 to 1
-    return new Promise(resolve => setTimeout(resolve, ms));
+  static async defer(ms: number = 0): Promise<void> {
+    return new Promise(resolve => {
+      // Use MessageChannel for immediate yielding when ms=0
+      if (ms === 0 && typeof MessageChannel !== 'undefined') {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = () => resolve();
+        channel.port2.postMessage(null);
+      } else {
+        setTimeout(resolve, ms);
+      }
+    });
   }
 }

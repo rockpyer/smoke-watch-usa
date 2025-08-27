@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { startTransition } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Info } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import { GeometryWorker } from '@/utils/geometryWorker';
-import { AsyncProcessor } from '@/utils/asyncProcessor';
+import { useBackgroundProcessing } from '@/hooks/useBackgroundProcessing';
 import tzLookup from 'tz-lookup';
 
 interface CityForecastProps {
@@ -76,99 +77,63 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 }) => {
   const { smokeLayers, refetch, isLoading } = useSmokeData();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
+  const { processInBackground, isProcessing } = useBackgroundProcessing();
   
   // Use ref to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
-  const processingRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastCityCoordinatesRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (!cityCoordinates || !smokeLayers.length || processingRef.current) {
-      if (!smokeLayers.length) setForecastData([]);
+    if (!cityCoordinates || !smokeLayers.length) {
+      if (!smokeLayers.length) {
+        startTransition(() => setForecastData([]));
+      }
       return;
     }
 
-    // Cancel any existing processing
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    abortControllerRef.current = new AbortController();
-    processingRef.current = true;
+    // Check if coordinates actually changed to prevent unnecessary processing
+    const coordsChanged = !lastCityCoordinatesRef.current ||
+      lastCityCoordinatesRef.current.lat !== cityCoordinates.lat ||
+      lastCityCoordinatesRef.current.lng !== cityCoordinates.lng;
 
-    // Process forecast data with ultra-small chunks to minimize FID
-    const processForecastData = async () => {
-      try {
-        const forecast: ForecastData[] = [];
+    if (!coordsChanged && forecastData.length > 0) {
+      return;
+    }
+
+    lastCityCoordinatesRef.current = cityCoordinates;
+
+    // Process forecast data using background processing
+    processInBackground(
+      smokeLayers.slice(0, 48), // Limit to 48 hours
+      async (layer) => {
         const worker = getGeometryWorker();
         
-        // Process in ultra-small chunks (reduced from 8 to 3) with shorter time slices
-        await AsyncProcessor.processInChunks(
-          smokeLayers,
-          async (layer) => {
-            if (abortControllerRef.current?.signal.aborted) {
-              return;
-            }
+        // Prepare polygons for worker (limit to reasonable number)
+        const polygons = layer.data.slice(0, 500).map(polygon => ({
+          coordinates: polygon.geometry.coordinates[0],
+          properties: polygon.properties
+        }));
 
-            // Prepare polygons for worker
-            const polygons = layer.data.map(polygon => ({
-              coordinates: polygon.geometry.coordinates[0],
-              properties: polygon.properties
-            }));
-
-            // Use web worker for point-in-polygon calculation
-            const matches = await worker.pointInPolygon(cityCoordinates, polygons);
-            
-            if (abortControllerRef.current?.signal.aborted) {
-              return;
-            }
-
-            // Use first match (highest priority smoke data)
-            const citySmoke = matches.length > 0 ? matches[0].properties : null;
-            
-            forecast.push({
-              timestamp: layer.timestamp,
-              smokeLevel: citySmoke?.smoke_class || 0,
-              smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
-              concentration: citySmoke?.concentration_ugm3 || 0
-            });
-          },
-          { 
-            chunkSize: 3, // Reduced from 8 to minimize blocking
-            timeSlice: 1, // Reduced from 2 to yield more frequently
-            priority: 'background'
-          }
-        );
+        // Use web worker for point-in-polygon calculation
+        const matches = await worker.pointInPolygon(cityCoordinates, polygons);
         
-        if (!abortControllerRef.current?.signal.aborted) {
-          setForecastData(forecast.slice(0, 48));
-        }
-      } catch (error) {
-        if (!abortControllerRef.current?.signal.aborted) {
-          console.error('Error processing forecast data:', error);
-        }
-      } finally {
-        if (!abortControllerRef.current?.signal.aborted) {
-          processingRef.current = false;
-        }
+        // Use first match (highest priority smoke data)
+        const citySmoke = matches.length > 0 ? matches[0].properties : null;
+        
+        return {
+          timestamp: layer.timestamp,
+          smokeLevel: citySmoke?.smoke_class || 0,
+          smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
+          concentration: citySmoke?.concentration_ugm3 || 0
+        };
+      },
+      (results: ForecastData[]) => {
+        startTransition(() => {
+          setForecastData(results);
+        });
       }
-    };
-
-    // Use scheduler API with background priority to prevent blocking
-    if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
-      (window as any).scheduler.postTask(processForecastData, { priority: 'background' });
-    } else {
-      // Increase delay to ensure main thread isn't blocked
-      AsyncProcessor.defer(10).then(processForecastData);
-    }
-
-    // Cleanup on unmount or dependency change
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [cityCoordinates, smokeLayers]);
+    );
+  }, [cityCoordinates, smokeLayers, processInBackground, forecastData.length]);
 
   // Memoize timeline calculations with more aggressive optimization
   const timelineData = useMemo(() => {
@@ -316,15 +281,15 @@ export const CityForecast: React.FC<CityForecastProps> = ({
             variant="ghost"
             size="sm"
             onClick={refetch}
-            disabled={isLoading}
+            disabled={isLoading || isProcessing}
             className="h-6 w-6 p-0"
             aria-label="Refresh city forecast"
           >
-            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 w-3 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
         <div className="text-[11px] text-muted-foreground">
-          {isLoading ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
+          {isLoading || isProcessing ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
         </div>
       </Card>
     );
@@ -342,11 +307,11 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           variant="ghost"
           size="sm"
           onClick={refetch}
-          disabled={isLoading}
+          disabled={isLoading || isProcessing}
           className="h-6 w-6 p-0"
           aria-label="Refresh city forecast"
         >
-          <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3 w-3 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
