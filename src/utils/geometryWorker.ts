@@ -1,3 +1,4 @@
+
 // Web Worker for heavy geometry calculations
 const geometryWorkerCode = `
 self.onmessage = function(e) {
@@ -43,8 +44,6 @@ function isPointInPolygon(point, polygon) {
   return inside;
 }
 `;
-
-import { AsyncProcessor } from './asyncProcessor';
 
 export class GeometryWorker {
   private worker: Worker | null = null;
