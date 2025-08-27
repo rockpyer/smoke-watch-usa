@@ -13,34 +13,43 @@ interface TimeControlsProps {
   availableTimes?: Date[];
   timeZone?: string;
   compact?: boolean;
-  currentIndex?: number; // NEW: Accept current index from parent
 }
 
-const TimeControls: React.FC<TimeControlsProps> = ({ 
-  onTimeChange, 
-  autoPlay = false, 
-  availableTimes = [], 
-  timeZone, 
-  compact = false,
-  currentIndex = 0 // NEW: Use parent's current index
-}) => {
-  const [localIndex, setLocalIndex] = useState(currentIndex);
+const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [], timeZone, compact = false }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const hasInitialized = useRef(false);
   
-  // ADDED: Debounce the local index to prevent rapid updates
-  const debouncedIndex = useDebounce(localIndex, 150);
+  // ADDED: Debounce the current index to prevent rapid updates
+  const debouncedIndex = useDebounce(currentIndex, 150);
 
-  // NEW: Sync with parent's currentIndex when it changes
+  // Initialize to closest time to now ONLY ONCE when data loads
   useEffect(() => {
-    if (currentIndex !== localIndex) {
-      console.log(`🕐 TIME CONTROLS: Syncing to parent's currentIndex: ${currentIndex}`);
-      setLocalIndex(currentIndex);
+    if (availableTimes.length > 0 && !hasInitialized.current) {
+      console.log('🕐 TIME CONTROLS: First-time initialization with timestamps');
+      
+      // Find the index closest to current time for initial position
+      const now = new Date();
+      let closestIndex = 0;
+      let minDiff = Math.abs(availableTimes[0].getTime() - now.getTime());
+      
+      for (let i = 1; i < availableTimes.length; i++) {
+        const diff = Math.abs(availableTimes[i].getTime() - now.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
+      }
+      
+      console.log(`🕐 TIME CONTROLS: Setting initial index to ${closestIndex} (closest to now)`);
+      setCurrentIndex(closestIndex);
+      hasInitialized.current = true;
     }
-  }, [currentIndex]);
+  }, [availableTimes.length]); // Only depend on length, not the full array
 
   // FIXED: Use debounced index to prevent rapid fire updates
   useEffect(() => {
-    if (availableTimes.length > 0 && onTimeChange && availableTimes[debouncedIndex]) {
+    if (availableTimes.length > 0 && onTimeChange && availableTimes[debouncedIndex] && hasInitialized.current) {
       const selectedTime = availableTimes[debouncedIndex];
       console.log(`🕐 TIME CONTROLS: Notifying parent of DEBOUNCED time change: ${selectedTime.toISOString()} (index ${debouncedIndex})`);
       onTimeChange(selectedTime, debouncedIndex);
@@ -53,7 +62,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
     
     if (isPlaying && availableTimes.length > 0) {
       interval = setInterval(() => {
-        setLocalIndex((prev) => {
+        setCurrentIndex((prev) => {
           const next = prev + 1;
           if (next >= availableTimes.length) {
             setIsPlaying(false);
@@ -72,7 +81,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
   const handleSliderChange = (values: number[]) => {
     const newIndex = values[0];
     console.log(`🕐 TIME CONTROLS: User manually changed slider to index ${newIndex}`);
-    setLocalIndex(newIndex);
+    setCurrentIndex(newIndex);
     setIsPlaying(false);
   };
 
@@ -81,23 +90,23 @@ const TimeControls: React.FC<TimeControlsProps> = ({
   };
 
   const handleStepBack = () => {
-    const newIndex = Math.max(0, localIndex - 1);
+    const newIndex = Math.max(0, currentIndex - 1);
     console.log(`🕐 TIME CONTROLS: Step back to index ${newIndex}`);
-    setLocalIndex(newIndex);
+    setCurrentIndex(newIndex);
     setIsPlaying(false);
   };
 
   const handleStepForward = () => {
-    const newIndex = Math.min(availableTimes.length - 1, localIndex + 1);
+    const newIndex = Math.min(availableTimes.length - 1, currentIndex + 1);
     console.log(`🕐 TIME CONTROLS: Step forward to index ${newIndex}`);
-    setLocalIndex(newIndex);
+    setCurrentIndex(newIndex);
     setIsPlaying(false);
   };
 
   const handleReset = () => {
     // Reset to the earliest available time
     console.log('🕐 TIME CONTROLS: Reset to index 0');
-    setLocalIndex(0);
+    setCurrentIndex(0);
     setIsPlaying(false);
   };
 
@@ -105,7 +114,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
     return null;
   }
 
-  const currentTime = availableTimes[localIndex];
+  const currentTime = availableTimes[currentIndex];
   const now = new Date();
   const isCurrentTime = Math.abs(currentTime.getTime() - now.getTime()) < (30 * 60 * 1000); // Within 30 minutes of now
 
@@ -137,7 +146,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
         {/* Timeline Slider */}
         <div className="space-y-1 md:space-y-2">
           <Slider
-            value={[localIndex]}
+            value={[currentIndex]}
             onValueChange={handleSliderChange}
             max={availableTimes.length - 1}
             min={0}
@@ -167,7 +176,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
             variant="outline"
             size="sm"
             onClick={handleStepBack}
-            disabled={localIndex === 0}
+            disabled={currentIndex === 0}
             className="h-7 w-7 md:h-8 md:w-8 p-0"
           >
             <SkipBack className="h-3 w-3 md:h-4 md:w-4" />
@@ -190,7 +199,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
             variant="outline"
             size="sm"
             onClick={handleStepForward}
-            disabled={localIndex === availableTimes.length - 1}
+            disabled={currentIndex === availableTimes.length - 1}
             className="h-7 w-7 md:h-8 md:w-8 p-0"
           >
             <SkipForward className="h-3 w-3 md:h-4 md:w-4" />
@@ -200,7 +209,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
         {/* Time Labels */}
         {!compact && (
           <div className="text-center text-xs text-muted-foreground">
-            Frame {localIndex + 1} of {availableTimes.length}
+            Frame {currentIndex + 1} of {availableTimes.length}
           </div>
         )}
       </div>

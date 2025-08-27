@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { smokeDataService } from '@/services/smokeDataService';
 
@@ -94,14 +93,14 @@ export const useSmokeData = (selectedTime?: Date) => {
     }
   }, []);
 
-  // FIXED: Initialize to closest time to NOW, not earliest time
+  // Initialize currentLayerIndex and set initial selected time when smokeLayers first loads
   useEffect(() => {
     if (smokeLayers.length > 0 && !initializedRef.current) {
+      // Find the closest time to now for initial layer selection
       const now = new Date();
       let closestIndex = 0;
       let minDiff = Math.abs(smokeLayers[0].timestamp.getTime() - now.getTime());
       
-      // Find the layer closest to current time
       for (let i = 1; i < smokeLayers.length; i++) {
         const diff = Math.abs(smokeLayers[i].timestamp.getTime() - now.getTime());
         if (diff < minDiff) {
@@ -111,8 +110,7 @@ export const useSmokeData = (selectedTime?: Date) => {
       }
       
       const initialTime = smokeLayers[closestIndex].timestamp;
-      console.log(`🚀 SMOKE DATA: Initializing to CLOSEST TIME TO NOW - index ${closestIndex}, time: ${initialTime.toISOString()}`);
-      
+      console.log(`🚀 SMOKE DATA: Initializing currentLayerIndex to ${closestIndex} and initialSelectedTime to: ${initialTime.toISOString()}`);
       setCurrentLayerIndex(closestIndex);
       setInitialSelectedTime(initialTime);
       lastSyncedIndexRef.current = closestIndex;

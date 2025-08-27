@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
@@ -22,7 +21,7 @@ const Index = () => {
     name: string;
   } | null>(null);
   
-  const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
+  const { smokeLayers, currentLayer, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
 
   // Use the hook's initial selected time instead of calculating it separately
   useEffect(() => {
@@ -147,7 +146,6 @@ const Index = () => {
               autoPlay={false}
               availableTimes={smokeLayers.map(layer => layer.timestamp)}
               timeZone={cityTimeZone}
-              currentIndex={currentLayerIndex}
               compact
             />
           </div>
@@ -175,7 +173,6 @@ const Index = () => {
               autoPlay={false}
               availableTimes={smokeLayers.map(layer => layer.timestamp)}
               timeZone={cityTimeZone}
-              currentIndex={currentLayerIndex}
             />
 
             <LocationInfo 
