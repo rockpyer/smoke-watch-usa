@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { startTransition } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Info } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import { GeometryWorker } from '@/utils/geometryWorker';
-import { useBackgroundProcessing } from '@/hooks/useBackgroundProcessing';
+import { AsyncProcessor } from '@/utils/asyncProcessor';
 import tzLookup from 'tz-lookup';
 
 interface CityForecastProps {
@@ -77,65 +76,100 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 }) => {
   const { smokeLayers, refetch, isLoading } = useSmokeData();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
-  const { processInBackground, isProcessing } = useBackgroundProcessing();
   
   // Use ref to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
-  const lastCityCoordinatesRef = useRef<{ lat: number; lng: number } | null>(null);
+  const processingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!cityCoordinates || !smokeLayers.length) {
-      if (!smokeLayers.length) {
-        startTransition(() => setForecastData([]));
-      }
+    if (!cityCoordinates || !smokeLayers.length || processingRef.current) {
+      if (!smokeLayers.length) setForecastData([]);
       return;
     }
 
-    // Check if coordinates actually changed to prevent unnecessary processing
-    const coordsChanged = !lastCityCoordinatesRef.current ||
-      lastCityCoordinatesRef.current.lat !== cityCoordinates.lat ||
-      lastCityCoordinatesRef.current.lng !== cityCoordinates.lng;
-
-    if (!coordsChanged && forecastData.length > 0) {
-      return;
+    // Cancel any existing processing
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
+    
+    abortControllerRef.current = new AbortController();
+    processingRef.current = true;
 
-    lastCityCoordinatesRef.current = cityCoordinates;
-
-    // Process forecast data using background processing
-    processInBackground(
-      smokeLayers.slice(0, 48), // Limit to 48 hours
-      async (layer) => {
+    // Process forecast data with web worker optimization
+    const processForecastData = async () => {
+      try {
+        const forecast: ForecastData[] = [];
         const worker = getGeometryWorker();
         
-        // Prepare polygons for worker (limit to reasonable number)
-        const polygons = layer.data.slice(0, 500).map(polygon => ({
-          coordinates: polygon.geometry.coordinates[0],
-          properties: polygon.properties
-        }));
+        // Process in very small chunks to minimize blocking
+        await AsyncProcessor.processInChunks(
+          smokeLayers,
+          async (layer) => {
+            if (abortControllerRef.current?.signal.aborted) {
+              return;
+            }
 
-        // Use web worker for point-in-polygon calculation
-        const matches = await worker.pointInPolygon(cityCoordinates, polygons);
+            // Prepare polygons for worker
+            const polygons = layer.data.map(polygon => ({
+              coordinates: polygon.geometry.coordinates[0],
+              properties: polygon.properties
+            }));
+
+            // Use web worker for point-in-polygon calculation
+            const matches = await worker.pointInPolygon(cityCoordinates, polygons);
+            
+            if (abortControllerRef.current?.signal.aborted) {
+              return;
+            }
+
+            // Use first match (highest priority smoke data)
+            const citySmoke = matches.length > 0 ? matches[0].properties : null;
+            
+            forecast.push({
+              timestamp: layer.timestamp,
+              smokeLevel: citySmoke?.smoke_class || 0,
+              smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
+              concentration: citySmoke?.concentration_ugm3 || 0
+            });
+          },
+          { 
+            chunkSize: 8, 
+            timeSlice: 2,
+            priority: 'background'
+          }
+        );
         
-        // Use first match (highest priority smoke data)
-        const citySmoke = matches.length > 0 ? matches[0].properties : null;
-        
-        return {
-          timestamp: layer.timestamp,
-          smokeLevel: citySmoke?.smoke_class || 0,
-          smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
-          concentration: citySmoke?.concentration_ugm3 || 0
-        };
-      },
-      (results: ForecastData[]) => {
-        startTransition(() => {
-          setForecastData(results);
-        });
+        if (!abortControllerRef.current?.signal.aborted) {
+          setForecastData(forecast.slice(0, 48));
+        }
+      } catch (error) {
+        if (!abortControllerRef.current?.signal.aborted) {
+          console.error('Error processing forecast data:', error);
+        }
+      } finally {
+        if (!abortControllerRef.current?.signal.aborted) {
+          processingRef.current = false;
+        }
       }
-    );
-  }, [cityCoordinates, smokeLayers, processInBackground, forecastData.length]);
+    };
 
-  // Memoize timeline calculations with more aggressive optimization
+    // Use scheduler API for background processing
+    if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
+      (window as any).scheduler.postTask(processForecastData, { priority: 'background' });
+    } else {
+      AsyncProcessor.defer(5).then(processForecastData);
+    }
+
+    // Cleanup on unmount or dependency change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [cityCoordinates, smokeLayers]);
+
+  // Memoize timeline calculations with aggressive optimization
   const timelineData = useMemo(() => {
     if (!forecastData.length) return null;
 
@@ -178,7 +212,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       Math.max(0, total - 1)
     ];
 
-    // Optimize current time index calculation with early exit
+    // Optimize current time index calculation
     let currentTimeIndex = -1;
     if (selectedTime) {
       const timeChanged = !lastSelectedTimeRef.current || 
@@ -187,14 +221,13 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       if (timeChanged) {
         lastSelectedTimeRef.current = selectedTime;
         
-        // Use more efficient binary search for large datasets
+        // Binary search for closest timestamp (much faster than linear search)
         const targetTime = selectedTime.getTime();
         let left = 0;
         let right = forecastData.length - 1;
         let closestIndex = 0;
         let minDiff = Infinity;
         
-        // Binary search is O(log n) vs O(n) linear search
         while (left <= right) {
           const mid = Math.floor((left + right) / 2);
           const diff = Math.abs(forecastData[mid].timestamp.getTime() - targetTime);
@@ -281,15 +314,15 @@ export const CityForecast: React.FC<CityForecastProps> = ({
             variant="ghost"
             size="sm"
             onClick={refetch}
-            disabled={isLoading || isProcessing}
+            disabled={isLoading}
             className="h-6 w-6 p-0"
             aria-label="Refresh city forecast"
           >
-            <RefreshCw className={`h-3 w-3 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
         <div className="text-[11px] text-muted-foreground">
-          {isLoading || isProcessing ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
+          {isLoading ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
         </div>
       </Card>
     );
@@ -307,11 +340,11 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           variant="ghost"
           size="sm"
           onClick={refetch}
-          disabled={isLoading || isProcessing}
+          disabled={isLoading}
           className="h-6 w-6 p-0"
           aria-label="Refresh city forecast"
         >
-          <RefreshCw className={`h-3 w-3 ${isLoading || isProcessing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 

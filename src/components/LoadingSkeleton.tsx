@@ -26,7 +26,7 @@ export const ForecastSkeleton = ({ compact = false }: { compact?: boolean }) => 
 );
 
 export const MapInfoSkeleton = () => (
-  <div className="absolute bottom-16 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-3 min-w-[320px] max-w-[400px] min-h-[90px] animate-pulse">
+  <div className="absolute bottom-16 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-3 min-w-[320px] max-w-[400px] animate-pulse">
     <div className="h-4 bg-gray-300 rounded w-48 mb-2"></div>
     <div className="h-3 bg-gray-200 rounded w-32 mb-1"></div>
     <div className="h-3 bg-gray-200 rounded w-40"></div>
@@ -34,15 +34,13 @@ export const MapInfoSkeleton = () => (
 );
 
 export const MapSkeleton = () => (
-  <div className="absolute inset-0 bg-gray-100 rounded-lg animate-pulse">
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <div className="h-8 w-8 bg-gray-300 rounded-full mx-auto mb-3"></div>
-        <div className="h-4 bg-gray-300 rounded w-32 mb-2"></div>
-        <div className="h-3 bg-gray-200 rounded w-24"></div>
-      </div>
+  <div className="absolute inset-0 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+    <div className="text-center">
+      <div className="h-8 w-8 bg-gray-300 rounded-full mx-auto mb-3"></div>
+      <div className="h-4 bg-gray-300 rounded w-32 mb-2"></div>
+      <div className="h-3 bg-gray-200 rounded w-24"></div>
     </div>
-    {/* Reserve space for map info to prevent layout shift */}
+    {/* Fixed position map info skeleton to prevent layout shift */}
     <MapInfoSkeleton />
   </div>
 );
