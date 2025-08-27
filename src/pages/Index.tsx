@@ -3,9 +3,9 @@ import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
 import LocationInfo from '@/components/LocationInfo';
-import { CityForecast } from '@/components/CityForecast';
+import { CityForecast } from '@/components/CityForecastOptimized';
 import { ForecastSkeleton, MapSkeleton } from '@/components/LoadingSkeleton';
-import { useSmokeData } from '@/hooks/useSmokeData';
+import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
 
@@ -23,9 +23,8 @@ const Index = () => {
   
   const { smokeLayers, currentLayer, isLoading } = useSmokeData(selectedTime);
 
-  // Auto-detect user location or default to Boulder, CO
   useEffect(() => {
-    if (searchedCity) return; // Don't override if user has already selected a city
+    if (searchedCity) return;
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -39,7 +38,6 @@ const Index = () => {
         },
         (error) => {
           console.log('🌍 Geolocation failed, using Boulder, CO default:', error);
-          // Default to Boulder, CO
           setSearchedCity({
             coordinates: { lat: 40.0150, lng: -105.2705 },
             name: 'Boulder, CO'
@@ -49,7 +47,6 @@ const Index = () => {
       );
     } else {
       console.log('🌍 Geolocation not supported, using Boulder, CO default');
-      // Default to Boulder, CO
       setSearchedCity({
         coordinates: { lat: 40.0150, lng: -105.2705 },
         name: 'Boulder, CO'
@@ -60,7 +57,6 @@ const Index = () => {
   const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
   
   useEffect(() => {
-    // SEO basics - updated title
     document.title = 'Will smoke affect my biking/hiking/fishing plans? – Real-time Forecast';
     const desc = 'Real-time NOAA HRRR smoke forecast with wildfire locations and air quality.';
     let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
@@ -102,7 +98,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-sky-gradient">
-      {/* Header */}
       <header className="relative z-20 bg-background/95 backdrop-blur-sm border-b border-border shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -114,7 +109,6 @@ const Index = () => {
               </div>
             </div>
             
-            {/* City Forecast (Desktop) - Fixed height container to prevent layout shift */}
             <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px]">
               {searchedCity && !isLoading ? (
                 <CityForecast 
@@ -128,7 +122,6 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Mobile top controls - Fixed height container */}
           <div className="block md:hidden mt-2 space-y-2 min-h-[120px]">
             {searchedCity && !isLoading ? (
               <CityForecast 
@@ -151,10 +144,8 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main Content - Fixed height to prevent layout shift */}
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
-          {/* Map Area - Fixed dimensions container */}
           <div className="md:col-span-3 relative min-h-[400px]">
             {!isLoading && smokeLayers.length > 0 ? (
               <SmokeMap 
@@ -168,9 +159,7 @@ const Index = () => {
             )}
           </div>
 
-          {/* Controls Panel */}
           <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
-            {/* Time Controls - SINGLE INSTANCE */}
             <TimeControls 
               onTimeChange={handleTimeChange}
               autoPlay={false}
@@ -178,7 +167,6 @@ const Index = () => {
               timeZone={cityTimeZone}
             />
 
-            {/* Location Info */}
             <LocationInfo 
               coordinates={selectedLocation?.coordinates}
               locationName={selectedLocation?.name}
@@ -186,15 +174,11 @@ const Index = () => {
               smokeData={selectedLocation?.smokeData}
             />
 
-            {/* Smoke Legend */}
             <SmokeLegend />
           </div>
         </div>
-
-        {/* Mobile Drawer Controls */}
       </div>
 
-      {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border">
         <div className="container mx-auto px-4 py-2">
           <div className="flex flex-col sm:flex-row justify-between items-center text-xs text-muted-foreground">
