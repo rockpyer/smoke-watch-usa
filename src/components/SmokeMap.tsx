@@ -20,15 +20,13 @@ interface SmokeMapProps {
   onCitySearch?: (coordinates: { lat: number; lng: number }, cityName: string) => void;
   selectedTime?: Date;
   currentLayer?: SmokeLayer | null;
-  isSyncing?: boolean;
 }
 
 const SmokeMap: React.FC<SmokeMapProps> = ({ 
   onLocationSelect,
   onCitySearch, 
   selectedTime, 
-  currentLayer,
-  isSyncing = false
+  currentLayer 
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -42,9 +40,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [needsToken, setNeedsToken] = useState(false);
   const [smokeLayerReady, setSmokeLayerReady] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // ADDED: Track when map is actively updating layers to prevent conflicts
-  const [isUpdatingLayers, setIsUpdatingLayers] = useState(false);
 
   // Check if we have a valid token on mount - IMPROVED
   useEffect(() => {
@@ -245,19 +240,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   }, [initializeMap, needsToken]);
 
   const addSmokeLayer = useCallback(() => {
-    // Prevent conflicts during layer updates
-    if (isUpdatingLayers) {
-      console.log('⏸️ Skipping layer update - already updating');
-      return;
-    }
-
-    if (!map.current || !currentLayer || !smokeLayerReady || isSyncing) {
-      console.log('addSmokeLayer skipped - conditions not met:', {
-        mapReady: !!map.current, 
-        currentLayer: !!currentLayer, 
-        smokeLayerReady,
-        isSyncing
-      });
+    if (!map.current || !currentLayer || !smokeLayerReady) {
+      console.log('addSmokeLayer skipped - map ready:', !!map.current, 'currentLayer:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady);
       return;
     }
 
@@ -267,8 +251,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       setTimeout(() => addSmokeLayer(), 500);
       return;
     }
-
-    setIsUpdatingLayers(true);
 
     try {
       const currentTimestamp = currentLayer.timestamp.toISOString();
@@ -464,10 +446,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       console.log('✅ NOAA smoke polygon layers added successfully');
     } catch (error) {
       console.error('❌ Error adding NOAA smoke layers:', error);
-    } finally {
-      setIsUpdatingLayers(false);
     }
-  }, [currentLayer, onLocationSelect, lastLayerTimestamp, smokeLayerReady, isSyncing, isUpdatingLayers]);
+  }, [currentLayer, onLocationSelect, lastLayerTimestamp, smokeLayerReady]);
 
   // Add fire hotspots to the map
   const addFireLayer = useCallback(async () => {
@@ -584,27 +564,26 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
-  // CONSOLIDATED: Single effect for smoke layer updates with proper guards
+  // FIXED: Update smoke layer when data changes OR when map becomes ready
   useEffect(() => {
-    // Only update when we have valid conditions and data is synchronized
-    if (!map.current || !currentLayer || !smokeLayerReady || isSyncing || isUpdatingLayers) {
-      return;
-    }
-
-    const currentTimestamp = currentLayer.timestamp.toISOString();
-    console.log('🔄 CONSOLIDATED EFFECT: Checking layer update conditions');
-    console.log('🔄 Current layer time:', currentTimestamp);
-    console.log('🔄 Selected time:', selectedTime?.toISOString());
-    console.log('🔄 Last timestamp:', lastLayerTimestamp);
+    const currentTimestamp = currentLayer?.timestamp.toISOString() || '';
+    console.log('🔄 MAP EFFECT: currentLayer time:', currentTimestamp);
+    console.log('🔄 MAP EFFECT: map exists:', !!map.current, 'layer exists:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady);
+    console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
     
-    // Only update if we have a different timestamp than what's currently displayed
-    if (currentTimestamp !== lastLayerTimestamp) {
-      console.log('📍 Triggering layer update for new timestamp:', currentTimestamp);
+    if (map.current && currentLayer && smokeLayerReady) {
+      console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
       addSmokeLayer();
-    } else {
-      console.log('⏸️ Skipping layer update - timestamp unchanged');
     }
-  }, [currentLayer, selectedTime, addSmokeLayer, smokeLayerReady, isSyncing, isUpdatingLayers, lastLayerTimestamp]);
+  }, [currentLayer, addSmokeLayer, smokeLayerReady]);
+
+  // ADDED: Ensure smoke layer is added when map becomes ready and we have data
+  useEffect(() => {
+    if (smokeLayerReady && currentLayer && !lastLayerTimestamp) {
+      console.log('🎯 Map ready and we have smoke data - adding initial layer');
+      addSmokeLayer();
+    }
+  }, [smokeLayerReady, currentLayer, addSmokeLayer, lastLayerTimestamp]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
@@ -752,7 +731,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   return (
     <div className="relative w-full h-full">
       {/* Loading Indicator */}
-      {(isInitializing || !isMapLoaded || isSmokeLoading || !smokeLayerReady || isSyncing) && (
+      {(isInitializing || !isMapLoaded || isSmokeLoading || !smokeLayerReady) && (
         <div className="absolute inset-0 bg-sky-gradient flex items-center justify-center z-20">
           <Card className="p-4">
             <div className="text-center">
@@ -760,7 +739,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
               <p className="text-sm text-muted-foreground">
                 {isInitializing ? 'Initializing map...' : 
                  !smokeLayerReady ? 'Preparing map layers...' :
-                 isSyncing ? 'Syncing forecast data...' :
                  isSmokeLoading ? 'Loading NOAA smoke forecast...' : 'Loading map...'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Fetching real government data</p>

@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Play, Pause, SkipBack, SkipForward, RotateCcw } from 'lucide-react';
 import { format, addHours } from 'date-fns';
-import { useDebounce } from '@/hooks/useDebounce';
 
 interface TimeControlsProps {
   onTimeChange?: (time: Date, index: number) => void;
@@ -18,14 +18,6 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const hasInitialized = useRef(false);
-
-  // ADDED: Debounced time change to prevent rapid updates
-  const debouncedTimeChange = useDebounce((time: Date, index: number) => {
-    if (onTimeChange) {
-      console.log(`🕐 TIME CONTROLS: Debounced time change: ${time.toISOString()} (index ${index})`);
-      onTimeChange(time, index);
-    }
-  }, 100);
 
   // Initialize to closest time to now ONLY ONCE when data loads
   useEffect(() => {
@@ -51,13 +43,14 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
     }
   }, [availableTimes.length]); // Only depend on length, not the full array
 
-  // Notify parent of time changes with debouncing
+  // Notify parent of time changes
   useEffect(() => {
-    if (availableTimes.length > 0 && availableTimes[currentIndex] && hasInitialized.current) {
+    if (availableTimes.length > 0 && onTimeChange && availableTimes[currentIndex] && hasInitialized.current) {
       const selectedTime = availableTimes[currentIndex];
-      debouncedTimeChange(selectedTime, currentIndex);
+      console.log(`🕐 TIME CONTROLS: Notifying parent of time change: ${selectedTime.toISOString()} (index ${currentIndex})`);
+      onTimeChange(selectedTime, currentIndex);
     }
-  }, [currentIndex, availableTimes, debouncedTimeChange]);
+  }, [currentIndex, availableTimes, onTimeChange]);
 
   // Auto-play functionality
   useEffect(() => {
