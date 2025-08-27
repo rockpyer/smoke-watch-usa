@@ -95,7 +95,6 @@ const Index = () => {
   };
 
   console.log('🚀 INDEX: Component rendering...');
-  const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
 
   return (
     <div className="min-h-screen bg-sky-gradient">
