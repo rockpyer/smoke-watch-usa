@@ -96,13 +96,13 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     abortControllerRef.current = new AbortController();
     processingRef.current = true;
 
-    // Process forecast data with web worker optimization
+    // Process forecast data with ultra-small chunks to minimize FID
     const processForecastData = async () => {
       try {
         const forecast: ForecastData[] = [];
         const worker = getGeometryWorker();
         
-        // Process in very small chunks to minimize blocking
+        // Process in ultra-small chunks (reduced from 8 to 3) with shorter time slices
         await AsyncProcessor.processInChunks(
           smokeLayers,
           async (layer) => {
@@ -134,8 +134,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
             });
           },
           { 
-            chunkSize: 8, 
-            timeSlice: 2,
+            chunkSize: 3, // Reduced from 8 to minimize blocking
+            timeSlice: 1, // Reduced from 2 to yield more frequently
             priority: 'background'
           }
         );
@@ -154,11 +154,12 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       }
     };
 
-    // Use scheduler API for background processing
+    // Use scheduler API with background priority to prevent blocking
     if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
       (window as any).scheduler.postTask(processForecastData, { priority: 'background' });
     } else {
-      AsyncProcessor.defer(5).then(processForecastData);
+      // Increase delay to ensure main thread isn't blocked
+      AsyncProcessor.defer(10).then(processForecastData);
     }
 
     // Cleanup on unmount or dependency change
@@ -169,7 +170,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     };
   }, [cityCoordinates, smokeLayers]);
 
-  // Memoize timeline calculations with aggressive optimization
+  // Memoize timeline calculations with more aggressive optimization
   const timelineData = useMemo(() => {
     if (!forecastData.length) return null;
 
@@ -212,7 +213,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       Math.max(0, total - 1)
     ];
 
-    // Optimize current time index calculation
+    // Optimize current time index calculation with early exit
     let currentTimeIndex = -1;
     if (selectedTime) {
       const timeChanged = !lastSelectedTimeRef.current || 
@@ -221,13 +222,14 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       if (timeChanged) {
         lastSelectedTimeRef.current = selectedTime;
         
-        // Binary search for closest timestamp (much faster than linear search)
+        // Use more efficient binary search for large datasets
         const targetTime = selectedTime.getTime();
         let left = 0;
         let right = forecastData.length - 1;
         let closestIndex = 0;
         let minDiff = Infinity;
         
+        // Binary search is O(log n) vs O(n) linear search
         while (left <= right) {
           const mid = Math.floor((left + right) / 2);
           const diff = Math.abs(forecastData[mid].timestamp.getTime() - targetTime);
