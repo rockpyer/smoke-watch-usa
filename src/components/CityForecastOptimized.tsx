@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Info } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
+import { GeometryWorker } from '@/utils/geometryWorker';
+import { AsyncProcessor } from '@/utils/asyncProcessor';
 import tzLookup from 'tz-lookup';
 
 interface CityForecastProps {
@@ -19,51 +21,52 @@ interface ForecastData {
   concentration: number;
 }
 
-// Optimized point-in-polygon using web worker if available
-const isPointInPolygonOptimized = (point: { lat: number; lng: number }, polygon: number[][]): boolean => {
-  const x = point.lng;
-  const y = point.lat;
-  let inside = false;
+// Global worker instance to reuse across components
+let geometryWorker: GeometryWorker | null = null;
 
-  // Optimize for small polygons with early exit
-  if (polygon.length < 4) return false;
-  
-  // Use optimized ray casting with minimal operations
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i][0];
-    const yi = polygon[i][1];
-    const xj = polygon[j][0];
-    const yj = polygon[j][1];
+const getGeometryWorker = () => {
+  if (!geometryWorker) {
+    geometryWorker = new GeometryWorker();
+  }
+  return geometryWorker;
+};
 
-    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-      inside = !inside;
+// Enhanced cache with LRU eviction
+class LRUCache<K, V> {
+  private cache = new Map<K, V>();
+  private maxSize: number;
+
+  constructor(maxSize: number = 500) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
     }
+    return value;
   }
 
-  return inside;
-};
-
-// Cache for point-in-polygon results to avoid recalculation
-const polygonCache = new Map<string, boolean>();
-
-const getCachedPointInPolygon = (point: { lat: number; lng: number }, polygon: number[][]): boolean => {
-  const cacheKey = `${point.lat.toFixed(6)},${point.lng.toFixed(6)},${polygon.length}`;
-  
-  if (polygonCache.has(cacheKey)) {
-    return polygonCache.get(cacheKey)!;
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxSize) {
+      // Remove least recently used (first item)
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
   }
-  
-  const result = isPointInPolygonOptimized(point, polygon);
-  polygonCache.set(cacheKey, result);
-  
-  // Limit cache size
-  if (polygonCache.size > 1000) {
-    const firstKey = polygonCache.keys().next().value;
-    polygonCache.delete(firstKey);
+
+  clear(): void {
+    this.cache.clear();
   }
-  
-  return result;
-};
+}
+
+const polygonCache = new LRUCache<string, boolean>(1000);
 
 export const CityForecast: React.FC<CityForecastProps> = ({
   cityCoordinates,
@@ -77,6 +80,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   // Use ref to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
   const processingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!cityCoordinates || !smokeLayers.length || processingRef.current) {
@@ -84,28 +88,43 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       return;
     }
 
+    // Cancel any existing processing
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
     processingRef.current = true;
 
-    // Process forecast data with time-slicing to prevent blocking
+    // Process forecast data with web worker optimization
     const processForecastData = async () => {
-      const forecast: ForecastData[] = [];
-      
-      // Process in chunks to prevent blocking
-      const chunkSize = 5;
-      for (let i = 0; i < smokeLayers.length; i += chunkSize) {
-        const chunk = smokeLayers.slice(i, i + chunkSize);
+      try {
+        const forecast: ForecastData[] = [];
+        const worker = getGeometryWorker();
         
-        await new Promise(resolve => {
-          chunk.forEach(layer => {
-            // Find smoke data that contains this city's coordinates
-            let citySmoke = null;
-            
-            for (const polygon of layer.data) {
-              if (getCachedPointInPolygon(cityCoordinates, polygon.geometry.coordinates[0])) {
-                citySmoke = polygon.properties;
-                break;
-              }
+        // Process in very small chunks to minimize blocking
+        await AsyncProcessor.processInChunks(
+          smokeLayers,
+          async (layer) => {
+            if (abortControllerRef.current?.signal.aborted) {
+              return;
             }
+
+            // Prepare polygons for worker
+            const polygons = layer.data.map(polygon => ({
+              coordinates: polygon.geometry.coordinates[0],
+              properties: polygon.properties
+            }));
+
+            // Use web worker for point-in-polygon calculation
+            const matches = await worker.pointInPolygon(cityCoordinates, polygons);
+            
+            if (abortControllerRef.current?.signal.aborted) {
+              return;
+            }
+
+            // Use first match (highest priority smoke data)
+            const citySmoke = matches.length > 0 ? matches[0].properties : null;
             
             forecast.push({
               timestamp: layer.timestamp,
@@ -113,30 +132,52 @@ export const CityForecast: React.FC<CityForecastProps> = ({
               smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
               concentration: citySmoke?.concentration_ugm3 || 0
             });
-          });
-          
-          // Yield control to prevent blocking
-          if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
-            (window as any).scheduler.postTask(resolve, { priority: 'background' });
-          } else {
-            setTimeout(resolve, 0);
+          },
+          { 
+            chunkSize: 8, 
+            timeSlice: 2,
+            priority: 'background'
           }
-        });
+        );
+        
+        if (!abortControllerRef.current?.signal.aborted) {
+          setForecastData(forecast.slice(0, 48));
+        }
+      } catch (error) {
+        if (!abortControllerRef.current?.signal.aborted) {
+          console.error('Error processing forecast data:', error);
+        }
+      } finally {
+        if (!abortControllerRef.current?.signal.aborted) {
+          processingRef.current = false;
+        }
       }
-      
-      setForecastData(forecast.slice(0, 48));
-      processingRef.current = false;
     };
 
-    processForecastData();
+    // Use scheduler API for background processing
+    if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
+      (window as any).scheduler.postTask(processForecastData, { priority: 'background' });
+    } else {
+      AsyncProcessor.defer(5).then(processForecastData);
+    }
+
+    // Cleanup on unmount or dependency change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [cityCoordinates, smokeLayers]);
 
+  // Memoize timeline calculations with aggressive optimization
   const timelineData = useMemo(() => {
     if (!forecastData.length) return null;
 
+    // Cache expensive timezone operations
     const tz = cityCoordinates ? tzLookup(cityCoordinates.lat, cityCoordinates.lng) : 'America/Denver';
     const tzShort = new Date().toLocaleTimeString('en-US', { timeZone: tz, timeZoneName: 'short' }).split(' ').pop() || 'local';
     
+    // Pre-compute category mappings
     const concentrationToCategory = (c: number) => {
       if (c < 3) return 'none';
       if (c <= 12) return 'light';
@@ -171,6 +212,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       Math.max(0, total - 1)
     ];
 
+    // Optimize current time index calculation
     let currentTimeIndex = -1;
     if (selectedTime) {
       const timeChanged = !lastSelectedTimeRef.current || 
@@ -179,19 +221,34 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       if (timeChanged) {
         lastSelectedTimeRef.current = selectedTime;
         
-        currentTimeIndex = forecastData.findIndex(f => 
-          f.timestamp.getTime() === selectedTime.getTime()
-        );
+        // Binary search for closest timestamp (much faster than linear search)
+        const targetTime = selectedTime.getTime();
+        let left = 0;
+        let right = forecastData.length - 1;
+        let closestIndex = 0;
+        let minDiff = Infinity;
         
-        if (currentTimeIndex === -1) {
-          let closestDiff = Infinity;
-          forecastData.forEach((f, i) => {
-            const diff = Math.abs(f.timestamp.getTime() - selectedTime.getTime());
-            if (diff < closestDiff && diff < 30 * 60 * 1000) {
-              closestDiff = diff;
-              currentTimeIndex = i;
-            }
-          });
+        while (left <= right) {
+          const mid = Math.floor((left + right) / 2);
+          const diff = Math.abs(forecastData[mid].timestamp.getTime() - targetTime);
+          
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIndex = mid;
+          }
+          
+          if (forecastData[mid].timestamp.getTime() === targetTime) {
+            currentTimeIndex = mid;
+            break;
+          } else if (forecastData[mid].timestamp.getTime() < targetTime) {
+            left = mid + 1;
+          } else {
+            right = mid - 1;
+          }
+        }
+        
+        if (currentTimeIndex === -1 && minDiff < 30 * 60 * 1000) {
+          currentTimeIndex = closestIndex;
         }
       }
     }
