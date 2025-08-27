@@ -1,3 +1,4 @@
+import { AsyncProcessor } from './asyncProcessor';
 
 // Web Worker for heavy geometry calculations
 const geometryWorkerCode = `
