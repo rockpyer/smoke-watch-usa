@@ -18,10 +18,10 @@ export const useBackgroundProcessing = () => {
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const processInBackground = useCallback(async <T, R>(
+  const processInBackground = useCallback(async <T>(
     items: T[],
-    processor: (item: T, index: number) => R | Promise<R>,
-    onComplete?: (results: R[]) => void
+    processor: (item: T, index: number) => void | Promise<void>,
+    onComplete?: (results?: any) => void
   ) => {
     // Cancel any existing processing
     if (abortControllerRef.current) {
@@ -40,22 +40,15 @@ export const useBackgroundProcessing = () => {
     });
 
     try {
-      const results: R[] = [];
-      
-      await BackgroundProcessor.processInMicroChunks(
+      await BackgroundProcessor.processWithProgress(
         items,
-        async (item, index) => {
-          const result = await processor(item, index);
-          results.push(result);
+        processor,
+        (progress) => {
+          startTransition(() => {
+            setState(prev => ({ ...prev, progress }));
+          });
         },
-        {
-          onProgress: (completed, total) => {
-            startTransition(() => {
-              setState(prev => ({ ...prev, progress: completed / total }));
-            });
-          },
-          signal: abortControllerRef.current!.signal
-        }
+        abortControllerRef.current.signal
       );
       
       startTransition(() => {
@@ -66,9 +59,9 @@ export const useBackgroundProcessing = () => {
         });
       });
       
-      onComplete?.(results);
+      onComplete?.();
     } catch (error) {
-      if (!abortControllerRef.current?.signal.aborted) {
+      if (!abortControllerRef.current.signal.aborted) {
         startTransition(() => {
           setState({
             isProcessing: false,

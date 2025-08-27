@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { startTransition } from 'react';
 import { Card } from '@/components/ui/card';
@@ -76,7 +75,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   compact = false,
   selectedTime
 }) => {
-  const { smokeLayers, refetch, isLoading } = useSmokeData(selectedTime);
+  const { smokeLayers, refetch, isLoading } = useSmokeData();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const { processInBackground, isProcessing } = useBackgroundProcessing();
   
@@ -103,11 +102,9 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 
     lastCityCoordinatesRef.current = cityCoordinates;
 
-    console.log(`🏙️ CITY FORECAST: Processing ${smokeLayers.length} smoke layers for ${cityName}`);
-
-    // Process forecast data using background processing - FULL 48 hours
+    // Process forecast data using background processing
     processInBackground(
-      smokeLayers, // Use ALL layers, not just slice(0, 48)
+      smokeLayers.slice(0, 48), // Limit to 48 hours
       async (layer) => {
         const worker = getGeometryWorker();
         
@@ -131,15 +128,14 @@ export const CityForecast: React.FC<CityForecastProps> = ({
         };
       },
       (results: ForecastData[]) => {
-        console.log(`🏙️ CITY FORECAST: Generated forecast with ${results.length} time periods`);
         startTransition(() => {
           setForecastData(results);
         });
       }
     );
-  }, [cityCoordinates, smokeLayers, processInBackground, cityName]);
+  }, [cityCoordinates, smokeLayers, processInBackground, forecastData.length]);
 
-  // Memoize timeline calculations with proper current time index detection
+  // Memoize timeline calculations with more aggressive optimization
   const timelineData = useMemo(() => {
     if (!forecastData.length) return null;
 
@@ -159,13 +155,13 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     };
 
     const categoryClass: Record<string, string> = {
-      none: 'bg-green-200',
-      light: 'bg-yellow-300', 
-      moderate: 'bg-orange-400',
-      'unhealthy-sensitive': 'bg-red-400',
-      unhealthy: 'bg-red-600',
-      'very-unhealthy': 'bg-purple-600',
-      hazardous: 'bg-purple-800'
+      none: 'bg-smoke-none',
+      light: 'bg-smoke-light',
+      moderate: 'bg-smoke-moderate',
+      'unhealthy-sensitive': 'bg-smoke-unhealthy-sensitive',
+      unhealthy: 'bg-smoke-unhealthy',
+      'very-unhealthy': 'bg-smoke-very-unhealthy',
+      hazardous: 'bg-smoke-hazardous'
     };
 
     const formatLocal = (d: Date) =>
@@ -182,43 +178,44 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       Math.max(0, total - 1)
     ];
 
-    // Fix current time index calculation
+    // Optimize current time index calculation with early exit
     let currentTimeIndex = -1;
     if (selectedTime) {
-      console.log(`🕐 CITY FORECAST: Looking for selectedTime: ${selectedTime.toISOString()}`);
-      
-      // Check if time changed to avoid unnecessary recalculation
       const timeChanged = !lastSelectedTimeRef.current || 
         lastSelectedTimeRef.current.getTime() !== selectedTime.getTime();
       
       if (timeChanged) {
         lastSelectedTimeRef.current = selectedTime;
         
-        // Find exact match first
-        const exactMatch = forecastData.findIndex(f => 
-          Math.abs(f.timestamp.getTime() - selectedTime.getTime()) < 1000 // Within 1 second
-        );
+        // Use more efficient binary search for large datasets
+        const targetTime = selectedTime.getTime();
+        let left = 0;
+        let right = forecastData.length - 1;
+        let closestIndex = 0;
+        let minDiff = Infinity;
         
-        if (exactMatch !== -1) {
-          currentTimeIndex = exactMatch;
-          console.log(`🕐 CITY FORECAST: Found exact match at index ${currentTimeIndex}`);
-        } else {
-          // Find closest within reasonable range (30 minutes)
-          let closestIndex = 0;
-          let minDiff = Infinity;
+        // Binary search is O(log n) vs O(n) linear search
+        while (left <= right) {
+          const mid = Math.floor((left + right) / 2);
+          const diff = Math.abs(forecastData[mid].timestamp.getTime() - targetTime);
           
-          forecastData.forEach((f, i) => {
-            const diff = Math.abs(f.timestamp.getTime() - selectedTime.getTime());
-            if (diff < minDiff && diff < 30 * 60 * 1000) {
-              minDiff = diff;
-              closestIndex = i;
-            }
-          });
-          
-          if (minDiff < 30 * 60 * 1000) {
-            currentTimeIndex = closestIndex;
-            console.log(`🕐 CITY FORECAST: Found closest match at index ${currentTimeIndex} (${minDiff/1000}s diff)`);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIndex = mid;
           }
+          
+          if (forecastData[mid].timestamp.getTime() === targetTime) {
+            currentTimeIndex = mid;
+            break;
+          } else if (forecastData[mid].timestamp.getTime() < targetTime) {
+            left = mid + 1;
+          } else {
+            right = mid - 1;
+          }
+        }
+        
+        if (currentTimeIndex === -1 && minDiff < 30 * 60 * 1000) {
+          currentTimeIndex = closestIndex;
         }
       }
     }
@@ -247,6 +244,17 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       dateLabels
     };
   }, [forecastData, selectedTime, cityCoordinates]);
+
+  const getSmokeColor = (smokeLevel: number) => {
+    switch (smokeLevel) {
+      case 1: return 'bg-green-500';
+      case 2: return 'bg-yellow-500';
+      case 3: return 'bg-orange-500';
+      case 4: return 'bg-red-500';
+      case 5: return 'bg-purple-500';
+      default: return 'bg-gray-300';
+    }
+  };
 
   const getAirQualityDescription = (concentration: number) => {
     if (concentration < 3) return 'Good Air Quality';
@@ -289,8 +297,6 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 
   const { tz, tzShort, concentrationToCategory, categoryClass, formatLocal, total, tickIndices, currentTimeIndex, dateLabels } = timelineData;
 
-  console.log(`🏙️ CITY FORECAST: Rendering ${forecastData.length} forecast periods, currentTimeIndex: ${currentTimeIndex}`);
-
   return (
     <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
       <div className="flex items-center justify-between mb-2">
@@ -329,7 +335,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       <div className="flex items-center space-x-0.5 overflow-x-auto py-1">
         {forecastData.map((f, i) => {
           const category = concentrationToCategory(f.concentration);
-          const colorClass = categoryClass[category] || 'bg-gray-300';
+          const colorClass = categoryClass[category] || 'bg-muted';
           const airQualityDesc = getAirQualityDescription(f.concentration);
           const isCurrentTime = i === currentTimeIndex;
           

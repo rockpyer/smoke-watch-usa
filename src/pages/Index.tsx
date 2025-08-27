@@ -1,15 +1,13 @@
-
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
+import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
+import SmokeLegend from '@/components/SmokeLegend';
+import LocationInfo from '@/components/LocationInfo';
+import { CityForecast } from '@/components/CityForecastOptimized';
 import { ForecastSkeleton, MapSkeleton } from '@/components/LoadingSkeleton';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
-
-// Import lazy components
-import { SmokeMap, LocationInfo, SmokeLegend } from '@/components/LazyComponents';
-// Import CityForecast directly to ensure proper functionality
-import { CityForecast } from '@/components/CityForecastOptimized';
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -112,33 +110,29 @@ const Index = () => {
             </div>
             
             <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px] max-w-2xl">
-              <Suspense fallback={<ForecastSkeleton />}>
-                {searchedCity ? (
-                  <CityForecast 
-                    cityCoordinates={searchedCity?.coordinates}
-                    cityName={searchedCity?.name}
-                    selectedTime={selectedTime}
-                  />
-                ) : (
-                  <ForecastSkeleton />
-                )}
-              </Suspense>
-            </div>
-          </div>
-
-          <div className="block md:hidden mt-2 space-y-2 min-h-[140px]">
-            <Suspense fallback={<ForecastSkeleton compact />}>
-              {searchedCity ? (
+              {searchedCity && !isLoading ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
                   cityName={searchedCity?.name}
                   selectedTime={selectedTime}
-                  compact
                 />
               ) : (
-                <ForecastSkeleton compact />
+                <ForecastSkeleton />
               )}
-            </Suspense>
+            </div>
+          </div>
+
+          <div className="block md:hidden mt-2 space-y-2 min-h-[140px]">
+            {searchedCity && !isLoading ? (
+              <CityForecast 
+                cityCoordinates={searchedCity?.coordinates}
+                cityName={searchedCity?.name}
+                selectedTime={selectedTime}
+                compact
+              />
+            ) : (
+              <ForecastSkeleton compact />
+            )}
             <TimeControls 
               onTimeChange={handleTimeChange}
               autoPlay={false}
@@ -153,18 +147,16 @@ const Index = () => {
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           <div className="md:col-span-3 relative min-h-[400px] h-full">
-            <Suspense fallback={<MapSkeleton />}>
-              {!isLoading && smokeLayers.length > 0 ? (
-                <SmokeMap 
-                  onLocationSelect={handleLocationSelect}
-                  onCitySearch={handleCitySearch}
-                  selectedTime={selectedTime}
-                  currentLayer={currentLayer}
-                />
-              ) : (
-                <MapSkeleton />
-              )}
-            </Suspense>
+            {!isLoading && smokeLayers.length > 0 ? (
+              <SmokeMap 
+                onLocationSelect={handleLocationSelect}
+                onCitySearch={handleCitySearch}
+                selectedTime={selectedTime}
+                currentLayer={currentLayer}
+              />
+            ) : (
+              <MapSkeleton />
+            )}
           </div>
 
           <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto h-full">
@@ -175,18 +167,14 @@ const Index = () => {
               timeZone={cityTimeZone}
             />
 
-            <Suspense fallback={<div className="h-32 bg-muted animate-pulse rounded-lg" />}>
-              <LocationInfo 
-                coordinates={selectedLocation?.coordinates}
-                locationName={selectedLocation?.name}
-                selectedTime={selectedTime}
-                smokeData={selectedLocation?.smokeData}
-              />
-            </Suspense>
+            <LocationInfo 
+              coordinates={selectedLocation?.coordinates}
+              locationName={selectedLocation?.name}
+              selectedTime={selectedTime}
+              smokeData={selectedLocation?.smokeData}
+            />
 
-            <Suspense fallback={<div className="h-24 bg-muted animate-pulse rounded-lg" />}>
-              <SmokeLegend />
-            </Suspense>
+            <SmokeLegend />
           </div>
         </div>
       </div>
