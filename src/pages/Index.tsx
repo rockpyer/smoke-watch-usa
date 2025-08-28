@@ -15,21 +15,12 @@ const Index = () => {
     name: string;
     smokeData?: any;
   } | null>(null);
-  const [selectedTime, setSelectedTime] = useState<Date | undefined>();
   const [searchedCity, setSearchedCity] = useState<{
     coordinates: { lat: number; lng: number };
     name: string;
   } | null>(null);
   
-  const { smokeLayers, currentLayer, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
-
-  // Use the hook's initial selected time instead of calculating it separately
-  useEffect(() => {
-    if (initialSelectedTime && !selectedTime) {
-      console.log(`🏠 INDEX: Using hook's initialSelectedTime: ${initialSelectedTime.toISOString()}`);
-      setSelectedTime(initialSelectedTime);
-    }
-  }, [initialSelectedTime, selectedTime]);
+  const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData();
 
   useEffect(() => {
     if (searchedCity) return;
@@ -83,8 +74,8 @@ const Index = () => {
     link.setAttribute('href', window.location.href);
   }, []);
   
-  console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
   console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp.toISOString() || 'undefined'}`);
+  console.log(`🏠 INDEX: currentLayerIndex: ${currentLayerIndex}`);
   console.log(`🏠 INDEX: smokeLayers count: ${smokeLayers.length}`);
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
@@ -94,12 +85,6 @@ const Index = () => {
 
   const handleCitySearch = (coordinates: { lat: number; lng: number }, cityName: string) => {
     setSearchedCity({ coordinates, name: cityName });
-  };
-
-  const handleTimeChange = (time: Date, index: number) => {
-    console.log(`🏠 INDEX: handleTimeChange called with time: ${time.toISOString()}, index: ${index}`);
-    setSelectedTime(time);
-    console.log(`🏠 INDEX: selectedTime state updated to: ${time.toISOString()}`);
   };
 
   console.log('🚀 INDEX: Component rendering...');
@@ -122,7 +107,7 @@ const Index = () => {
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
                   cityName={searchedCity?.name}
-                  selectedTime={selectedTime}
+                  selectedTime={currentLayer?.timestamp}
                 />
               ) : (
                 <ForecastSkeleton />
@@ -135,14 +120,14 @@ const Index = () => {
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
-                selectedTime={selectedTime}
+                selectedTime={currentLayer?.timestamp}
                 compact
               />
             ) : (
               <ForecastSkeleton compact />
             )}
             <TimeControls 
-              onTimeChange={handleTimeChange}
+              currentIndex={currentLayerIndex}
               autoPlay={false}
               availableTimes={smokeLayers.map(layer => layer.timestamp)}
               timeZone={cityTimeZone}
@@ -159,7 +144,7 @@ const Index = () => {
               <SmokeMap 
                 onLocationSelect={handleLocationSelect}
                 onCitySearch={handleCitySearch}
-                selectedTime={selectedTime}
+                selectedTime={currentLayer?.timestamp}
                 currentLayer={currentLayer}
               />
             ) : (
@@ -169,7 +154,7 @@ const Index = () => {
 
           <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
             <TimeControls 
-              onTimeChange={handleTimeChange}
+              currentIndex={currentLayerIndex}
               autoPlay={false}
               availableTimes={smokeLayers.map(layer => layer.timestamp)}
               timeZone={cityTimeZone}
@@ -178,7 +163,7 @@ const Index = () => {
             <LocationInfo 
               coordinates={selectedLocation?.coordinates}
               locationName={selectedLocation?.name}
-              selectedTime={selectedTime}
+              selectedTime={currentLayer?.timestamp}
               smokeData={selectedLocation?.smokeData}
             />
 

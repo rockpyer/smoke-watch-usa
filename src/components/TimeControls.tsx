@@ -4,8 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Play, Pause, SkipBack, SkipForward, RotateCcw } from 'lucide-react';
-import { format, addHours } from 'date-fns';
-import { useDebounce } from '@/hooks/useDebounce';
 
 interface TimeControlsProps {
   onTimeChange?: (time: Date, index: number) => void;
@@ -13,75 +11,50 @@ interface TimeControlsProps {
   availableTimes?: Date[];
   timeZone?: string;
   compact?: boolean;
+  currentIndex?: number; // ADDED: Receive index from parent
 }
 
-const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = false, availableTimes = [], timeZone, compact = false }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const TimeControls: React.FC<TimeControlsProps> = ({ 
+  onTimeChange, 
+  autoPlay = false, 
+  availableTimes = [], 
+  timeZone, 
+  compact = false,
+  currentIndex = 0 // ADDED: Use parent-provided index
+}) => {
   const [isPlaying, setIsPlaying] = useState(autoPlay);
-  const hasInitialized = useRef(false);
   
-  // ADDED: Debounce the current index to prevent rapid updates
-  const debouncedIndex = useDebounce(currentIndex, 150);
+  // REMOVED: Independent index state and initialization logic
+  // REMOVED: hasInitialized ref and debouncing
+  // The parent now controls the current index completely
 
-  // Initialize to closest time to now ONLY ONCE when data loads
-  useEffect(() => {
-    if (availableTimes.length > 0 && !hasInitialized.current) {
-      console.log('🕐 TIME CONTROLS: First-time initialization with timestamps');
-      
-      // Find the index closest to current time for initial position
-      const now = new Date();
-      let closestIndex = 0;
-      let minDiff = Math.abs(availableTimes[0].getTime() - now.getTime());
-      
-      for (let i = 1; i < availableTimes.length; i++) {
-        const diff = Math.abs(availableTimes[i].getTime() - now.getTime());
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestIndex = i;
-        }
-      }
-      
-      console.log(`🕐 TIME CONTROLS: Setting initial index to ${closestIndex} (closest to now)`);
-      setCurrentIndex(closestIndex);
-      hasInitialized.current = true;
-    }
-  }, [availableTimes.length]); // Only depend on length, not the full array
-
-  // FIXED: Use debounced index to prevent rapid fire updates
-  useEffect(() => {
-    if (availableTimes.length > 0 && onTimeChange && availableTimes[debouncedIndex] && hasInitialized.current) {
-      const selectedTime = availableTimes[debouncedIndex];
-      console.log(`🕐 TIME CONTROLS: Notifying parent of DEBOUNCED time change: ${selectedTime.toISOString()} (index ${debouncedIndex})`);
-      onTimeChange(selectedTime, debouncedIndex);
-    }
-  }, [debouncedIndex, availableTimes, onTimeChange]);
-
-  // Auto-play functionality
+  // Auto-play functionality - uses parent's currentIndex
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (isPlaying && availableTimes.length > 0) {
+    if (isPlaying && availableTimes.length > 0 && onTimeChange) {
       interval = setInterval(() => {
-        setCurrentIndex((prev) => {
-          const next = prev + 1;
-          if (next >= availableTimes.length) {
-            setIsPlaying(false);
-            return 0;
-          }
-          return next;
-        });
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= availableTimes.length) {
+          setIsPlaying(false);
+          onTimeChange(availableTimes[0], 0); // Reset to start
+        } else {
+          onTimeChange(availableTimes[nextIndex], nextIndex);
+        }
       }, 1000); // Change frame every second
     }
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, availableTimes.length]);
+  }, [isPlaying, availableTimes, currentIndex, onTimeChange]);
 
   const handleSliderChange = (values: number[]) => {
     const newIndex = values[0];
     console.log(`🕐 TIME CONTROLS: User manually changed slider to index ${newIndex}`);
-    setCurrentIndex(newIndex);
+    if (onTimeChange && availableTimes[newIndex]) {
+      onTimeChange(availableTimes[newIndex], newIndex);
+    }
     setIsPlaying(false);
   };
 
@@ -92,21 +65,26 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
   const handleStepBack = () => {
     const newIndex = Math.max(0, currentIndex - 1);
     console.log(`🕐 TIME CONTROLS: Step back to index ${newIndex}`);
-    setCurrentIndex(newIndex);
+    if (onTimeChange && availableTimes[newIndex]) {
+      onTimeChange(availableTimes[newIndex], newIndex);
+    }
     setIsPlaying(false);
   };
 
   const handleStepForward = () => {
     const newIndex = Math.min(availableTimes.length - 1, currentIndex + 1);
     console.log(`🕐 TIME CONTROLS: Step forward to index ${newIndex}`);
-    setCurrentIndex(newIndex);
+    if (onTimeChange && availableTimes[newIndex]) {
+      onTimeChange(availableTimes[newIndex], newIndex);
+    }
     setIsPlaying(false);
   };
 
   const handleReset = () => {
-    // Reset to the earliest available time
     console.log('🕐 TIME CONTROLS: Reset to index 0');
-    setCurrentIndex(0);
+    if (onTimeChange && availableTimes[0]) {
+      onTimeChange(availableTimes[0], 0);
+    }
     setIsPlaying(false);
   };
 
@@ -114,7 +92,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({ onTimeChange, autoPlay = fa
     return null;
   }
 
-  const currentTime = availableTimes[currentIndex];
+  const currentTime = availableTimes[currentIndex] || availableTimes[0];
   const now = new Date();
   const isCurrentTime = Math.abs(currentTime.getTime() - now.getTime()) < (30 * 60 * 1000); // Within 30 minutes of now
 
