@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
@@ -15,19 +15,15 @@ const Index = () => {
     name: string;
     smokeData?: any;
   } | null>(null);
-
   const [searchedCity, setSearchedCity] = useState<{
     coordinates: { lat: number; lng: number };
     name: string;
   } | null>(null);
-
-  // UI selected time
+  
   const [selectedTime, setSelectedTime] = useState<Date | undefined>(undefined);
-
-  // Hook loads smokeLayers and supplies initialSelectedTime
+  
   const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
 
-  // When hook decides the initialSelectedTime, set selectedTime once
   useEffect(() => {
     if (initialSelectedTime && selectedTime === undefined) {
       console.log('🚀 INDEX: Setting selectedTime from hook initialSelectedTime:', initialSelectedTime.toISOString());
@@ -40,7 +36,6 @@ const Index = () => {
     setSelectedTime(time);
   };
 
-  // Geolocation once
   useEffect(() => {
     if (searchedCity) return;
 
@@ -73,8 +68,7 @@ const Index = () => {
   }, [searchedCity]);
 
   const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
-
-  // SEO meta
+  
   useEffect(() => {
     document.title = 'Will smoke affect my biking/hiking/fishing plans? – Real-time Forecast';
     const desc = 'Real-time NOAA HRRR smoke forecast with wildfire locations and air quality.';
@@ -93,8 +87,8 @@ const Index = () => {
     }
     link.setAttribute('href', window.location.href);
   }, []);
-
-  console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp?.toISOString() || 'undefined'}`);
+  
+  console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp.toISOString() || 'undefined'}`);
   console.log(`🏠 INDEX: currentLayerIndex: ${currentLayerIndex}`);
   console.log(`🏠 INDEX: smokeLayers count: ${smokeLayers.length}`);
   console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
@@ -111,33 +105,7 @@ const Index = () => {
 
   console.log('🚀 INDEX: Component rendering...');
 
-  // Derive the layer we want to show. Priority:
-  // 1) If selectedTime exists find exact or closest layer
-  // 2) Otherwise fall back to the hook provided currentLayer
-  const selectedLayer = useMemo(() => {
-    if (selectedTime && smokeLayers.length > 0) {
-      // exact
-      const exact = smokeLayers.find(l => l.timestamp.getTime() === selectedTime.getTime());
-      if (exact) return exact;
-
-      // closest
-      let bestIndex = 0;
-      let bestDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
-      for (let i = 1; i < smokeLayers.length; i++) {
-        const diff = Math.abs(smokeLayers[i].timestamp.getTime() - selectedTime.getTime());
-        if (diff < bestDiff) {
-          bestDiff = diff;
-          bestIndex = i;
-        }
-      }
-      return smokeLayers[bestIndex];
-    }
-
-    return currentLayer || null;
-  }, [smokeLayers, selectedTime, currentLayer]);
-
-  // Keep showing forecast and controls only when full data is ready
-  const isDataReady = !isLoading && smokeLayers.length > 0 && selectedLayer !== null;
+  const isDataReady = !isLoading && smokeLayers.length > 0 && selectedTime !== undefined;
 
   return (
     <div className="min-h-screen bg-sky-gradient">
@@ -151,13 +119,13 @@ const Index = () => {
                 <p className="text-xs md:text-sm text-muted-foreground">48 hour wildfire smoke forecasting</p>
               </div>
             </div>
-
+            
             <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px]">
               {searchedCity && isDataReady ? (
-                <CityForecast
+                <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
                   cityName={searchedCity?.name}
-                  selectedTime={selectedLayer?.timestamp ?? selectedTime}
+                  selectedTime={currentLayer?.timestamp}
                 />
               ) : (
                 <ForecastSkeleton />
@@ -167,16 +135,16 @@ const Index = () => {
 
           <div className="block md:hidden mt-2 space-y-2 min-h-[120px]">
             {searchedCity && isDataReady ? (
-              <CityForecast
+              <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
-                selectedTime={selectedLayer?.timestamp ?? selectedTime}
+                selectedTime={currentLayer?.timestamp}
                 compact
               />
             ) : (
               <ForecastSkeleton compact />
             )}
-            <TimeControls
+            <TimeControls 
               currentIndex={currentLayerIndex}
               onTimeChange={handleTimeChange}
               autoPlay={false}
@@ -190,19 +158,21 @@ const Index = () => {
 
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
-          {/* Always mount the map so Mapbox can initialize its instance and tiles */}
           <div className="md:col-span-3 relative min-h-[400px]">
-            <SmokeMap
-              onLocationSelect={handleLocationSelect}
-              onCitySearch={handleCitySearch}
-              // selectedTime passed for context; currentLayer is the explicit layer to render
-              selectedTime={selectedLayer?.timestamp ?? selectedTime}
-              currentLayer={selectedLayer}
-            />
+            {isDataReady ? (
+              <SmokeMap 
+                onLocationSelect={handleLocationSelect}
+                onCitySearch={handleCitySearch}
+                selectedTime={currentLayer?.timestamp}
+                currentLayer={currentLayer}
+              />
+            ) : (
+              <MapSkeleton />
+            )}
           </div>
 
           <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
-            <TimeControls
+            <TimeControls 
               currentIndex={currentLayerIndex}
               onTimeChange={handleTimeChange}
               autoPlay={false}
@@ -210,10 +180,10 @@ const Index = () => {
               timeZone={cityTimeZone}
             />
 
-            <LocationInfo
+            <LocationInfo 
               coordinates={selectedLocation?.coordinates}
               locationName={selectedLocation?.name}
-              selectedTime={selectedLayer?.timestamp ?? selectedTime}
+              selectedTime={currentLayer?.timestamp}
               smokeData={selectedLocation?.smokeData}
             />
 
