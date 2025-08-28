@@ -25,8 +25,8 @@ const Index = () => {
   const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
 
   useEffect(() => {
-    if (initialSelectedTime && !selectedTime) {
-      console.log('🚀 INDEX: Setting initial selectedTime from hook:', initialSelectedTime.toISOString());
+    if (initialSelectedTime && selectedTime === undefined) {
+      console.log('🚀 INDEX: Setting selectedTime from hook initialSelectedTime:', initialSelectedTime.toISOString());
       setSelectedTime(initialSelectedTime);
     }
   }, [initialSelectedTime, selectedTime]);
@@ -92,6 +92,7 @@ const Index = () => {
   console.log(`🏠 INDEX: currentLayerIndex: ${currentLayerIndex}`);
   console.log(`🏠 INDEX: smokeLayers count: ${smokeLayers.length}`);
   console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
+  console.log(`🏠 INDEX: initialSelectedTime: ${initialSelectedTime?.toISOString() || 'undefined'}`);
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
@@ -103,6 +104,8 @@ const Index = () => {
   };
 
   console.log('🚀 INDEX: Component rendering...');
+
+  const isDataReady = !isLoading && smokeLayers.length > 0 && selectedTime !== undefined;
 
   return (
     <div className="min-h-screen bg-sky-gradient">
@@ -118,7 +121,7 @@ const Index = () => {
             </div>
             
             <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 min-h-[80px]">
-              {searchedCity && !isLoading ? (
+              {searchedCity && isDataReady ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
                   cityName={searchedCity?.name}
@@ -131,7 +134,7 @@ const Index = () => {
           </div>
 
           <div className="block md:hidden mt-2 space-y-2 min-h-[120px]">
-            {searchedCity && !isLoading ? (
+            {searchedCity && isDataReady ? (
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
                 cityName={searchedCity?.name}
@@ -156,7 +159,7 @@ const Index = () => {
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           <div className="md:col-span-3 relative min-h-[400px]">
-            {!isLoading && smokeLayers.length > 0 ? (
+            {isDataReady ? (
               <SmokeMap 
                 onLocationSelect={handleLocationSelect}
                 onCitySearch={handleCitySearch}
