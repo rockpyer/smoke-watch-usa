@@ -21,13 +21,13 @@ const Index = () => {
     name: string;
   } | null>(null);
 
-  // This is the UI selected time. We still pass it into the hook so the hook can keep indexes in sync.
+  // UI selected time
   const [selectedTime, setSelectedTime] = useState<Date | undefined>(undefined);
 
-  // Hook that loads smokeLayers and gives us an initialSelectedTime
+  // Hook loads smokeLayers and supplies initialSelectedTime
   const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
 
-  // When the hook determines an initialSelectedTime, use it to set selectedTime once
+  // When hook decides the initialSelectedTime, set selectedTime once
   useEffect(() => {
     if (initialSelectedTime && selectedTime === undefined) {
       console.log('🚀 INDEX: Setting selectedTime from hook initialSelectedTime:', initialSelectedTime.toISOString());
@@ -40,6 +40,7 @@ const Index = () => {
     setSelectedTime(time);
   };
 
+  // Geolocation once
   useEffect(() => {
     if (searchedCity) return;
 
@@ -73,6 +74,7 @@ const Index = () => {
 
   const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
 
+  // SEO meta
   useEffect(() => {
     document.title = 'Will smoke affect my biking/hiking/fishing plans? – Real-time Forecast';
     const desc = 'Real-time NOAA HRRR smoke forecast with wildfire locations and air quality.';
@@ -114,11 +116,11 @@ const Index = () => {
   // 2) Otherwise fall back to the hook provided currentLayer
   const selectedLayer = useMemo(() => {
     if (selectedTime && smokeLayers.length > 0) {
-      // try exact match first
+      // exact
       const exact = smokeLayers.find(l => l.timestamp.getTime() === selectedTime.getTime());
       if (exact) return exact;
 
-      // fallback to closest
+      // closest
       let bestIndex = 0;
       let bestDiff = Math.abs(smokeLayers[0].timestamp.getTime() - selectedTime.getTime());
       for (let i = 1; i < smokeLayers.length; i++) {
@@ -131,11 +133,10 @@ const Index = () => {
       return smokeLayers[bestIndex];
     }
 
-    // fallback to whatever the hook thinks is current
     return currentLayer || null;
   }, [smokeLayers, selectedTime, currentLayer]);
 
-  // Data is ready when we have layers and a selected layer to show
+  // Keep showing forecast and controls only when full data is ready
   const isDataReady = !isLoading && smokeLayers.length > 0 && selectedLayer !== null;
 
   return (
@@ -189,18 +190,15 @@ const Index = () => {
 
       <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
+          {/* Always mount the map so Mapbox can initialize its instance and tiles */}
           <div className="md:col-span-3 relative min-h-[400px]">
-            {isDataReady ? (
-              <SmokeMap
-                onLocationSelect={handleLocationSelect}
-                onCitySearch={handleCitySearch}
-                // keep selectedTime for context, but provide explicit selectedLayer as currentLayer
-                selectedTime={selectedLayer?.timestamp ?? selectedTime}
-                currentLayer={selectedLayer}
-              />
-            ) : (
-              <MapSkeleton />
-            )}
+            <SmokeMap
+              onLocationSelect={handleLocationSelect}
+              onCitySearch={handleCitySearch}
+              // selectedTime passed for context; currentLayer is the explicit layer to render
+              selectedTime={selectedLayer?.timestamp ?? selectedTime}
+              currentLayer={selectedLayer}
+            />
           </div>
 
           <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
