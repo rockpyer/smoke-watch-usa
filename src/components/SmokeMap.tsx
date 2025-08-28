@@ -569,14 +569,19 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     console.log('🔄 MAP EFFECT: map ready:', !!map.current, 'layer exists:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady, 'updating:', isUpdatingLayers);
     console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
     
-    // GUARD: Only proceed if everything is ready and timestamp actually changed
+    // GUARD: Only proceed if everything is ready
     if (!map.current || !currentLayer || !smokeLayerReady || isUpdatingLayers) {
+      console.log('🔄 MAP EFFECT: Guards failed, skipping update');
       return;
     }
     
-    // GUARD: Only update if timestamp actually changed
-    if (currentTimestamp === lastLayerTimestamp) {
-      console.log('🔄 MAP EFFECT: Timestamp unchanged, skipping update');
+    // SPECIAL CASE: Initial load - force render even if timestamp hasn't "changed"
+    const isInitialLoad = lastLayerTimestamp === '';
+    console.log('🔄 MAP EFFECT: isInitialLoad:', isInitialLoad);
+    
+    // GUARD: Only update if timestamp actually changed OR it's the initial load
+    if (!isInitialLoad && currentTimestamp === lastLayerTimestamp) {
+      console.log('🔄 MAP EFFECT: Timestamp unchanged and not initial load, skipping update');
       return;
     }
     
@@ -584,15 +589,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     if (!map.current.isStyleLoaded()) {
       console.log('⏳ Map style not loaded yet, retrying in 200ms...');
       setTimeout(() => {
-        // Re-trigger this effect by clearing and setting timestamp
+        // Re-trigger this effect by clearing timestamp
         setLastLayerTimestamp('');
       }, 200);
       return;
     }
     
-    console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp);
+    console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp, 'isInitialLoad:', isInitialLoad);
     addSmokeLayer();
-  }, [currentLayer, smokeLayerReady, isUpdatingLayers, lastLayerTimestamp]);
+  }, [currentLayer, smokeLayerReady, isUpdatingLayers, lastLayerTimestamp, addSmokeLayer]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
