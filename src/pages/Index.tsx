@@ -20,7 +20,21 @@ const Index = () => {
     name: string;
   } | null>(null);
   
-  const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData();
+  const [selectedTime, setSelectedTime] = useState<Date | undefined>(undefined);
+  
+  const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
+
+  useEffect(() => {
+    if (initialSelectedTime && !selectedTime) {
+      console.log('🚀 INDEX: Setting initial selectedTime from hook:', initialSelectedTime.toISOString());
+      setSelectedTime(initialSelectedTime);
+    }
+  }, [initialSelectedTime, selectedTime]);
+
+  const handleTimeChange = (time: Date, index: number) => {
+    console.log(`🕐 INDEX: Time changed to ${time.toISOString()} (index ${index})`);
+    setSelectedTime(time);
+  };
 
   useEffect(() => {
     if (searchedCity) return;
@@ -77,6 +91,7 @@ const Index = () => {
   console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp.toISOString() || 'undefined'}`);
   console.log(`🏠 INDEX: currentLayerIndex: ${currentLayerIndex}`);
   console.log(`🏠 INDEX: smokeLayers count: ${smokeLayers.length}`);
+  console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
@@ -128,6 +143,7 @@ const Index = () => {
             )}
             <TimeControls 
               currentIndex={currentLayerIndex}
+              onTimeChange={handleTimeChange}
               autoPlay={false}
               availableTimes={smokeLayers.map(layer => layer.timestamp)}
               timeZone={cityTimeZone}
@@ -155,6 +171,7 @@ const Index = () => {
           <div className="hidden md:block md:col-span-1 space-y-4 overflow-y-auto">
             <TimeControls 
               currentIndex={currentLayerIndex}
+              onTimeChange={handleTimeChange}
               autoPlay={false}
               availableTimes={smokeLayers.map(layer => layer.timestamp)}
               timeZone={cityTimeZone}
