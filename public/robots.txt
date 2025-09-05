@@ -7,8 +7,10 @@ Allow: /
 User-agent: Twitterbot
 Allow: /
 
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
-Allow: /
+User-agent: *
+Disallow: /facebook
+Disallow: /x
+Disallow: /twitter
+Disallow: /meta
+

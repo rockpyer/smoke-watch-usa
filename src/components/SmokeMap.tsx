@@ -23,6 +23,8 @@ interface SmokeMapProps {
 }
 
 const SmokeMap: React.FC<SmokeMapProps> = ({ 
+{
+  console.log('SmokeMap component mounted/rendered');
   onLocationSelect,
   onCitySearch, 
   selectedTime, 
@@ -37,55 +39,69 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [isInitializing, setIsInitializing] = useState(false);
   const [fireDataLoaded, setFireDataLoaded] = useState(false);
   const [lastLayerTimestamp, setLastLayerTimestamp] = useState<string>('');
-  const [needsToken, setNeedsToken] = useState(false);
-  const [smokeLayerReady, setSmokeLayerReady] = useState(false);
-  const [isUpdatingLayers, setIsUpdatingLayers] = useState(false); // ADDED: Prevent conflicts
-  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Check if we have a valid token on mount - IMPROVED
-  useEffect(() => {
-    console.log('Checking for valid token on mount...');
-    const hasToken = hasValidMapboxToken();
-    console.log('Has valid token:', hasToken);
-    
-    if (!hasToken) {
-      console.log('No valid token found, showing token input');
-      setNeedsToken(true);
-    } else {
-      console.log('Valid token found, proceeding with map initialization');
-      setNeedsToken(false);
+    // ...existing code...
+    console.log('🔥 [SmokeMap.tsx] File loaded at top-level');
+    // Add the polygon layer
+    mapRef.current.addLayer({
+      id: 'smoke-polygons',
+      type: 'fill',
+      source: 'smoke-forecast-data',
+      layout: {},
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'smoke_classdesc'],
+          'Light', '#fbb03b',
+          'Moderate', '#e55e5e',
+          'Heavy', '#223b53',
+          /* other */ '#ccc'
+        ],
+        'fill-opacity': 0.5
+      }
+    });
+    // ...existing code...
+    // Add the outline layer
+    mapRef.current.addLayer({
+      id: 'smoke-outlines',
+      type: 'line',
+      source: 'smoke-forecast-data',
+      layout: {},
+      paint: {
+        'line-color': '#000',
+        'line-width': 1
+      }
+    });
+    // ...existing code...
+    // Fit map to polygons if initial load
+    if (isInitialLoad && polygons.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      polygons.forEach((poly) => {
+        // Defensive: handle MultiPolygon and Polygon
+        if (poly.geometry.type === 'Polygon') {
+          poly.geometry.coordinates[0].forEach(([lng, lat]) => {
+            bounds.extend([lng, lat]);
+          });
+        } else if (poly.geometry.type === 'MultiPolygon') {
+          poly.geometry.coordinates.forEach((polygon) => {
+            polygon[0].forEach(([lng, lat]) => {
+              bounds.extend([lng, lat]);
+            });
+          });
+        }
+      });
+      if (bounds.isEmpty()) {
+        console.log('🟡 No bounds to fit, skipping fitBounds');
+      } else {
+        console.log('🟢 Fitting map to initial polygon bounds:', bounds);
+        mapRef.current.fitBounds(bounds, { padding: 40, duration: 0 });
+      }
+      // Force a repaint to ensure polygons are visible
+      if (typeof mapRef.current.triggerRepaint === 'function') {
+        mapRef.current.triggerRepaint();
+        console.log('🔄 Forced map repaint after initial polygon layer add');
+      }
     }
-  }, []);
-
-  // Add loading state for when we don't have a current layer
-  const isSmokeLoading = !currentLayer;
-
-  // Check if container has proper dimensions
-  const checkContainerDimensions = useCallback((): boolean => {
-    if (!mapContainer.current) return false;
-    const rect = mapContainer.current.getBoundingClientRect();
-    const hasValidDimensions = rect.width > 0 && rect.height > 0;
-    console.log('Container dimensions:', { width: rect.width, height: rect.height, valid: hasValidDimensions });
-    return hasValidDimensions;
-  }, []);
-
-  // Initialize map with proper error handling and secure token - IMPROVED
-  const initializeMap = useCallback(async () => {
-    console.log('initializeMap called');
-    
-    if (!mapContainer.current) {
-      console.log('Map initialization skipped - container missing');
-      return;
-    }
-
-    if (!hasValidMapboxToken()) {
-      console.log('Map initialization skipped - no valid token');
-      setNeedsToken(true);
-      return;
-    }
-
-    if (!checkContainerDimensions()) {
-      console.log('Container not ready, retrying in 100ms...');
+    // ...existing code...
       setTimeout(() => initializeMap(), 100);
       return;
     }
@@ -151,6 +167,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
 
       map.current.on('style.load', () => {
         console.log('Map style loaded - style is ready');
+        // Debug: Log isStyleLoaded after style.load
+        if (map.current) {
+          console.log('DEBUG: map.current.isStyleLoaded() after style.load:', map.current.isStyleLoaded());
+        }
+        // Force polygon rendering after style load if currentLayer is available
+        if (map.current && currentLayer) {
+          console.log('DEBUG: Forcing addSmokeLayer after style.load for', currentLayer.timestamp?.toISOString());
+          addSmokeLayer();
+        }
         if (!loadEventFired) {
           loadEventFired = true;
           clearTimeout(loadTimeout);
@@ -215,7 +240,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       }
     }
   }, [checkContainerDimensions]);
-
   // Effect to initialize map on mount - IMPROVED
   useEffect(() => {
     console.log('Mount effect running, needsToken:', needsToken);
@@ -297,6 +321,29 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
           features
         }
       });
+
+      // Fit map to polygons on initial load
+      if (features.length > 0 && lastLayerTimestamp === '') {
+        try {
+          // Use turf.bbox to get bounds
+          // If turf is not imported, you may need to add: import bbox from '@turf/bbox';
+          // For now, use a simple bounding box calculation
+          const allCoords = features.flatMap(f => f.geometry.coordinates.flat(2));
+          let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+          allCoords.forEach(([lng, lat]) => {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+          });
+          if (minLng < maxLng && minLat < maxLat) {
+            map.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, maxZoom: 8 });
+            console.log('🗺️ Fit map to initial polygons:', [[minLng, minLat], [maxLng, maxLat]]);
+          }
+        } catch (e) {
+          console.log('Could not fit map to polygons:', e);
+        }
+      }
 
       // Add fill layer for smoke polygons with EPA AQI health-based coloring
       map.current.addLayer({
@@ -549,7 +596,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       });
 
       setFireDataLoaded(true);
-      console.log('✅ Fire radiative power data added successfully');
+      console.log('✅ Fire radiative power data added successfully to map');
     } catch (error) {
       console.error('❌ Error adding fire data:', error);
     }
@@ -562,42 +609,43 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
-  // CONSOLIDATED: Single effect to handle smoke layer updates with proper guards
+
+  // Unified effect: Render polygons as soon as map, smoke data, and currentLayer are ready
   useEffect(() => {
-    const currentTimestamp = currentLayer?.timestamp.toISOString() || '';
-    console.log('🔄 MAP EFFECT: currentLayer time:', currentTimestamp);
-    console.log('🔄 MAP EFFECT: map ready:', !!map.current, 'layer exists:', !!currentLayer, 'smokeLayerReady:', smokeLayerReady, 'updating:', isUpdatingLayers);
-    console.log('🔄 MAP EFFECT: last timestamp:', lastLayerTimestamp, 'current:', currentTimestamp);
-    
-    // GUARD: Only proceed if everything is ready
-    if (!map.current || !currentLayer || !smokeLayerReady || isUpdatingLayers) {
-      console.log('🔄 MAP EFFECT: Guards failed, skipping update');
-      return;
+    console.log('🟢 [SmokeMap.tsx] Unified effect running');
+    const currentTimestamp = currentLayer?.timestamp?.toISOString() || '';
+    const selectedTimestamp = selectedTime?.toISOString() || '';
+    console.log('🔄 MAP EFFECT (UNIFIED):');
+    console.log(`   Checking the updates... HELLO...`);
+    console.log(`  map ready:`, !!map.current);
+    console.log(`  currentLayer exists:`, !!currentLayer);
+    console.log(`  currentLayer time:`, currentTimestamp);
+    console.log(`  selectedTime:`, selectedTimestamp);
+    console.log(`  currentLayer data length:`, currentLayer?.data?.length || 0);
+    console.log(`  smokeLayerReady:`, smokeLayerReady);
+    console.log(`  isUpdatingLayers:`, isUpdatingLayers);
+    console.log(`  lastLayerTimestamp:`, lastLayerTimestamp);
+
+    // Only render polygons if map is ready, smoke data is ready, and currentLayer exists
+    if (
+      map.current &&
+      currentLayer &&
+      smokeLayerReady &&
+      !isUpdatingLayers &&
+      map.current.isStyleLoaded()
+    ) {
+      // Only update if timestamp changed or it's the initial load
+      if (lastLayerTimestamp !== currentTimestamp) {
+        console.log('✅ MAP EFFECT: Rendering polygons for timestamp:', currentTimestamp);
+        addSmokeLayer();
+        setLastLayerTimestamp(currentTimestamp);
+      } else {
+        console.log('🔄 MAP EFFECT: Timestamp unchanged, skipping update');
+      }
+    } else {
+      console.log('� MAP EFFECT: Guards failed, skipping update');
     }
-    
-    // SPECIAL CASE: Initial load - force render even if timestamp hasn't "changed"
-    const isInitialLoad = lastLayerTimestamp === '';
-    console.log('🔄 MAP EFFECT: isInitialLoad:', isInitialLoad);
-    
-    // GUARD: Only update if timestamp actually changed OR it's the initial load
-    if (!isInitialLoad && currentTimestamp === lastLayerTimestamp) {
-      console.log('🔄 MAP EFFECT: Timestamp unchanged and not initial load, skipping update');
-      return;
-    }
-    
-    // GUARD: Ensure map style is fully loaded
-    if (!map.current.isStyleLoaded()) {
-      console.log('⏳ Map style not loaded yet, retrying in 200ms...');
-      setTimeout(() => {
-        // Re-trigger this effect by clearing timestamp
-        setLastLayerTimestamp('');
-      }, 200);
-      return;
-    }
-    
-    console.log('📍 Triggering addSmokeLayer for time:', currentTimestamp, 'isInitialLoad:', isInitialLoad);
-    addSmokeLayer();
-  }, [currentLayer, smokeLayerReady, isUpdatingLayers, lastLayerTimestamp, addSmokeLayer]);
+  }, [currentLayer, smokeLayerReady, isUpdatingLayers, lastLayerTimestamp, addSmokeLayer, selectedTime, isMapLoaded]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
@@ -819,6 +867,4 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       </div>
     </div>
   );
-};
-
 export default SmokeMap;

@@ -1,73 +1,70 @@
-# Welcome to your Lovable project
+# Smoke Watch USA
 
-## Project info
+Smoke Watch USA is a modern web application for visualizing wildfire smoke forecasts and active fire incidents across North America. It provides interactive mapping, city-level smoke forecasts, and real-time fire metadata, making it a valuable tool for air quality awareness and wildfire monitoring.
 
-**URL**: https://lovable.dev/projects/b1660f0a-2ac0-4834-ac87-eec342f6d2e8
+## Features
 
-## How can I edit this code?
+- **48-Hour Smoke Forecasts:**
+  - Fetches official government (NOAA HRRR) smoke forecast data as polygons for the next 48 hours.
+  - Visualizes smoke plumes and concentrations on an interactive map.
+  - Allows users to look back and forecast smoke conditions for any city searched, covering the full 48-hour period.
 
-There are several ways of editing your application.
+- **Active Fire Mapping:**
+  - Displays current wildfire perimeters and incidents on the map.
+  - Provides additional metadata for each fire, including location, status, and other relevant details.
 
-**Use Lovable**
+- **City Search & Forecast Details:**
+  - Search for any city to view its smoke exposure timeline and forecast.
+  - See historical and predicted smoke levels for the selected location.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b1660f0a-2ac0-4834-ac87-eec342f6d2e8) and start prompting.
+- **Responsive, Modern UI:**
+  - Built with React, Vite, TypeScript, shadcn-ui, and Tailwind CSS.
+  - Fast, mobile-friendly, and visually appealing interface.
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
+## Technologies Used
 
 - Vite
-- TypeScript
 - React
+- TypeScript
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## Getting Started
 
-Simply open [Lovable](https://lovable.dev/projects/b1660f0a-2ac0-4834-ac87-eec342f6d2e8) and click on Share -> Publish.
+1. **Clone the repository:**
+   ```sh
+   git clone <YOUR_GIT_URL>
+   cd smoke-watch-usa
+   ```
+2. **Install dependencies:**
+   ```sh
+   npm i
+   ```
+3. **Start the development server:**
+   ```sh
+   npm run dev
+   ```
+4. **Open your browser:**
+   Visit the local URL shown in your terminal (usually http://localhost:5173).
 
-## Can I connect a custom domain to my Lovable project?
+## Data Sources
 
-Yes, you can!
+- **Smoke Forecasts:** NOAA HRRR model (polygon data)
+- **Wildfire Incidents:** Official government fire data feeds
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Project Structure
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- `src/components/SmokeMap.tsx` — Main interactive map for smoke and fire visualization
+- `src/services/smokeDataService.ts` — Fetches and processes smoke forecast data
+- `src/services/fireDataService.ts` — Fetches and processes active fire data
+- `src/components/CityForecast.tsx` — City-level smoke forecast details
+- `src/components/LocationInfo.tsx` — Location metadata and info
+- `src/components/TimeControls.tsx` — Timeline controls for lookback/forecast
+
+## License
+
+This project is open source. See the LICENSE file for details.
+
+---
+
+For more information, see the Lovable-README.md for Lovable-specific instructions and deployment options.

@@ -10,6 +10,14 @@ import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
 
 const Index = () => {
+  // Guarantee initial selectedTime is set as soon as initialSelectedTime is available
+  useEffect(() => {
+    if (initialSelectedTime && (!selectedTime || selectedTime.getTime() !== initialSelectedTime.getTime())) {
+      setSelectedTime(initialSelectedTime);
+      console.log('✅ Guaranteed initial selectedTime:', initialSelectedTime.toISOString());
+    }
+  }, [initialSelectedTime]);
+  console.log('Index component mounted/rendered');
   const [selectedLocation, setSelectedLocation] = useState<{
     coordinates: [number, number];
     name: string;
@@ -24,12 +32,7 @@ const Index = () => {
   
   const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
 
-  useEffect(() => {
-    if (initialSelectedTime && selectedTime === undefined) {
-      console.log('🚀 INDEX: Setting selectedTime from hook initialSelectedTime:', initialSelectedTime.toISOString());
-      setSelectedTime(initialSelectedTime);
-    }
-  }, [initialSelectedTime, selectedTime]);
+  // ...existing code...
 
   const handleTimeChange = (time: Date, index: number) => {
     console.log(`🕐 INDEX: Time changed to ${time.toISOString()} (index ${index})`);
@@ -88,11 +91,14 @@ const Index = () => {
     link.setAttribute('href', window.location.href);
   }, []);
   
-  console.log(`🏠 INDEX: currentLayer time: ${currentLayer?.timestamp.toISOString() || 'undefined'}`);
-  console.log(`🏠 INDEX: currentLayerIndex: ${currentLayerIndex}`);
-  console.log(`🏠 INDEX: smokeLayers count: ${smokeLayers.length}`);
-  console.log(`🏠 INDEX: selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
-  console.log(`🏠 INDEX: initialSelectedTime: ${initialSelectedTime?.toISOString() || 'undefined'}`);
+  console.log('🏠 INDEX DEBUG:');
+  console.log(`  currentLayer:`, currentLayer);
+  console.log(`  currentLayer time: ${currentLayer?.timestamp?.toISOString() || 'undefined'}`);
+  console.log(`  currentLayer data length: ${currentLayer?.data?.length || 0}`);
+  console.log(`  currentLayerIndex: ${currentLayerIndex}`);
+  console.log(`  smokeLayers count: ${smokeLayers.length}`);
+  console.log(`  selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
+  console.log(`  initialSelectedTime: ${initialSelectedTime?.toISOString() || 'undefined'}`);
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
@@ -105,7 +111,8 @@ const Index = () => {
 
   console.log('🚀 INDEX: Component rendering...');
 
-  const isDataReady = !isLoading && smokeLayers.length > 0 && selectedTime !== undefined;
+  // Only render SmokeMap when selectedTime and currentLayer are both set
+  const isDataReady = !isLoading && smokeLayers.length > 0 && selectedTime !== undefined && currentLayer !== undefined && currentLayer.timestamp !== undefined;
 
   return (
     <div className="min-h-screen bg-sky-gradient">
@@ -163,7 +170,7 @@ const Index = () => {
               <SmokeMap 
                 onLocationSelect={handleLocationSelect}
                 onCitySearch={handleCitySearch}
-                selectedTime={currentLayer?.timestamp}
+                selectedTime={currentLayer.timestamp}
                 currentLayer={currentLayer}
               />
             ) : (
