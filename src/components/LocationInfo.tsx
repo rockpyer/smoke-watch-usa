@@ -5,11 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Wind, Eye, Thermometer } from 'lucide-react';
 
 interface SmokeData {
-  concentration: number;
+  concentration_ugm3: number;
   forecast_hour: string;
   smoke_class: number;
   smoke_classdesc: string;
-  valid_time: string;
+  todate: string;
 }
 
 interface LocationInfoProps {
@@ -74,7 +74,7 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
     );
   }
 
-  const c = smokeData.concentration;
+  const c = smokeData.concentration_ugm3;
   const aqi = concentrationToAQI(c);
 
   const getSmokeLevel = (c: number) => {
@@ -133,15 +133,15 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
               <div className="h-4 w-4 text-muted-foreground">🔥</div>
               <div>
                 <div className="text-xs text-muted-foreground">Concentration</div>
-                <div className="text-sm font-medium">{smokeData.concentration.toFixed(1)} μg/m³</div>
+                <div className="text-sm font-medium">{smokeData.concentration_ugm3.toFixed(1)} μg/m³</div>
               </div>
             </div>
             
             <div className="flex items-center space-x-2">
               <div className="h-4 w-4 text-muted-foreground">⏰</div>
               <div>
-                <div className="text-xs text-muted-foreground">Forecast Hour</div>
-                <div className="text-sm font-medium">+{smokeData.forecast_hour}h</div>
+                <div className="text-xs text-muted-foreground">Forecast Time</div>
+                <div className="text-sm font-medium">{new Date(smokeData.todate).toLocaleString()}</div>
               </div>
             </div>
           </div>

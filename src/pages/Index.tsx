@@ -3,9 +3,10 @@ import SmokeMap from '@/components/SmokeMap';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
 import LocationInfo from '@/components/LocationInfo';
-import { CityForecast } from '@/components/CityForecastOptimized';
+import { CityForecast } from '@/components/CityForecast';
 import { ForecastSkeleton, MapSkeleton } from '@/components/LoadingSkeleton';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
+import { getSmokeDataForLocation } from '@/utils/aqi';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
 
@@ -13,6 +14,7 @@ const Index = () => {
   // The useSmokeData hook is now the single source of truth for the current time.
   // We pass a function to it so it can update its internal state.
   const { smokeLayers, currentLayer, currentLayerIndex, isLoading, setTime } = useSmokeData();
+  const smokeData = { frames: smokeLayers };
 
   console.log('Index component mounted/rendered');
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -96,7 +98,9 @@ const Index = () => {
   };
 
   const handleCitySearch = (coordinates: { lat: number; lng: number }, cityName: string) => {
+    const smokeProperties = getSmokeDataForLocation({ lat: coordinates.lat, lng: coordinates.lng }, smokeData, currentLayerIndex);
     setSearchedCity({ coordinates, name: cityName });
+    setSelectedLocation({ coordinates: [coordinates.lng, coordinates.lat], name: cityName, smokeData: smokeProperties });
   };
 
   console.log('🚀 INDEX: Component rendering...');

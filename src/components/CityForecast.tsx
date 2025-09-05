@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Info } from 'lucide-react';
-import { useSmokeData } from '@/hooks/useSmokeData';
+import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import tzLookup from 'tz-lookup';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import { point as turfPoint } from '@turf/helpers';
 
 interface CityForecastProps {
   cityCoordinates?: { lat: number; lng: number };
@@ -37,6 +39,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       return;
     }
 
+    const point = turfPoint([cityCoordinates.lng, cityCoordinates.lat]);
+
     // Extract forecast data for the city location
     const forecast: ForecastData[] = [];
     
@@ -45,7 +49,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       let citySmoke = null;
       
       for (const polygon of layer.data) {
-        if (isPointInPolygon(cityCoordinates, polygon.geometry.coordinates[0])) {
+        if (booleanPointInPolygon(point, polygon.geometry)) {
           citySmoke = polygon.properties;
           break;
         }
@@ -61,26 +65,6 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     
     setForecastData(forecast.slice(0, 48)); // Show next 48 time periods if available
   }, [cityCoordinates, smokeLayers]);
-
-  // Point-in-polygon check (simple ray casting)
-  const isPointInPolygon = (point: { lat: number; lng: number }, polygon: number[][]) => {
-    const x = point.lng;
-    const y = point.lat;
-    let inside = false;
-
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const xi = polygon[i][0];
-      const yi = polygon[i][1];
-      const xj = polygon[j][0];
-      const yj = polygon[j][1];
-
-      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-        inside = !inside;
-      }
-    }
-
-    return inside;
-  };
 
   // Memoize timeline calculations and current time index - OPTIMIZED
   const timelineData = useMemo(() => {
