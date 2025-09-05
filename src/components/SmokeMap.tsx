@@ -335,7 +335,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
                 [e.lngLat.lng, e.lngLat.lat],
                 locationName,
                 {
-                  concentration: concentration,
+                  concentration_ugm3: concentration,
                   forecast_hour: props?.forecast_hour || '0',
                   smoke_class: props?.smoke_class || 1,
                   smoke_classdesc: props?.smoke_classdesc || '',

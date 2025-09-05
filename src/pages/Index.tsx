@@ -34,6 +34,13 @@ const Index = () => {
   };
 
   useEffect(() => {
+    if (selectedLocation) {
+      const smokeProperties = getSmokeDataForLocation({ lat: selectedLocation.coordinates[1], lng: selectedLocation.coordinates[0] }, smokeData, currentLayerIndex);
+      setSelectedLocation({ ...selectedLocation, smokeData: smokeProperties });
+    }
+  }, [currentLayerIndex]);
+
+  useEffect(() => {
     if (searchedCity) return;
 
     if (navigator.geolocation) {
