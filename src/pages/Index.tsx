@@ -10,13 +10,10 @@ import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
 
 const Index = () => {
-  // Guarantee initial selectedTime is set as soon as initialSelectedTime is available
-  useEffect(() => {
-    if (initialSelectedTime && (!selectedTime || selectedTime.getTime() !== initialSelectedTime.getTime())) {
-      setSelectedTime(initialSelectedTime);
-      console.log('✅ Guaranteed initial selectedTime:', initialSelectedTime.toISOString());
-    }
-  }, [initialSelectedTime]);
+  // The useSmokeData hook is now the single source of truth for the current time.
+  // We pass a function to it so it can update its internal state.
+  const { smokeLayers, currentLayer, currentLayerIndex, isLoading, setTime } = useSmokeData();
+
   console.log('Index component mounted/rendered');
   const [selectedLocation, setSelectedLocation] = useState<{
     coordinates: [number, number];
@@ -27,16 +24,11 @@ const Index = () => {
     coordinates: { lat: number; lng: number };
     name: string;
   } | null>(null);
-  
-  const [selectedTime, setSelectedTime] = useState<Date | undefined>(undefined);
-  
-  const { smokeLayers, currentLayer, currentLayerIndex, isLoading, initialSelectedTime } = useSmokeData(selectedTime);
 
   // ...existing code...
-
   const handleTimeChange = (time: Date, index: number) => {
     console.log(`🕐 INDEX: Time changed to ${time.toISOString()} (index ${index})`);
-    setSelectedTime(time);
+    setTime(time); // Tell the hook to change the time
   };
 
   useEffect(() => {
@@ -96,9 +88,7 @@ const Index = () => {
   console.log(`  currentLayer time: ${currentLayer?.timestamp?.toISOString() || 'undefined'}`);
   console.log(`  currentLayer data length: ${currentLayer?.data?.length || 0}`);
   console.log(`  currentLayerIndex: ${currentLayerIndex}`);
-  console.log(`  smokeLayers count: ${smokeLayers.length}`);
-  console.log(`  selectedTime: ${selectedTime?.toISOString() || 'undefined'}`);
-  console.log(`  initialSelectedTime: ${initialSelectedTime?.toISOString() || 'undefined'}`);
+  console.log(`  smokeLayers count: ${smokeLayers.length}`);;
 
   const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
     setSelectedLocation({ coordinates, name: locationName, smokeData });
@@ -112,7 +102,7 @@ const Index = () => {
   console.log('🚀 INDEX: Component rendering...');
 
   // Only render SmokeMap when selectedTime and currentLayer are both set
-  const isDataReady = !isLoading && smokeLayers.length > 0 && selectedTime !== undefined && currentLayer !== undefined && currentLayer.timestamp !== undefined;
+  const isDataReady = !isLoading && smokeLayers.length > 0 && currentLayer !== undefined && currentLayer.timestamp !== undefined;
 
   return (
     <div className="min-h-screen bg-sky-gradient">

@@ -151,11 +151,13 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
         <div className="pt-3 border-t border-border">
           <h4 className="text-sm font-semibold text-foreground mb-2">Recommendations</h4>
           <div className="text-xs text-muted-foreground leading-relaxed">
-            {c < 3 && "No smoke detected."}
-            {c >= 3 && c <= 12 && "Light Smoke — Limited air quality impact."}
-            {c > 12 && aqi <= 100 && "Moderate air quality. Most people can continue normal activities."}
-            {aqi > 100 && aqi <= 150 && "Sensitive groups should limit outdoor activities. Consider moving activities indoors."}
-            {aqi > 150 && "Limit outdoor activities. Consider postponing outdoor events."}
+            {(() => {
+              if (c < 3) return "No smoke detected.";
+              if (c <= 12) return "Light Smoke — Limited air quality impact.";
+              if (aqi <= 100) return "Moderate air quality. Most people can continue normal activities.";
+              if (aqi <= 150) return "Sensitive groups should limit outdoor activities. Consider moving activities indoors.";
+              return "Limit outdoor activities. Consider postponing outdoor events.";
+            })()}
           </div>
         </div>
       </div>

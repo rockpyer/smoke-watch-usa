@@ -54,15 +54,14 @@ const timeSlicedProcess = <T>(
   });
 };
 
-export const useSmokeData = (selectedTime?: Date) => {
+export const useSmokeData = () => {
   const [smokeLayers, setSmokeLayers] = useState<SmokeLayer[]>([]);
   const [currentLayerIndex, setCurrentLayerIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [initialSelectedTime, setInitialSelectedTime] = useState<Date | null>(null);
-  
+  const [selectedTime, setSelectedTime] = useState<Date | undefined>(undefined);
+
   // Use refs to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
   const lastSyncedIndexRef = useRef<number>(-1);
@@ -94,7 +93,7 @@ export const useSmokeData = (selectedTime?: Date) => {
   }, []);
 
   // Initialize currentLayerIndex and set initial selected time when smokeLayers first loads
-  useEffect(() => {
+  const initializeTime = useCallback(() => {
     if (smokeLayers.length > 0 && !initializedRef.current) {
       // Find the closest time to now for initial layer selection
       const now = new Date();
@@ -110,17 +109,22 @@ export const useSmokeData = (selectedTime?: Date) => {
       }
       
       const initialTime = smokeLayers[closestIndex].timestamp;
-      console.log(`🚀 SMOKE DATA: Initializing currentLayerIndex to ${closestIndex} and initialSelectedTime to: ${initialTime.toISOString()}`);
+      console.log(`🚀 SMOKE DATA: Initializing time. Index: ${closestIndex}, Time: ${initialTime.toISOString()}`);
       setCurrentLayerIndex(closestIndex);
-      setInitialSelectedTime(initialTime);
+      setSelectedTime(initialTime);
       lastSyncedIndexRef.current = closestIndex;
       initializedRef.current = true;
     }
   }, [smokeLayers]);
 
+  useEffect(() => {
+    initializeTime();
+  }, [smokeLayers]);
+
   // FIXED: Synchronous layer sync to prevent double rendering
   useEffect(() => {
     if (!selectedTime || smokeLayers.length === 0) {
+      if (smokeLayers.length > 0 && !initializedRef.current) initializeTime();
       return;
     }
     
@@ -132,7 +136,6 @@ export const useSmokeData = (selectedTime?: Date) => {
       return;
     }
     
-    setIsSyncing(true);
     lastSelectedTimeRef.current = selectedTime;
     
     // SYNCHRONOUS layer finding - no async deferrals
@@ -174,8 +177,6 @@ export const useSmokeData = (selectedTime?: Date) => {
       setCurrentLayerIndex(targetIndex);
       lastSyncedIndexRef.current = targetIndex;
     }
-    
-    setIsSyncing(false);
   }, [selectedTime, smokeLayers]);
 
   // Initial data fetch
@@ -208,12 +209,11 @@ export const useSmokeData = (selectedTime?: Date) => {
     isLoading,
     error,
     isPlaying,
-    isSyncing,
     totalLayers: smokeLayers.length,
-    initialSelectedTime,
     playAnimation,
     pauseAnimation,
     resetAnimation,
-    refetch: fetchData
+    refetch: fetchData,
+    setTime: setSelectedTime, // Expose a function to set the time
   };
 };
