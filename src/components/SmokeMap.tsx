@@ -10,7 +10,7 @@ import { config, hasValidMapboxToken } from '@/utils/config';
 import { sanitizeSearchInput, validateSearchInput, debounce } from '@/utils/inputValidation';
 import MapboxTokenInput from './MapboxTokenInput';
 
-// test test test for debugging //
+// test test test checking aginst codespace //
 interface SmokeLayer {
   timestamp: Date;
   data: any[];
@@ -24,13 +24,12 @@ interface SmokeMapProps {
 }
 
 const SmokeMap: React.FC<SmokeMapProps> = ({ 
-{
-  console.log('SmokeMap component mounted/rendered');
   onLocationSelect,
   onCitySearch, 
   selectedTime, 
   currentLayer 
 }) => {
+  console.log('SmokeMap component mounted/rendered');
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
