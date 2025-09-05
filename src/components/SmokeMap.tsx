@@ -10,6 +10,7 @@ import { config, hasValidMapboxToken } from '@/utils/config';
 import { sanitizeSearchInput, validateSearchInput, debounce } from '@/utils/inputValidation';
 import MapboxTokenInput from './MapboxTokenInput';
 
+// test test test for debugging //
 interface SmokeLayer {
   timestamp: Date;
   data: any[];
