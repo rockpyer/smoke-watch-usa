@@ -168,16 +168,14 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       }
     }
 
-    // Generate date labels - only show date when it changes
+    // Generate date labels - now iterates over all forecastData
     const dateLabels: Array<{index: number, date: string}> = [];
     let lastDate = '';
-    tickIndices.forEach(idx => {
-      if (forecastData[idx]) {
-        const currentDate = formatDate(forecastData[idx].timestamp);
-        if (currentDate !== lastDate) {
-          dateLabels.push({index: idx, date: currentDate});
-          lastDate = currentDate;
-        }
+    forecastData.forEach((f, idx) => {
+      const currentDate = formatDate(f.timestamp);
+      if (currentDate !== lastDate) {
+        dateLabels.push({index: idx, date: currentDate});
+        lastDate = currentDate;
       }
     });
 
@@ -264,63 +262,73 @@ export const CityForecast: React.FC<CityForecastProps> = ({
         </Button>
       </div>
 
-      {/* Date labels - positioned above the timeline */}
-      <div className="relative mb-1">
-        <div className="flex justify-between text-[9px] text-muted-foreground font-medium h-3">
-          {dateLabels.map(({index, date}) => {
-            const position = (index / Math.max(1, total - 1)) * 100;
-            return (
-              <div 
-                key={index} 
-                className="absolute transform -translate-x-1/2" 
-                style={{left: `${position}%`}}
-              >
-                {date}
-              </div>
-            );
-          })}
+      {/* Combined scrolling container for date, forecast, and time */}
+      <div className="overflow-x-auto pb-2"> {/* Added padding-bottom for scrollbar */}
+        <div className="flex flex-col min-w-max"> {/* This ensures content takes minimum width */}
+          {/* Date labels row */}
+          <div className="flex text-[9px] text-muted-foreground font-medium h-3 mb-1">
+            {forecastData.map((f, i) => {
+              const dateLabel = dateLabels.find(label => label.index === i);
+              return (
+                <div 
+                  key={`date-${i}`} 
+                  className="flex-shrink-0 w-[14px] text-center" // Adjusted width to match forecast item slot
+                >
+                  {dateLabel && dateLabel.date}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 48-hour single-line timeline with enhanced tooltips */}
+          <div className="flex items-center space-x-0.5 py-1">
+            {forecastData.map((f, i) => {
+              const category = concentrationToCategory(f.concentration);
+              const colorClass = categoryClass[category] || 'bg-muted';
+              const airQualityDesc = getAirQualityDescription(f.concentration);
+              const isCurrentTime = i === currentTimeIndex;
+              
+              return (
+                <div
+                  key={`forecast-${i}`}
+                  className="flex flex-col items-center flex-shrink-0" // Added flex-shrink-0
+                >
+                  {f.weatherCode !== undefined && <WeatherIcon code={f.weatherCode} />}
+                  <div
+                    className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${
+                      isCurrentTime ? 'ring-2 ring-black ring-inset' : ''
+                    }`}
+                    title={`${f.timestamp.toLocaleString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      hour: 'numeric', 
+                      hour12: true, 
+                      timeZone: tz 
+                    })} • ${f.concentration.toFixed(1)} μg/m³ • ${airQualityDesc}`}
+                  >
+                    <Info className="h-2 w-2 text-white/70 absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  </div>
+                  {f.temperature !== undefined && <span className="text-[10px]">{f.temperature.toFixed(0)}°</span>}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Time scale (single line, small) */}
+          <div className="flex text-[10px] text-muted-foreground whitespace-nowrap mt-1">
+            {forecastData.map((f, i) => {
+              const timeLabel = tickIndices.includes(i) ? formatLocal(f.timestamp) : '';
+              return (
+                <div 
+                  key={`time-${i}`} 
+                  className="flex-shrink-0 w-[14px] text-center" // Adjusted width to match forecast item slot
+                >
+                  {timeLabel}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
-
-      {/* 48-hour single-line timeline with enhanced tooltips */}
-      <div className="flex items-center space-x-0.5 overflow-x-auto py-1">
-        {forecastData.map((f, i) => {
-          const category = concentrationToCategory(f.concentration);
-          const colorClass = categoryClass[category] || 'bg-muted';
-          const airQualityDesc = getAirQualityDescription(f.concentration);
-          const isCurrentTime = i === currentTimeIndex;
-          
-          return (
-            <div
-              key={i}
-              className="flex flex-col items-center"
-            >
-              {f.weatherCode !== undefined && <WeatherIcon code={f.weatherCode} />}
-              <div
-                className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${
-                  isCurrentTime ? 'ring-2 ring-black ring-inset' : ''
-                }`}
-                title={`${f.timestamp.toLocaleString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  hour: 'numeric', 
-                  hour12: true, 
-                  timeZone: tz 
-                })} • ${f.concentration.toFixed(1)} μg/m³ • ${airQualityDesc}`}
-              >
-                <Info className="h-2 w-2 text-white/70 absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-              </div>
-              {f.temperature !== undefined && <span className="text-[10px]">{f.temperature.toFixed(0)}°</span>}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Time scale (single line, small) */}
-      <div className="flex justify-between text-[10px] text-muted-foreground whitespace-nowrap mt-1">
-        {tickIndices.map((idx) => (
-          <span key={idx}>{forecastData[idx] ? formatLocal(forecastData[idx].timestamp) : ''}</span>
-        ))}
       </div>
     </Card>
   );
