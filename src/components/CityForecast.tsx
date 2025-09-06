@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Info } from 'lucide-react';
+import { RefreshCw, Info, Sun, Cloud, CloudRain, CloudSnow, CloudLightning } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
+import { useWeatherData } from '@/hooks/useWeatherData';
 import tzLookup from 'tz-lookup';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point as turfPoint } from '@turf/helpers';
@@ -19,7 +20,18 @@ interface ForecastData {
   smokeLevel: number;
   smokeDescription: string;
   concentration: number;
+  weatherCode?: number;
+  temperature?: number;
 }
+
+const WeatherIcon = ({ code }: { code: number }) => {
+  if (code >= 95) return <CloudLightning className="w-4 h-4" />;
+  if (code >= 80) return <CloudRain className="w-4 h-4" />;
+  if (code >= 71) return <CloudSnow className="w-4 h-4" />;
+  if (code >= 51) return <CloudRain className="w-4 h-4" />;
+  if (code > 1) return <Cloud className="w-4 h-4" />;
+  return <Sun className="w-4 h-4" />;
+};
 
 export const CityForecast: React.FC<CityForecastProps> = ({
   cityCoordinates,
@@ -27,14 +39,15 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   compact = false,
   selectedTime
 }) => {
-  const { smokeLayers, refetch, isLoading } = useSmokeData();
+  const { smokeLayers, refetch, isLoading: smokeLoading } = useSmokeData();
+  const { weatherData, loading: weatherLoading, error: weatherError } = useWeatherData(cityCoordinates?.lat ?? 0, cityCoordinates?.lng ?? 0);
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   
   // Use ref to prevent unnecessary re-renders
   const lastSelectedTimeRef = useRef<Date | null>(null);
 
   useEffect(() => {
-    if (!cityCoordinates || !smokeLayers.length) {
+    if (!cityCoordinates || !smokeLayers.length || !weatherData) {
       setForecastData([]);
       return;
     }
@@ -44,7 +57,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     // Extract forecast data for the city location
     const forecast: ForecastData[] = [];
     
-    smokeLayers.forEach(layer => {
+    smokeLayers.forEach((layer, layerIndex) => {
       // Find smoke data that contains this city's coordinates
       let citySmoke = null;
       
@@ -54,17 +67,36 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           break;
         }
       }
+
+      let closestWeatherIndex = -1;
+      let minDiff = Infinity;
+
+      weatherData.hourly.time.forEach((t, index) => {
+        const diff = Math.abs(new Date(t).getTime() - layer.timestamp.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestWeatherIndex = index;
+        }
+      });
+
+      let weatherCode, temperature;
+      if (closestWeatherIndex !== -1 && minDiff < 30 * 60 * 1000) {
+        weatherCode = weatherData.hourly.weather_code[closestWeatherIndex];
+        temperature = weatherData.hourly.temperature_2m[closestWeatherIndex];
+      }
       
       forecast.push({
         timestamp: layer.timestamp,
         smokeLevel: citySmoke?.smoke_class || 0,
         smokeDescription: citySmoke?.smoke_classdesc || 'No Smoke',
-        concentration: citySmoke?.concentration_ugm3 || 0
+        concentration: citySmoke?.concentration_ugm3 || 0,
+        weatherCode: weatherCode,
+        temperature: temperature,
       });
     });
     
     setForecastData(forecast.slice(0, 48)); // Show next 48 time periods if available
-  }, [cityCoordinates, smokeLayers]);
+  }, [cityCoordinates, smokeLayers, weatherData]);
 
   // Memoize timeline calculations and current time index - OPTIMIZED
   const timelineData = useMemo(() => {
@@ -198,15 +230,15 @@ export const CityForecast: React.FC<CityForecastProps> = ({
             variant="ghost"
             size="sm"
             onClick={refetch}
-            disabled={isLoading}
+            disabled={smokeLoading}
             className="h-6 w-6 p-0"
             aria-label="Refresh city forecast"
           >
-            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 w-3 ${smokeLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
         <div className="text-[11px] text-muted-foreground">
-          {isLoading ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
+          {smokeLoading ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
         </div>
       </Card>
     );
@@ -218,17 +250,17 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
       <div className="flex items-center justify-between mb-2">
         <h3 className={`${compact ? 'text-xs' : 'text-sm'} font-semibold text-foreground whitespace-nowrap`}>
-          {cityName} • 48h Smoke Forecast <span className="ml-1 text-[10px] text-muted-foreground">({tzShort})</span>
+          {cityName} • 48h Smoke & Weather Forecast <span className="ml-1 text-[10px] text-muted-foreground">({tzShort})</span>
         </h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={refetch}
-          disabled={isLoading}
+          disabled={smokeLoading || weatherLoading}
           className="h-6 w-6 p-0"
           aria-label="Refresh city forecast"
         >
-          <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3 w-3 ${smokeLoading || weatherLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
@@ -261,18 +293,24 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           return (
             <div
               key={i}
-              className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${
-                isCurrentTime ? 'ring-2 ring-black ring-inset' : ''
-              }`}
-              title={`${f.timestamp.toLocaleString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                hour: 'numeric', 
-                hour12: true, 
-                timeZone: tz 
-              })} • ${f.concentration.toFixed(1)} μg/m³ • ${airQualityDesc}`}
+              className="flex flex-col items-center"
             >
-              <Info className="h-2 w-2 text-white/70 absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              {f.weatherCode !== undefined && <WeatherIcon code={f.weatherCode} />}
+              <div
+                className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${
+                  isCurrentTime ? 'ring-2 ring-black ring-inset' : ''
+                }`}
+                title={`${f.timestamp.toLocaleString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  hour: 'numeric', 
+                  hour12: true, 
+                  timeZone: tz 
+                })} • ${f.concentration.toFixed(1)} μg/m³ • ${airQualityDesc}`}
+              >
+                <Info className="h-2 w-2 text-white/70 absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              </div>
+              {f.temperature !== undefined && <span className="text-[10px]">{f.temperature.toFixed(0)}°</span>}
             </div>
           );
         })}
