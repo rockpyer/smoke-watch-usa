@@ -395,7 +395,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       setIsMapLoaded(false);
       map.current = new mapboxgl.Map({
         container: mapContainer.current!,
-        style: 'mapbox://styles/mapbox/streets-v12',
+        style: 'mapbox://styles/mapbox/outdoors-v12',
         center: [-98.5795, 39.8283],
         zoom: 4,
         attributionControl: false,
