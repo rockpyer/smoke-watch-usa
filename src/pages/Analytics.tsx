@@ -18,6 +18,20 @@ interface AnalyticsData {
   dailyActivity: Array<{ date: string; sessions: number; events: number }>;
   deviceTypes: Array<{ device_type: string; count: number }>;
   userEngagement: Array<{ interaction_type: string; count: number }>;
+  sessionEngagement: Array<{ 
+    session_id: string; 
+    events_count: number; 
+    duration_minutes: number;
+    unique_interactions: number;
+    cities_explored: number;
+    time_changes: number;
+  }>;
+  engagementStats: {
+    avgEventsPerSession: number;
+    avgSessionDurationMinutes: number;
+    bounceRate: number;
+    highEngagementSessions: number;
+  };
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--destructive))'];
@@ -38,11 +52,12 @@ const Analytics = () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
 
-      // Get base analytics
+      // Get base analytics - using service role to bypass RLS for admin analytics
       const { data: events, error } = await supabase
         .from('smokeusage')
         .select('*')
-        .gte('timestamp', startDate.toISOString());
+        .gte('timestamp', startDate.toISOString())
+        .order('timestamp', { ascending: false });
 
       if (error) throw error;
 
@@ -131,6 +146,80 @@ const Analytics = () => {
       const userEngagement = Object.entries(engagementCount)
         .map(([interaction_type, count]) => ({ interaction_type, count: Number(count) }));
 
+      // Session-based engagement analysis
+      const sessionData: Record<string, any> = {};
+      events?.forEach(e => {
+        if (!e.session_id) return;
+        
+        if (!sessionData[e.session_id]) {
+          sessionData[e.session_id] = {
+            session_id: e.session_id,
+            events: [],
+            cities: new Set(),
+            interactions: new Set(),
+            timeChanges: 0,
+            startTime: null,
+            endTime: null
+          };
+        }
+        
+        const session = sessionData[e.session_id];
+        session.events.push(e);
+        
+        if (e.city) session.cities.add(e.city);
+        if (e.interaction_type) session.interactions.add(e.interaction_type);
+        if (e.event_type === 'time_change') session.timeChanges++;
+        
+        const eventTime = new Date(e.timestamp);
+        if (!session.startTime || eventTime < session.startTime) {
+          session.startTime = eventTime;
+        }
+        if (!session.endTime || eventTime > session.endTime) {
+          session.endTime = eventTime;
+        }
+      });
+
+      const sessionEngagement = Object.values(sessionData).map((session: any) => {
+        const durationMs = session.endTime && session.startTime 
+          ? session.endTime.getTime() - session.startTime.getTime() 
+          : 0;
+        
+        return {
+          session_id: session.session_id.substring(0, 8) + '...', // Truncate for display
+          events_count: session.events.length,
+          duration_minutes: Math.round(durationMs / 60000 * 10) / 10, // Round to 1 decimal
+          unique_interactions: session.interactions.size,
+          cities_explored: session.cities.size,
+          time_changes: session.timeChanges
+        };
+      }).sort((a, b) => b.events_count - a.events_count);
+
+      // Calculate engagement statistics
+      const totalSessionCount = Object.keys(sessionData).length;
+      const avgEventsPerSession = totalSessionCount > 0 
+        ? Math.round(totalEvents / totalSessionCount * 10) / 10 
+        : 0;
+      
+      const sessionDurationsMinutes = sessionEngagement.map(s => s.duration_minutes);
+      const avgSessionDurationMinutes = sessionDurationsMinutes.length > 0
+        ? Math.round(sessionDurationsMinutes.reduce((a, b) => a + b, 0) / sessionDurationsMinutes.length * 10) / 10
+        : 0;
+      
+      const bounceRate = totalSessionCount > 0
+        ? Math.round(sessionEngagement.filter(s => s.events_count <= 1).length / totalSessionCount * 100)
+        : 0;
+      
+      const highEngagementSessions = sessionEngagement.filter(s => 
+        s.events_count >= 5 || s.duration_minutes >= 2 || s.unique_interactions >= 2
+      ).length;
+
+      const engagementStats = {
+        avgEventsPerSession,
+        avgSessionDurationMinutes,
+        bounceRate,
+        highEngagementSessions
+      };
+
       setData({
         totalSessions: sessions,
         totalEvents,
@@ -141,7 +230,9 @@ const Analytics = () => {
         hourlyActivity: hourlyCount,
         dailyActivity,
         deviceTypes,
-        userEngagement
+        userEngagement,
+        sessionEngagement: sessionEngagement.slice(0, 20), // Top 20 sessions
+        engagementStats
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -219,11 +310,44 @@ const Analytics = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Events/Session</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data?.engagementStats.avgEventsPerSession}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Bounce Rate</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data?.engagementStats.bounceRate}%</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Engagement Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Avg Session Duration</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{Math.floor((data?.avgSessionDuration || 0) / 60)}m {(data?.avgSessionDuration || 0) % 60}s</div>
+              <div className="text-2xl font-bold">{data?.engagementStats.avgSessionDurationMinutes}m</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">High Engagement Sessions</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data?.engagementStats.highEngagementSessions}</div>
             </CardContent>
           </Card>
 
@@ -234,6 +358,16 @@ const Analytics = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{data?.uniqueLocations.toLocaleString()}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data?.sessionEngagement.filter(s => s.events_count > 1).length}</div>
             </CardContent>
           </Card>
         </div>
@@ -342,6 +476,46 @@ const Analytics = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Session Engagement Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Sessions by Engagement</CardTitle>
+            <CardDescription>Detailed analysis of individual user sessions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Session ID</th>
+                    <th className="text-right p-2">Events</th>
+                    <th className="text-right p-2">Duration</th>
+                    <th className="text-right p-2">Interactions</th>
+                    <th className="text-right p-2">Cities</th>
+                    <th className="text-right p-2">Time Changes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data?.sessionEngagement.slice(0, 10).map((session, index) => (
+                    <tr key={session.session_id} className="border-b hover:bg-muted/50">
+                      <td className="p-2 font-mono text-xs">{session.session_id}</td>
+                      <td className="p-2 text-right">
+                        <Badge variant={session.events_count > 10 ? "default" : "secondary"}>
+                          {session.events_count}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-right">{session.duration_minutes}m</td>
+                      <td className="p-2 text-right">{session.unique_interactions}</td>
+                      <td className="p-2 text-right">{session.cities_explored}</td>
+                      <td className="p-2 text-right">{session.time_changes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* User Engagement */}
         <Card>
