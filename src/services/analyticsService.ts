@@ -2,6 +2,12 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { AnalyticsMonitor } from '@/utils/analyticsMonitor';
 
+// Convert UTC timestamp to Mountain Time (UTC-6)
+const toMountainTime = (date: Date): Date => {
+  const mountainTime = new Date(date.getTime() - (6 * 60 * 60 * 1000));
+  return mountainTime;
+};
+
 export type AnalyticsEventType = 
   | 'page_load'
   | 'city_search' 
@@ -98,7 +104,7 @@ class AnalyticsService {
       device_type: this.getDeviceType(),
       user_agent: navigator.userAgent,
       referrer: document.referrer || undefined,
-      session_start_time: this.sessionStartTime.toISOString(),
+      session_start_time: toMountainTime(this.sessionStartTime).toISOString(),
       ...event
     };
 
@@ -193,7 +199,7 @@ class AnalyticsService {
         session_start_time: event.session_start_time || null,
         session_end_time: event.session_end_time || null,
         page_duration_seconds: event.page_duration_seconds,
-        timestamp: new Date().toISOString()
+        timestamp: toMountainTime(new Date()).toISOString()
       }));
 
       const { data, error } = await supabase
@@ -261,7 +267,7 @@ class AnalyticsService {
         session_start_time: event.session_start_time || null,
         session_end_time: event.session_end_time || null,
         page_duration_seconds: event.page_duration_seconds,
-        timestamp: new Date().toISOString()
+        timestamp: toMountainTime(new Date()).toISOString()
       }));
 
       const { error } = await supabase
@@ -287,11 +293,11 @@ class AnalyticsService {
       event_type: 'session_end' as AnalyticsEventType,
       session_id: this.sessionId,
       page_duration_seconds: sessionDuration,
-      session_end_time: new Date().toISOString(),
+      session_end_time: toMountainTime(new Date()).toISOString(),
       device_type: this.getDeviceType(),
       user_agent: navigator.userAgent,
       referrer: document.referrer || undefined,
-      session_start_time: this.sessionStartTime.toISOString()
+      session_start_time: toMountainTime(this.sessionStartTime).toISOString()
     };
 
     this.eventQueue.push(event);
