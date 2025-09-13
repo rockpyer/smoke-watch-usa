@@ -13,7 +13,7 @@ interface AnalyticsData {
   avgSessionDuration: number;
   uniqueLocations: number;
   topCities: Array<{ city: string; count: number }>;
-  eventTypes: Array<{ event_type: string; count: number }>;
+  topRegions: Array<{ region: string; count: number }>;
   hourlyActivity: Array<{ hour: number; events: number }>;
   dailyActivity: Array<{ date: string; sessions: number; events: number }>;
   deviceTypes: Array<{ device_type: string; count: number }>;
@@ -89,15 +89,20 @@ const Analytics = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
-      // Event types
-      const eventTypeCount: Record<string, number> = {};
+      // Geographic distribution (top states/regions from cities)
+      const stateCount: Record<string, number> = {};
       events?.forEach(e => {
-        if (e.event_type) {
-          eventTypeCount[e.event_type] = (eventTypeCount[e.event_type] || 0) + 1;
+        if (e.city) {
+          // Extract state/region from city name (assuming format like "City, State")
+          const parts = e.city.split(',');
+          const state = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+          stateCount[state] = (stateCount[state] || 0) + 1;
         }
       });
-      const eventTypes = Object.entries(eventTypeCount)
-        .map(([event_type, count]) => ({ event_type, count: Number(count) }));
+      const topRegions = Object.entries(stateCount)
+        .map(([region, count]) => ({ region, count: Number(count) }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
 
       // Hourly activity
       const hourlyCount = Array.from({ length: 24 }, (_, i) => ({ hour: i, events: 0 }));
@@ -126,15 +131,18 @@ const Analytics = () => {
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
-      // Device types
-      const deviceCount: Record<string, number> = {};
+      // Device types (count unique sessions per device type)
+      const deviceSessionCount: Record<string, Set<string>> = {};
       events?.forEach(e => {
-        if (e.device_type) {
-          deviceCount[e.device_type] = (deviceCount[e.device_type] || 0) + 1;
+        if (e.device_type && e.session_id) {
+          if (!deviceSessionCount[e.device_type]) {
+            deviceSessionCount[e.device_type] = new Set();
+          }
+          deviceSessionCount[e.device_type].add(e.session_id);
         }
       });
-      const deviceTypes = Object.entries(deviceCount)
-        .map(([device_type, count]) => ({ device_type, count: Number(count) }));
+      const deviceTypes = Object.entries(deviceSessionCount)
+        .map(([device_type, sessions]) => ({ device_type, count: sessions.size }));
 
       // User engagement (interaction types)
       const engagementCount: Record<string, number> = {};
@@ -226,7 +234,7 @@ const Analytics = () => {
         avgSessionDuration: Math.round(avgDuration),
         uniqueLocations,
         topCities,
-        eventTypes,
+        topRegions,
         hourlyActivity: hourlyCount,
         dailyActivity,
         deviceTypes,
@@ -363,11 +371,11 @@ const Analytics = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">Unique Visitors</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data?.sessionEngagement?.filter(s => s.events_count > 1).length || 0}</div>
+              <div className="text-2xl font-bold">{data?.totalSessions || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -416,23 +424,23 @@ const Analytics = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Event Types</CardTitle>
-              <CardDescription>Distribution of user interactions</CardDescription>
+              <CardTitle>Top Regions</CardTitle>
+              <CardDescription>Geographic distribution of users</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={data?.eventTypes}
+                    data={data?.topRegions}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ event_type, percent }) => `${event_type} ${(percent * 100).toFixed(0)}%`}
+                    label={({ region, percent }) => `${region} ${(percent * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="count"
                   >
-                    {data?.eventTypes.map((entry, index) => (
+                    {data?.topRegions.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
