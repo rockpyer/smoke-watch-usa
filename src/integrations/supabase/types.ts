@@ -44,7 +44,7 @@ export type Database = {
           event_type?: string | null
           extra_data?: Json | null
           forecast_available?: boolean | null
-          id: number
+          id?: number
           interaction_type?: string | null
           latitude?: number | null
           longitude?: number | null
