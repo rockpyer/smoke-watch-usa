@@ -8,7 +8,8 @@ import { ForecastSkeleton, MapSkeleton } from '@/components/LoadingSkeleton';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { getSmokeDataForLocation } from '@/utils/aqi';
-import { Cloud } from 'lucide-react';
+import { Cloud, BarChart3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import tzLookup from 'tz-lookup';
 
 const Index = () => {
@@ -140,7 +141,16 @@ const Index = () => {
             <div className="flex items-center space-x-2">
               <Cloud className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-lg md:text-2xl font-bold text-foreground">Will smoke affect my biking/hiking/fishing plans?</h1>
+                <div className="flex items-center space-x-3">
+                  <h1 className="text-lg md:text-2xl font-bold text-foreground">Will smoke affect my biking/hiking/fishing plans?</h1>
+                  <Link 
+                    to="/analytics" 
+                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center space-x-1"
+                  >
+                    <BarChart3 className="h-3 w-3" />
+                    <span>Analytics</span>
+                  </Link>
+                </div>
                 <p className="text-xs md:text-sm text-muted-foreground">48 hour wildfire smoke forecasting</p>
               </div>
             </div>
