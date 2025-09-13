@@ -18,8 +18,11 @@ export const useAnalytics = () => {
     analyticsService.trackTimeChange(previousTime, newTime, interactionType);
   }, []);
 
-  const trackForecastView = useCallback((city: string, forecastAvailable: boolean, latitude?: number, longitude?: number) => {
-    analyticsService.trackForecastView(city, forecastAvailable, latitude, longitude);
+  const trackForecastView = useCallback((city: string, forecastAvailable: boolean, latitude?: number, longitude?: number, skipCascade?: boolean) => {
+    // Skip tracking if this is a cascade from time change
+    if (!skipCascade) {
+      analyticsService.trackForecastView(city, forecastAvailable, latitude, longitude);
+    }
   }, []);
 
   return {

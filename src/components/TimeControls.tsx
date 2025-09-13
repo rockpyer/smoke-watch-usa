@@ -51,7 +51,6 @@ const TimeControls: React.FC<TimeControlsProps> = ({
 
   const handleSliderChange = (values: number[]) => {
     const newIndex = values[0];
-    console.log(`🕐 TIME CONTROLS: User manually changed slider to index ${newIndex}`);
     if (onTimeChange && availableTimes[newIndex]) {
       onTimeChange(availableTimes[newIndex], newIndex, 'slider');
     }
@@ -64,7 +63,6 @@ const TimeControls: React.FC<TimeControlsProps> = ({
 
   const handleStepBack = () => {
     const newIndex = Math.max(0, currentIndex - 1);
-    console.log(`🕐 TIME CONTROLS: Step back to index ${newIndex}`);
     if (onTimeChange && availableTimes[newIndex]) {
       onTimeChange(availableTimes[newIndex], newIndex, 'step_back');
     }
@@ -73,7 +71,6 @@ const TimeControls: React.FC<TimeControlsProps> = ({
 
   const handleStepForward = () => {
     const newIndex = Math.min(availableTimes.length - 1, currentIndex + 1);
-    console.log(`🕐 TIME CONTROLS: Step forward to index ${newIndex}`);
     if (onTimeChange && availableTimes[newIndex]) {
       onTimeChange(availableTimes[newIndex], newIndex, 'step_forward');
     }
@@ -81,7 +78,6 @@ const TimeControls: React.FC<TimeControlsProps> = ({
   };
 
   const handleReset = () => {
-    console.log('🕐 TIME CONTROLS: Reset to index 0');
     if (onTimeChange && availableTimes[0]) {
       onTimeChange(availableTimes[0], 0, 'reset');
     }

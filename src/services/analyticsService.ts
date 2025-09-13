@@ -1,12 +1,15 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { AnalyticsMonitor } from '@/utils/analyticsMonitor';
 
 export type AnalyticsEventType = 
   | 'page_load'
   | 'city_search' 
   | 'location_click'
   | 'time_change'
-  | 'forecast_view';
+  | 'forecast_view'
+  | 'user_engagement'
+  | 'session_end';
 
 export interface AnalyticsEvent {
   event_type: AnalyticsEventType;
@@ -34,6 +37,16 @@ class AnalyticsService {
   private sessionStartTime: Date;
   private eventQueue: AnalyticsEvent[] = [];
   private flushTimeout: NodeJS.Timeout | null = null;
+  
+  // Rate limiting and deduplication
+  private lastEventTimes: Map<string, number> = new Map();
+  private lastEventData: Map<string, string> = new Map();
+  private pendingTimeChange: {
+    timeout: NodeJS.Timeout | null;
+    previousTime: Date;
+    newTime: Date;
+    interactionType: string;
+  } | null = null;
 
   constructor() {
     this.sessionId = crypto.randomUUID();
@@ -74,6 +87,11 @@ class AnalyticsService {
   }
 
   async trackEvent(event: Partial<AnalyticsEvent>) {
+    // Skip rate-limited or duplicate events
+    if (!this.shouldTrackEvent(event)) {
+      return;
+    }
+
     const analyticsEvent: AnalyticsEvent = {
       event_type: event.event_type!,
       session_id: this.sessionId,
@@ -85,8 +103,53 @@ class AnalyticsService {
     };
 
     console.log('📊 Analytics: Tracking event', analyticsEvent.event_type, analyticsEvent);
+    AnalyticsMonitor.trackEventCount(analyticsEvent.event_type);
     this.eventQueue.push(analyticsEvent);
     this.scheduleFlush();
+  }
+
+  private shouldTrackEvent(event: Partial<AnalyticsEvent>): boolean {
+    const eventKey = `${event.event_type}_${event.interaction_type || ''}`;
+    const now = Date.now();
+    
+    // Rate limiting per event type
+    const minIntervals = {
+      'time_change': 500, // Max 1 per 500ms
+      'forecast_view': 1000, // Max 1 per second  
+      'location_click': 200, // Max 1 per 200ms
+      'city_search': 300, // Max 1 per 300ms
+      'page_load': 0 // No rate limiting
+    };
+    
+    const minInterval = minIntervals[event.event_type as keyof typeof minIntervals] || 0;
+    const lastTime = this.lastEventTimes.get(eventKey) || 0;
+    
+    if (now - lastTime < minInterval) {
+      console.log('📊 Analytics: Rate limited', eventKey);
+      return false;
+    }
+    
+    // Deduplication - skip identical consecutive events
+    const eventDataKey = JSON.stringify({
+      type: event.event_type,
+      interaction: event.interaction_type,
+      city: event.city,
+      lat: event.latitude,
+      lng: event.longitude,
+      time: event.new_time
+    });
+    
+    const lastData = this.lastEventData.get(event.event_type!);
+    if (lastData === eventDataKey) {
+      console.log('📊 Analytics: Duplicate event skipped', event.event_type);
+      return false;
+    }
+    
+    // Update tracking
+    this.lastEventTimes.set(eventKey, now);
+    this.lastEventData.set(event.event_type!, eventDataKey);
+    
+    return true;
   }
 
   private scheduleFlush() {
@@ -266,21 +329,71 @@ class AnalyticsService {
   }
 
   trackTimeChange(previousTime: Date, newTime: Date, interactionType: string) {
-    this.trackEvent({
-      event_type: 'time_change',
-      previous_time: previousTime.toISOString(),
-      new_time: newTime.toISOString(),
-      interaction_type: interactionType
-    });
+    // Smart debouncing for slider interactions
+    if (interactionType === 'slider') {
+      // Cancel any pending time change
+      if (this.pendingTimeChange?.timeout) {
+        clearTimeout(this.pendingTimeChange.timeout);
+      }
+      
+      // Store the latest values and debounce
+      this.pendingTimeChange = {
+        timeout: setTimeout(() => {
+          this.trackEvent({
+            event_type: 'time_change',
+            previous_time: this.pendingTimeChange!.previousTime.toISOString(),
+            new_time: this.pendingTimeChange!.newTime.toISOString(),
+            interaction_type: 'slider_final'
+          });
+          this.pendingTimeChange = null;
+        }, 300), // 300ms debounce for slider
+        previousTime,
+        newTime,
+        interactionType
+      };
+      return;
+    }
+    
+    // Track immediate actions (buttons, autoplay, etc.)
+    const significantActions = ['step_forward', 'step_back', 'reset', 'autoplay_reset'];
+    if (significantActions.includes(interactionType)) {
+      this.trackEvent({
+        event_type: 'time_change',
+        previous_time: previousTime.toISOString(),
+        new_time: newTime.toISOString(),
+        interaction_type: interactionType
+      });
+    }
   }
 
   trackForecastView(city: string, forecastAvailable: boolean, latitude?: number, longitude?: number) {
+    // Only track forecast views from deliberate user actions, not cascaded from time changes
     this.trackEvent({
       event_type: 'forecast_view',
       city,
       forecast_available: forecastAvailable,
       latitude,
       longitude
+    });
+  }
+
+  // Enhanced tracking methods with better context
+  trackUserSession() {
+    this.trackEvent({
+      event_type: 'page_load',
+      extra_data: {
+        timestamp: new Date().toISOString(),
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }
+    });
+  }
+
+  trackSignificantInteraction(type: 'time_exploration' | 'location_discovery' | 'forecast_engagement', data: Record<string, any>) {
+    this.trackEvent({
+      event_type: 'user_engagement' as AnalyticsEventType,
+      interaction_type: type,
+      extra_data: data
     });
   }
 }

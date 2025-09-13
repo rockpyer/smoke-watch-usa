@@ -45,8 +45,9 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   const { trackForecastView } = useAnalytics();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   
-  // Use ref to prevent unnecessary re-renders
+  // Use ref to prevent unnecessary re-renders and track meaningful forecast views
   const lastSelectedTimeRef = useRef<Date | null>(null);
+  const lastTrackedCityRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!cityCoordinates || !smokeLayers.length || !weatherData) {
@@ -100,8 +101,9 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     const forecastSlice = forecast.slice(0, 48);
     setForecastData(forecastSlice); // Show next 48 time periods if available
     
-    // Track forecast view event when data is loaded
-    if (cityName && cityCoordinates && forecastSlice.length > 0) {
+    // Track forecast view event only for new cities (not time changes)
+    if (cityName && cityCoordinates && forecastSlice.length > 0 && lastTrackedCityRef.current !== cityName) {
+      lastTrackedCityRef.current = cityName;
       trackForecastView(cityName, true, cityCoordinates.lat, cityCoordinates.lng);
     }
   }, [cityCoordinates, smokeLayers, weatherData, cityName, trackForecastView]);
