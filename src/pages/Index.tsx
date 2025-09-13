@@ -6,6 +6,7 @@ import LocationInfo from '@/components/LocationInfo';
 import { CityForecast } from '@/components/CityForecast';
 import { ForecastSkeleton, MapSkeleton } from '@/components/LoadingSkeleton';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import { getSmokeDataForLocation } from '@/utils/aqi';
 import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
@@ -14,6 +15,7 @@ const Index = () => {
   // The useSmokeData hook is now the single source of truth for the current time.
   // We pass a function to it so it can update its internal state.
   const { smokeLayers, currentLayer, currentLayerIndex, isLoading, setTime } = useSmokeData();
+  const { trackPageLoad, trackTimeChange } = useAnalytics();
   const smokeData = { frames: smokeLayers };
 
   console.log('Index component mounted/rendered');
@@ -28,8 +30,14 @@ const Index = () => {
   } | null>(null);
 
   // ...existing code...
-  const handleTimeChange = (time: Date, index: number) => {
+  const handleTimeChange = (time: Date, index: number, interactionType?: string) => {
     console.log(`🕐 INDEX: Time changed to ${time.toISOString()} (index ${index})`);
+    
+    // Track time change event
+    if (currentLayer?.timestamp) {
+      trackTimeChange(currentLayer.timestamp, time, interactionType || 'unknown');
+    }
+    
     setTime(time); // Tell the hook to change the time
   };
 
@@ -52,6 +60,9 @@ const Index = () => {
             name: 'Your Location'
           });
           console.log('🌍 Using user location:', latitude, longitude);
+          
+          // Track page load with user location
+          trackPageLoad(latitude, longitude);
         },
         (error) => {
           console.log('🌍 Geolocation failed, using Boulder, CO default:', error);
@@ -59,6 +70,9 @@ const Index = () => {
             coordinates: { lat: 40.0150, lng: -105.2705 },
             name: 'Boulder, CO'
           });
+          
+          // Track page load with default location
+          trackPageLoad(40.0150, -105.2705);
         },
         { timeout: 5000, enableHighAccuracy: false }
       );
@@ -68,6 +82,9 @@ const Index = () => {
         coordinates: { lat: 40.0150, lng: -105.2705 },
         name: 'Boulder, CO'
       });
+      
+      // Track page load with default location
+      trackPageLoad(40.0150, -105.2705);
     }
   }, [searchedCity]);
 

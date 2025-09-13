@@ -20,11 +20,19 @@ export type Database = {
           device_type: string | null
           event_type: string | null
           extra_data: Json | null
+          forecast_available: boolean | null
           id: number
+          interaction_type: string | null
           latitude: number | null
           longitude: number | null
+          new_time: string | null
+          page_duration_seconds: number | null
+          previous_time: string | null
           referrer: string | null
+          search_query: string | null
+          session_end_time: string | null
           session_id: string | null
+          session_start_time: string | null
           timestamp: string | null
           user_agent: string | null
           user_id: string | null
@@ -35,11 +43,19 @@ export type Database = {
           device_type?: string | null
           event_type?: string | null
           extra_data?: Json | null
+          forecast_available?: boolean | null
           id: number
+          interaction_type?: string | null
           latitude?: number | null
           longitude?: number | null
+          new_time?: string | null
+          page_duration_seconds?: number | null
+          previous_time?: string | null
           referrer?: string | null
+          search_query?: string | null
+          session_end_time?: string | null
           session_id?: string | null
+          session_start_time?: string | null
           timestamp?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -50,11 +66,19 @@ export type Database = {
           device_type?: string | null
           event_type?: string | null
           extra_data?: Json | null
+          forecast_available?: boolean | null
           id?: number
+          interaction_type?: string | null
           latitude?: number | null
           longitude?: number | null
+          new_time?: string | null
+          page_duration_seconds?: number | null
+          previous_time?: string | null
           referrer?: string | null
+          search_query?: string | null
+          session_end_time?: string | null
           session_id?: string | null
+          session_start_time?: string | null
           timestamp?: string | null
           user_agent?: string | null
           user_id?: string | null

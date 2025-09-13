@@ -6,7 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { Play, Pause, SkipBack, SkipForward, RotateCcw } from 'lucide-react';
 
 interface TimeControlsProps {
-  onTimeChange?: (time: Date, index: number) => void;
+  onTimeChange?: (time: Date, index: number, interactionType?: string) => void;
   autoPlay?: boolean;
   availableTimes?: Date[];
   timeZone?: string;
@@ -37,9 +37,9 @@ const TimeControls: React.FC<TimeControlsProps> = ({
         const nextIndex = currentIndex + 1;
         if (nextIndex >= availableTimes.length) {
           setIsPlaying(false);
-          onTimeChange(availableTimes[0], 0); // Reset to start
+          onTimeChange(availableTimes[0], 0, 'autoplay_reset'); // Reset to start
         } else {
-          onTimeChange(availableTimes[nextIndex], nextIndex);
+          onTimeChange(availableTimes[nextIndex], nextIndex, 'autoplay');
         }
       }, 1000); // Change frame every second
     }
@@ -53,7 +53,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
     const newIndex = values[0];
     console.log(`🕐 TIME CONTROLS: User manually changed slider to index ${newIndex}`);
     if (onTimeChange && availableTimes[newIndex]) {
-      onTimeChange(availableTimes[newIndex], newIndex);
+      onTimeChange(availableTimes[newIndex], newIndex, 'slider');
     }
     setIsPlaying(false);
   };
@@ -66,7 +66,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
     const newIndex = Math.max(0, currentIndex - 1);
     console.log(`🕐 TIME CONTROLS: Step back to index ${newIndex}`);
     if (onTimeChange && availableTimes[newIndex]) {
-      onTimeChange(availableTimes[newIndex], newIndex);
+      onTimeChange(availableTimes[newIndex], newIndex, 'step_back');
     }
     setIsPlaying(false);
   };
@@ -75,7 +75,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
     const newIndex = Math.min(availableTimes.length - 1, currentIndex + 1);
     console.log(`🕐 TIME CONTROLS: Step forward to index ${newIndex}`);
     if (onTimeChange && availableTimes[newIndex]) {
-      onTimeChange(availableTimes[newIndex], newIndex);
+      onTimeChange(availableTimes[newIndex], newIndex, 'step_forward');
     }
     setIsPlaying(false);
   };
@@ -83,7 +83,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
   const handleReset = () => {
     console.log('🕐 TIME CONTROLS: Reset to index 0');
     if (onTimeChange && availableTimes[0]) {
-      onTimeChange(availableTimes[0], 0);
+      onTimeChange(availableTimes[0], 0, 'reset');
     }
     setIsPlaying(false);
   };

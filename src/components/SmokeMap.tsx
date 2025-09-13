@@ -8,6 +8,7 @@ import { Search, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { fireDataService } from '../services/fireDataService';
 import { config, hasValidMapboxToken } from '@/utils/config';
 import { sanitizeSearchInput, validateSearchInput, debounce } from '@/utils/inputValidation';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import MapboxTokenInput from './MapboxTokenInput';
 /// test test after gemini///
 interface SmokeLayer {
@@ -28,6 +29,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   selectedTime,
   currentLayer
 }) => {
+  const { trackLocationClick, trackCitySearch } = useAnalytics();
   // All state and ref declarations must be here, inside the function body but top level
   const [needsToken, setNeedsToken] = useState(false);
   const [smokeLayerReady, setSmokeLayerReady] = useState(false);
@@ -441,6 +443,10 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
           .setLngLat([lng, lat])
           .addTo(map.current);
         reverseGeocode(lng, lat);
+        
+        // Track location click event
+        trackLocationClick(lat, lng, map.current.getZoom());
+        
         if (onLocationSelect) {
           onLocationSelect([lng, lat], `${lat.toFixed(4)}, ${lng.toFixed(4)}`);
         }
@@ -538,6 +544,9 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
               zoom: 6,
               duration: 2000
             });
+            // Track city search event
+            trackCitySearch(searchValue || placeName, placeName, lat, lng);
+            
             if (onLocationSelect) onLocationSelect([lng, lat], placeName);
             if (onCitySearch) onCitySearch({ lat, lng }, placeName);
           }

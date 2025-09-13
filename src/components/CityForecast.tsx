@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Info, Sun, Cloud, CloudRain, CloudSnow, CloudLightning } from 'lucide-react';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import { useWeatherData } from '@/hooks/useWeatherData';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import tzLookup from 'tz-lookup';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point as turfPoint } from '@turf/helpers';
@@ -41,6 +42,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 }) => {
   const { smokeLayers, refetch, isLoading: smokeLoading } = useSmokeData();
   const { weatherData, loading: weatherLoading, error: weatherError } = useWeatherData(cityCoordinates?.lat ?? 0, cityCoordinates?.lng ?? 0);
+  const { trackForecastView } = useAnalytics();
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   
   // Use ref to prevent unnecessary re-renders
@@ -95,8 +97,14 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       });
     });
     
-    setForecastData(forecast.slice(0, 48)); // Show next 48 time periods if available
-  }, [cityCoordinates, smokeLayers, weatherData]);
+    const forecastSlice = forecast.slice(0, 48);
+    setForecastData(forecastSlice); // Show next 48 time periods if available
+    
+    // Track forecast view event when data is loaded
+    if (cityName && cityCoordinates && forecastSlice.length > 0) {
+      trackForecastView(cityName, true, cityCoordinates.lat, cityCoordinates.lng);
+    }
+  }, [cityCoordinates, smokeLayers, weatherData, cityName, trackForecastView]);
 
   // Memoize timeline calculations and current time index - OPTIMIZED
   const timelineData = useMemo(() => {
