@@ -314,7 +314,7 @@ const Analytics = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data?.engagementStats.avgEventsPerSession}</div>
+              <div className="text-2xl font-bold">{data?.engagementStats?.avgEventsPerSession || 0}</div>
             </CardContent>
           </Card>
 
@@ -324,7 +324,7 @@ const Analytics = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data?.engagementStats.bounceRate}%</div>
+              <div className="text-2xl font-bold">{data?.engagementStats?.bounceRate || 0}%</div>
             </CardContent>
           </Card>
         </div>
@@ -337,7 +337,7 @@ const Analytics = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data?.engagementStats.avgSessionDurationMinutes}m</div>
+              <div className="text-2xl font-bold">{data?.engagementStats?.avgSessionDurationMinutes || 0}m</div>
             </CardContent>
           </Card>
 
@@ -347,7 +347,7 @@ const Analytics = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data?.engagementStats.highEngagementSessions}</div>
+              <div className="text-2xl font-bold">{data?.engagementStats?.highEngagementSessions || 0}</div>
             </CardContent>
           </Card>
 
@@ -367,7 +367,7 @@ const Analytics = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data?.sessionEngagement.filter(s => s.events_count > 1).length}</div>
+              <div className="text-2xl font-bold">{data?.sessionEngagement?.filter(s => s.events_count > 1).length || 0}</div>
             </CardContent>
           </Card>
         </div>
