@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ExternalLink, Trash2, Shield, Eye, Fingerprint } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { analyticsService } from '@/services/analyticsService';
 
 const PrivacyReality = () => {
   const [userFingerprint, setUserFingerprint] = useState<any>(null);
@@ -13,11 +13,10 @@ const PrivacyReality = () => {
   const [deletedCount, setDeletedCount] = useState<number | null>(null);
 
   useEffect(() => {
-    // Get current session fingerprint data
+    // Get current session fingerprint data from analytics service
     const fingerprint = {
       browserSessionId: sessionStorage.getItem('analytics_browser_session_id') || 'Unknown',
-      visitorHash: 'abc123', // Simplified for demo
-      isDeveloper: window.location.hostname.includes('localhost') || window.location.hostname.includes('lovable')
+      visitorHash: (analyticsService as any).visitorFingerprint?.visitorHash || 'calculating...'
     };
     
     setUserFingerprint(fingerprint);
@@ -67,7 +66,7 @@ const PrivacyReality = () => {
             Your Data Isn't Private
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Here's exactly what we know about you right now. Most websites collect this and more - we're just being honest about it.
+            Here's exactly what gets recorded about you right now. Most websites collect this and more - this site is just being honest about it.
           </p>
         </div>
 
@@ -79,7 +78,7 @@ const PrivacyReality = () => {
               Your Digital Fingerprint
             </CardTitle>
             <CardDescription>
-              This is what we can identify you by, even without cookies
+              This is what can identify you, even without cookies
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -115,16 +114,6 @@ const PrivacyReality = () => {
               </div>
             </div>
 
-            {userFingerprint?.isDeveloper && (
-              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                <Badge variant="outline" className="border-yellow-500/50 text-yellow-600">
-                  Developer Session Detected
-                </Badge>
-                <p className="text-sm mt-2 text-muted-foreground">
-                  We detected you're likely a developer based on your setup
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -133,10 +122,10 @@ const PrivacyReality = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
-              What We're Recording
+              What Gets Recorded
             </CardTitle>
             <CardDescription>
-              Every click, search, and interaction gets logged
+              Every click, search, and interaction gets logged to a Supabase PostgreSQL database
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -194,13 +183,13 @@ const PrivacyReality = () => {
               Clear Your Data
             </CardTitle>
             <CardDescription>
-              Delete your records from our database (but this won't help with other sites)
+              Delete your records from the Supabase PostgreSQL database (but this won't help with other sites)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                <strong>Reality check:</strong> Clearing data here only removes YOUR records from OUR database. 
+                <strong>Reality check:</strong> Clearing data here only removes YOUR records from THIS database. 
                 Every other website you visit still tracks you. This is just one site being transparent.
               </p>
             </div>
@@ -244,12 +233,12 @@ const PrivacyReality = () => {
                   Hides your real location from all websites
                 </p>
                 <a 
-                  href="https://mullvad.net" 
+                  href="https://protonvpn.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-primary hover:underline text-sm flex items-center gap-1 mt-2"
                 >
-                  Mullvad VPN <ExternalLink className="h-3 w-3" />
+                  Proton VPN <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
               
@@ -284,17 +273,17 @@ const PrivacyReality = () => {
               </div>
               
               <div className="p-4 border rounded-lg">
-                <h4 className="font-semibold">Tor Browser</h4>
+                <h4 className="font-semibold">DuckDuckGo</h4>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Maximum anonymity (but slower browsing)
+                  Search engine that doesn't track you
                 </p>
                 <a 
-                  href="https://www.torproject.org" 
+                  href="https://duckduckgo.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-primary hover:underline text-sm flex items-center gap-1 mt-2"
                 >
-                  Download Tor <ExternalLink className="h-3 w-3" />
+                  Use DuckDuckGo <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>
@@ -304,8 +293,8 @@ const PrivacyReality = () => {
             <div className="p-4 bg-muted/50 rounded-lg">
               <h4 className="font-semibold">The Reality</h4>
               <p className="text-sm text-muted-foreground mt-2">
-                We can't make you private - only YOU can do that. Most websites collect way more data than we do 
-                and sell it to advertisers. At least we're telling you what we collect and letting you delete it.
+                This site can't make you private - only YOU can do that. Most websites collect way more data than this 
+                and sell it to advertisers. At least this site tells you what gets collected and lets you delete it.
               </p>
               <p className="text-sm text-muted-foreground mt-2">
                 <strong>Remember:</strong> Your ISP, Google, Facebook, and countless others are tracking you right now. 
