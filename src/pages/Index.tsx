@@ -224,10 +224,10 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="relative z-10 md:h-[calc(100vh-88px)] pb-20 md:pb-0">
-        {/* Mobile: Calculate height to avoid header overlap */}
-        <div className="md:hidden h-[calc(100vh-180px)]">
-          <div className="h-full p-2">
+      <div className="relative z-10">
+        {/* Mobile: Simple stacked layout */}
+        <div className="md:hidden">
+          <div className="h-[calc(100vh-200px)] p-2">
             {isDataReady ? <SmokeMapLazy onLocationSelect={handleLocationSelect} onCitySearch={handleCitySearch} selectedTime={currentLayer.timestamp} currentLayer={currentLayer} /> : <div className="w-full h-full flex items-center justify-center bg-muted rounded">
                 <MapSkeleton />
               </div>}
@@ -235,7 +235,7 @@ const Index = () => {
         </div>
         
         {/* Desktop: Grid layout */}
-        <div className="hidden md:grid md:grid-cols-4 h-full gap-4 p-4">
+        <div className="hidden md:grid md:grid-cols-4 md:h-[calc(100vh-88px)] gap-4 p-4">
           <div className="md:col-span-3 relative h-full min-h-[400px]">
             {isDataReady ? <SmokeMapLazy onLocationSelect={handleLocationSelect} onCitySearch={handleCitySearch} selectedTime={currentLayer.timestamp} currentLayer={currentLayer} /> : <div className="absolute inset-0">
                 <MapSkeleton />
