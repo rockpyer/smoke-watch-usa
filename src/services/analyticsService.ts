@@ -15,7 +15,8 @@ export type AnalyticsEventType =
   | 'time_change'
   | 'forecast_view'
   | 'user_engagement'
-  | 'session_end';
+  | 'session_end'
+  | 'privacy_data_cleared';
 
 export interface AnalyticsEvent {
   event_type: AnalyticsEventType;

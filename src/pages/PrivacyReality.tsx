@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ExternalLink, Trash2, Shield, Eye, Fingerprint, ArrowLeft } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { analyticsService } from '@/services/analyticsService';
+import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 
 const PrivacyReality = () => {
@@ -12,6 +13,8 @@ const PrivacyReality = () => {
   const [sessionData, setSessionData] = useState<any>(null);
   const [isClearing, setIsClearing] = useState(false);
   const [deletedCount, setDeletedCount] = useState<number | null>(null);
+  const [dataCount, setDataCount] = useState<number | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     // Get current session fingerprint data from analytics service
@@ -32,22 +35,76 @@ const PrivacyReality = () => {
       language: navigator.language,
       platform: navigator.platform
     });
+
+    // Query existing data count
+    queryUserData();
   }, []);
 
+  const queryUserData = async () => {
+    try {
+      const browserSessionId = sessionStorage.getItem('analytics_browser_session_id');
+      const visitorHash = (analyticsService as any).visitorFingerprint?.visitorHash;
+      
+      if (!browserSessionId && !visitorHash) {
+        setDataCount(0);
+        return;
+      }
+
+      const { count } = await supabase
+        .from('smokeusage')
+        .select('*', { count: 'exact', head: true })
+        .or(`browser_session_id.eq.${browserSessionId},visitor_hash.eq.${visitorHash}`);
+
+      setDataCount(count || 0);
+    } catch (error) {
+      console.error('Error querying user data:', error);
+      setDataCount(0);
+    }
+  };
+
   const clearUserData = async () => {
+    if (!showConfirmation) {
+      setShowConfirmation(true);
+      return;
+    }
+
     setIsClearing(true);
+    setShowConfirmation(false);
     
     try {
-      // Simulate data clearing (since we're having TypeScript issues with Supabase)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const browserSessionId = sessionStorage.getItem('analytics_browser_session_id');
+      const visitorHash = (analyticsService as any).visitorFingerprint?.visitorHash;
       
-      setDeletedCount(5); // Show that some data was cleared
+      if (!browserSessionId && !visitorHash) {
+        toast({
+          title: "No Data Found",
+          description: "No tracking data found for your session.",
+        });
+        setIsClearing(false);
+        return;
+      }
+
+      // Delete records matching the current session identifiers
+      const { count } = await supabase
+        .from('smokeusage')
+        .delete({ count: 'exact' })
+        .or(`browser_session_id.eq.${browserSessionId},visitor_hash.eq.${visitorHash}`);
+      
+      setDeletedCount(count || 0);
+      setDataCount(0);
+      
+      // Track the data clearing event (ironically)
+      analyticsService.trackEvent({
+        event_type: 'privacy_data_cleared',
+        extra_data: { deleted_count: count || 0 }
+      });
+      
       toast({
         title: "Data Cleared",
-        description: "Deleted your activity records from our database.",
+        description: `Deleted ${count || 0} records of your activity from our database.`,
       });
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error clearing user data:', error);
       toast({
         title: "Error",
         description: "Failed to clear your data. Please try again.",
@@ -195,6 +252,14 @@ const PrivacyReality = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {dataCount !== null && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm">
+                  <strong>Current records:</strong> {dataCount} events tracked for your session.
+                </p>
+              </div>
+            )}
+            
             <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
               <p className="text-sm text-muted-foreground">
                 <strong>Reality check:</strong> Clearing data here only removes YOUR records from THIS database. 
@@ -202,20 +267,48 @@ const PrivacyReality = () => {
               </p>
             </div>
             
-            <Button 
-              onClick={clearUserData} 
-              disabled={isClearing}
-              className="w-full"
-              variant="destructive"
-            >
-              {isClearing ? 'Clearing Your Data...' : 'Clear My Data From This Site'}
-            </Button>
+            {showConfirmation && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <p className="text-sm font-medium mb-2">Are you sure?</p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  This will permanently delete {dataCount || 0} records of your activity from our database.
+                </p>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={clearUserData} 
+                    disabled={isClearing}
+                    size="sm"
+                    variant="destructive"
+                  >
+                    {isClearing ? 'Deleting...' : 'Yes, Delete My Data'}
+                  </Button>
+                  <Button 
+                    onClick={() => setShowConfirmation(false)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {!showConfirmation && (
+              <Button 
+                onClick={clearUserData} 
+                disabled={isClearing || dataCount === 0}
+                className="w-full"
+                variant="destructive"
+              >
+                {dataCount === 0 ? 'No Data to Clear' : 'Clear My Data From This Site'}
+              </Button>
+            )}
             
             {deletedCount !== null && (
               <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                 <p className="text-sm">
                   ✅ Deleted {deletedCount} records of your activity from our database.
-                  {deletedCount > 0 && " (We logged that you clicked 'Clear Data' though)"}
+                  {deletedCount > 0 && " (We logged that you clicked 'Clear Data' though 😉)"}
                 </p>
               </div>
             )}
