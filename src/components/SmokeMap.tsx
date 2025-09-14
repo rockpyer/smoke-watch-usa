@@ -172,210 +172,242 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         console.log('Layer cleanup completed (some layers may not have existed)');
       }
 
-      // Filter polygons & create GeoJSON features
+      // Filter and process polygons with time-slicing for better performance
       const validPolygons = currentLayer.data.filter(
         polygon => polygon.properties.concentration_ugm3 > 0
       );
 
-      const features = validPolygons.map(polygon => ({
-        type: 'Feature' as const,
-        properties: {
-          smoke_class: polygon.properties.smoke_class,
-          smoke_classdesc: polygon.properties.smoke_classdesc,
-          concentration: polygon.properties.concentration_ugm3,
-          forecast_hour: polygon.properties.forecast_hour || 0
-        },
-        geometry: polygon.geometry
-      }));
-
-      // Add source with NOAA smoke forecast polygons
-      map.current.addSource('smoke-forecast-data', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features
-        }
-      });
-
-      // Fit map to polygons on initial load
-      if (features.length > 0 && lastProcessedTimestamp.current === null) {
-        try {
-            // Robust bounding box calculation for Polygon/MultiPolygon
-            function extractCoords(geometry) {
-              if (!geometry) return [];
-              if (geometry.type === 'Point') return [geometry.coordinates];
-              if (geometry.type === 'Polygon') {
-                // geometry.coordinates: [ [ [lng, lat], ... ] ]
-                return geometry.coordinates.flat();
-              }
-              if (geometry.type === 'MultiPolygon') {
-                // geometry.coordinates: [ [ [ [lng, lat], ... ] ], ... ]
-                return geometry.coordinates.flat(2);
-              }
-              return [];
+      // Process features in smaller chunks to avoid blocking
+      const features: any[] = [];
+      
+      // Non-blocking feature processing
+      const processFeatures = () => {
+        return new Promise<void>((resolve) => {
+          let index = 0;
+          const processChunk = () => {
+            const startTime = performance.now();
+            while (index < validPolygons.length && (performance.now() - startTime) < 5) {
+              const polygon = validPolygons[index];
+              features.push({
+                type: 'Feature' as const,
+                properties: {
+                  smoke_class: polygon.properties.smoke_class,
+                  smoke_classdesc: polygon.properties.smoke_classdesc,
+                  concentration: polygon.properties.concentration_ugm3,
+                  forecast_hour: polygon.properties.forecast_hour || 0
+                },
+                geometry: polygon.geometry
+              });
+              index++;
             }
-            const allCoords = features.flatMap(f => extractCoords(f.geometry));
-            console.log('Bounding box coordinate count:', allCoords.length);
-            let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
-            allCoords.forEach(coord => {
-              if (!Array.isArray(coord) || coord.length < 2) return;
-              const [lng, lat] = coord;
-              if (typeof lng !== 'number' || typeof lat !== 'number') return;
-              if (lng < minLng) minLng = lng;
-              if (lng > maxLng) maxLng = lng;
-              if (lat < minLat) minLat = lat;
-              if (lat > maxLat) maxLat = lat;
-            });
-            if (minLng < maxLng && minLat < maxLat && allCoords.length > 0) {
-              map.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, maxZoom: 8 });
-              console.log('🗺️ Fit map to smoke polygon bounds:', [[minLng, minLat], [maxLng, maxLat]]);
+            
+            if (index < validPolygons.length) {
+              setTimeout(processChunk, 0);
             } else {
-              // Fallback to US bounding box if no valid coordinates
-              const usBounds: [mapboxgl.LngLatLike, mapboxgl.LngLatLike] = [[-125, 24], [-66.9, 49]];
-              map.current.fitBounds(usBounds, { padding: 20, maxZoom: 4 });
-              console.log('🗺️ Fallback: Fit map to US bounds', usBounds);
+              resolve();
             }
-        } catch (e) {
-          console.error('Could not fit map to polygons:', e);
-        }
-      }
+          };
+          processChunk();
+        });
+      };
 
-      // Fill layer
-      map.current.addLayer({
-        id: 'smoke-polygons',
-        type: 'fill',
-        source: 'smoke-forecast-data',
-        paint: {
-          'fill-color': [
-            'case',
-            ['<=', ['get', 'concentration'], 2], 'rgb(255, 255, 255)',
-            ['<=', ['get', 'concentration'], 4], 'rgb(224, 247, 255)',
-            ['<=', ['get', 'concentration'], 6], 'rgb(176, 229, 255)',
-            ['<=', ['get', 'concentration'], 8], 'rgb(128, 210, 255)',
-            ['<=', ['get', 'concentration'], 12],'rgb(102, 204, 255)',
-            ['<=', ['get', 'concentration'], 16],'rgb(0, 204, 102)',
-            ['<=', ['get', 'concentration'], 20],'rgb(102, 204, 0)',
-            ['<=', ['get', 'concentration'], 25],'rgb(204, 204, 0)',
-            ['<=', ['get', 'concentration'], 30],'rgb(255, 204, 0)',
-            ['<=', ['get', 'concentration'], 40],'rgb(255, 153, 0)',
-            ['<=', ['get', 'concentration'], 60],'rgb(255, 102, 0)',
-            ['<=', ['get', 'concentration'], 100],'rgb(255, 51, 0)',
-            ['<=', ['get', 'concentration'], 200],'rgb(204, 0, 51)',
-            'rgb(153, 0, 153)'
-          ],
-          'fill-opacity': [
-            'interpolate',
-            ['linear'],
-            ['get', 'concentration'],
-            0, 0.4,
-            250, 0.8
-          ]
-        }
-      });
+      // Process features and then add to map
+      processFeatures().then(() => {
+        if (!map.current) return;
 
-      // Outline layer
-      map.current.addLayer({
-        id: 'smoke-outlines',
-        type: 'line',
-        source: 'smoke-forecast-data',
-        paint: {
-          'line-color': [
-            'case',
-            ['<=', ['get', 'concentration'], 2], 'rgb(255, 255, 255)',
-            ['<=', ['get', 'concentration'], 4], 'rgb(224, 247, 255)',
-            ['<=', ['get', 'concentration'], 6], 'rgb(176, 229, 255)',
-            ['<=', ['get', 'concentration'], 8], 'rgb(128, 210, 255)',
-            ['<=', ['get', 'concentration'], 12],'rgb(102, 204, 255)',
-            ['<=', ['get', 'concentration'], 16],'rgb(0, 204, 102)',
-            ['<=', ['get', 'concentration'], 20],'rgb(102, 204, 0)',
-            ['<=', ['get', 'concentration'], 25],'rgb(204, 204, 0)',
-            ['<=', ['get', 'concentration'], 30],'rgb(255, 204, 0)',
-            ['<=', ['get', 'concentration'], 40],'rgb(255, 153, 0)',
-            ['<=', ['get', 'concentration'], 60],'rgb(255, 102, 0)',
-            ['<=', ['get', 'concentration'], 100],'rgb(255, 51, 0)',
-            ['<=', ['get', 'concentration'], 200],'rgb(204, 0, 51)',
-            'rgb(153, 0, 153)'
-          ],
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            5, 1,
-            10, 2
-          ],
-          'line-opacity': 0.8
-        }
-      });
-
-      // Click handler for polygons
-      map.current.on('click', 'smoke-polygons', (e) => {
-        if (e.features && e.features[0]) {
-          const feature = e.features[0];
-          const props = feature.properties;
-          let aqiCategory = 'Good';
-          let healthAdvice = 'Air quality is good. Enjoy outdoor activities!';
-          const concentration = props?.concentration || 0;
-          if (concentration > 250) {
-            aqiCategory = 'Hazardous';
-            healthAdvice = 'Health emergency. Avoid all outdoor activities.';
-          } else if (concentration > 150) {
-            aqiCategory = 'Very Unhealthy';
-            healthAdvice = 'Health alert. Avoid outdoor activities.';
-          } else if (concentration > 55) {
-            aqiCategory = 'Unhealthy';
-            healthAdvice = 'Everyone should limit outdoor activities.';
-          } else if (concentration > 35) {
-            aqiCategory = 'Unhealthy for Sensitive Groups';
-            healthAdvice = 'Sensitive individuals should limit outdoor activities.';
-          } else if (concentration > 12) {
-            aqiCategory = 'Moderate';
-            healthAdvice = 'Moderate air quality. Most people can continue normal activities.';
+        // Add source with NOAA smoke forecast polygons
+        map.current.addSource('smoke-forecast-data', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features
           }
-          if (onLocationSelect) {
-            reverseGeocode(e.lngLat.lng, e.lngLat.lat).then((locationName) => {
-              onLocationSelect(
-                [e.lngLat.lng, e.lngLat.lat],
-                locationName,
-                {
-                  concentration_ugm3: concentration,
-                  forecast_hour: props?.forecast_hour || '0',
-                  smoke_class: props?.smoke_class || 1,
-                  smoke_classdesc: props?.smoke_classdesc || '',
-                  valid_time: props?.valid_time || new Date().toISOString()
+        });
+
+        // Fit map to polygons on initial load
+        if (features.length > 0 && lastProcessedTimestamp.current === null) {
+          try {
+              // Robust bounding box calculation for Polygon/MultiPolygon
+              function extractCoords(geometry) {
+                if (!geometry) return [];
+                if (geometry.type === 'Point') return [geometry.coordinates];
+                if (geometry.type === 'Polygon') {
+                  // geometry.coordinates: [ [ [lng, lat], ... ] ]
+                  return geometry.coordinates.flat();
                 }
-              );
-            });
+                if (geometry.type === 'MultiPolygon') {
+                  // geometry.coordinates: [ [ [ [lng, lat], ... ] ], ... ]
+                  return geometry.coordinates.flat(2);
+                }
+                return [];
+              }
+              const allCoords = features.flatMap(f => extractCoords(f.geometry));
+              console.log('Bounding box coordinate count:', allCoords.length);
+              let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+              allCoords.forEach(coord => {
+                if (!Array.isArray(coord) || coord.length < 2) return;
+                const [lng, lat] = coord;
+                if (typeof lng !== 'number' || typeof lat !== 'number') return;
+                if (lng < minLng) minLng = lng;
+                if (lng > maxLng) maxLng = lng;
+                if (lat < minLat) minLat = lat;
+                if (lat > maxLat) maxLat = lat;
+              });
+              if (minLng < maxLng && minLat < maxLat && allCoords.length > 0) {
+                map.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, maxZoom: 8 });
+                console.log('🗺️ Fit map to smoke polygon bounds:', [[minLng, minLat], [maxLng, maxLat]]);
+              } else {
+                // Fallback to US bounding box if no valid coordinates
+                const usBounds: [mapboxgl.LngLatLike, mapboxgl.LngLatLike] = [[-125, 24], [-66.9, 49]];
+                map.current.fitBounds(usBounds, { padding: 20, maxZoom: 4 });
+                console.log('🗺️ Fallback: Fit map to US bounds', usBounds);
+              }
+          } catch (e) {
+            console.error('Could not fit map to polygons:', e);
           }
-          new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div class="p-3">
-                <h4 class="font-semibold text-lg">NOAA Smoke Forecast</h4>
-                <div class="mt-2 space-y-1">
-                  <p class="text-sm"><strong>Air Quality:</strong> ${aqiCategory}</p>
-                  <p class="text-sm"><strong>Concentration:</strong> ${concentration} μg/m³</p>
-                  <p class="text-sm"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
-                </div>
-                <div class="mt-3 p-2 bg-gray-50 rounded">
-                  <p class="text-xs text-gray-600">${healthAdvice}</p>
-                </div>
-              </div>
-            `)
-            .addTo(map.current!);
         }
-      });
 
-      map.current.on('mouseenter', 'smoke-polygons', () => {
-        map.current!.getCanvas().style.cursor = 'pointer';
-      });
+        // Fill layer
+        map.current.addLayer({
+          id: 'smoke-polygons',
+          type: 'fill',
+          source: 'smoke-forecast-data',
+          paint: {
+            'fill-color': [
+              'case',
+              ['<=', ['get', 'concentration'], 2], 'rgb(255, 255, 255)',
+              ['<=', ['get', 'concentration'], 4], 'rgb(224, 247, 255)',
+              ['<=', ['get', 'concentration'], 6], 'rgb(176, 229, 255)',
+              ['<=', ['get', 'concentration'], 8], 'rgb(128, 210, 255)',
+              ['<=', ['get', 'concentration'], 12],'rgb(102, 204, 255)',
+              ['<=', ['get', 'concentration'], 16],'rgb(0, 204, 102)',
+              ['<=', ['get', 'concentration'], 20],'rgb(102, 204, 0)',
+              ['<=', ['get', 'concentration'], 25],'rgb(204, 204, 0)',
+              ['<=', ['get', 'concentration'], 30],'rgb(255, 204, 0)',
+              ['<=', ['get', 'concentration'], 40],'rgb(255, 153, 0)',
+              ['<=', ['get', 'concentration'], 60],'rgb(255, 102, 0)',
+              ['<=', ['get', 'concentration'], 100],'rgb(255, 51, 0)',
+              ['<=', ['get', 'concentration'], 200],'rgb(204, 0, 51)',
+              'rgb(153, 0, 153)'
+            ],
+            'fill-opacity': [
+              'interpolate',
+              ['linear'],
+              ['get', 'concentration'],
+              0, 0.4,
+              250, 0.8
+            ]
+          }
+        });
 
-      map.current.on('mouseleave', 'smoke-polygons', () => {
-        map.current!.getCanvas().style.cursor = '';
+        // Outline layer
+        map.current.addLayer({
+          id: 'smoke-outlines',
+          type: 'line',
+          source: 'smoke-forecast-data',
+          paint: {
+            'line-color': [
+              'case',
+              ['<=', ['get', 'concentration'], 2], 'rgb(255, 255, 255)',
+              ['<=', ['get', 'concentration'], 4], 'rgb(224, 247, 255)',
+              ['<=', ['get', 'concentration'], 6], 'rgb(176, 229, 255)',
+              ['<=', ['get', 'concentration'], 8], 'rgb(128, 210, 255)',
+              ['<=', ['get', 'concentration'], 12],'rgb(102, 204, 255)',
+              ['<=', ['get', 'concentration'], 16],'rgb(0, 204, 102)',
+              ['<=', ['get', 'concentration'], 20],'rgb(102, 204, 0)',
+              ['<=', ['get', 'concentration'], 25],'rgb(204, 204, 0)',
+              ['<=', ['get', 'concentration'], 30],'rgb(255, 204, 0)',
+              ['<=', ['get', 'concentration'], 40],'rgb(255, 153, 0)',
+              ['<=', ['get', 'concentration'], 60],'rgb(255, 102, 0)',
+              ['<=', ['get', 'concentration'], 100],'rgb(255, 51, 0)',
+              ['<=', ['get', 'concentration'], 200],'rgb(204, 0, 51)',
+              'rgb(153, 0, 153)'
+            ],
+            'line-width': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              5, 1,
+              10, 2
+            ],
+            'line-opacity': 0.8
+          }
+        });
+
+        // Click handler for polygons
+        map.current.on('click', 'smoke-polygons', (e) => {
+          if (e.features && e.features[0]) {
+            const feature = e.features[0];
+            const props = feature.properties;
+            let aqiCategory = 'Good';
+            let healthAdvice = 'Air quality is good. Enjoy outdoor activities!';
+            const concentration = props?.concentration || 0;
+            if (concentration > 250) {
+              aqiCategory = 'Hazardous';
+              healthAdvice = 'Health emergency. Avoid all outdoor activities.';
+            } else if (concentration > 150) {
+              aqiCategory = 'Very Unhealthy';
+              healthAdvice = 'Health alert. Avoid outdoor activities.';
+            } else if (concentration > 55) {
+              aqiCategory = 'Unhealthy';
+              healthAdvice = 'Everyone should limit outdoor activities.';
+            } else if (concentration > 35) {
+              aqiCategory = 'Unhealthy for Sensitive Groups';
+              healthAdvice = 'Sensitive individuals should limit outdoor activities.';
+            } else if (concentration > 12) {
+              aqiCategory = 'Moderate';
+              healthAdvice = 'Moderate air quality. Most people can continue normal activities.';
+            }
+            if (onLocationSelect) {
+              reverseGeocode(e.lngLat.lng, e.lngLat.lat).then((locationName) => {
+                onLocationSelect(
+                  [e.lngLat.lng, e.lngLat.lat],
+                  locationName,
+                  {
+                    concentration_ugm3: concentration,
+                    forecast_hour: props?.forecast_hour || '0',
+                    smoke_class: props?.smoke_class || 1,
+                    smoke_classdesc: props?.smoke_classdesc || '',
+                    valid_time: props?.valid_time || new Date().toISOString()
+                  }
+                );
+              });
+            }
+            new mapboxgl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div class="p-3">
+                  <h4 class="font-semibold text-lg">NOAA Smoke Forecast</h4>
+                  <div class="mt-2 space-y-1">
+                    <p class="text-sm"><strong>Air Quality:</strong> ${aqiCategory}</p>
+                    <p class="text-sm"><strong>Concentration:</strong> ${concentration} μg/m³</p>
+                    <p class="text-sm"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
+                  </div>
+                  <div class="mt-3 p-2 bg-gray-50 rounded">
+                    <p class="text-xs text-gray-600">${healthAdvice}</p>
+                  </div>
+                </div>
+              `)
+              .addTo(map.current!);
+          }
+        });
+
+        map.current.on('mouseenter', 'smoke-polygons', () => {
+          map.current!.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.current.on('mouseleave', 'smoke-polygons', () => {
+          map.current!.getCanvas().style.cursor = '';
+        });
+
+        setIsUpdatingLayers(false);
+      }).catch((error) => {
+        console.error('Error processing smoke data:', error);
+        setIsUpdatingLayers(false);
       });
 
     } catch (error) {
       console.error('Error adding NOAA smoke layers:', error);
-    } finally {
       setIsUpdatingLayers(false);
     }
   }, [isMapLoaded, isUpdatingLayers, currentLayer, onLocationSelect]);

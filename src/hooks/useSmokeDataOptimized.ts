@@ -24,19 +24,20 @@ interface SmokeLayer {
 const timeSlicedProcess = <T>(
   items: T[],
   processor: (item: T, index: number) => void,
-  chunkSize: number = 50
+  chunkSize: number = 25 // Reduced chunk size for better performance
 ): Promise<void> => {
   return new Promise((resolve) => {
     let index = 0;
     
     const processChunk = () => {
+      const startTime = performance.now();
       const endIndex = Math.min(index + chunkSize, items.length);
       
-      for (let i = index; i < endIndex; i++) {
-        processor(items[i], i);
+      // Process chunk but yield if taking too long
+      while (index < endIndex && (performance.now() - startTime) < 5) {
+        processor(items[index], index);
+        index++;
       }
-      
-      index = endIndex;
       
       if (index < items.length) {
         // Use scheduler.postTask if available, fallback to setTimeout

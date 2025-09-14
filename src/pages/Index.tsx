@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import SmokeMap from '@/components/SmokeMap';
+import React, { useState, useEffect, useMemo } from 'react';
+import SmokeMapLazy from '@/components/SmokeMapLazy';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
 import LocationInfo from '@/components/LocationInfo';
@@ -89,7 +89,11 @@ const Index = () => {
     }
   }, [searchedCity]);
 
-  const cityTimeZone = searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined;
+  // Memoize timezone calculation to prevent unnecessary recalculations
+  const cityTimeZone = useMemo(() => 
+    searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined,
+    [searchedCity?.coordinates.lat, searchedCity?.coordinates.lng]
+  );
   
   useEffect(() => {
     document.title = 'Will smoke affect my biking/hiking/fishing plans? – Real-time Forecast';
@@ -117,16 +121,21 @@ const Index = () => {
   console.log(`  currentLayerIndex: ${currentLayerIndex}`);
   console.log(`  smokeLayers count: ${smokeLayers.length}`);;
 
-  const handleLocationSelect = (coordinates: [number, number], locationName: string, smokeData?: any) => {
-    setSelectedLocation({ coordinates, name: locationName, smokeData });
-    setSearchedCity({ coordinates: { lat: coordinates[1], lng: coordinates[0] }, name: locationName });
-  };
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleLocationSelect = useMemo(() => 
+    (coordinates: [number, number], locationName: string, smokeData?: any) => {
+      setSelectedLocation({ coordinates, name: locationName, smokeData });
+      setSearchedCity({ coordinates: { lat: coordinates[1], lng: coordinates[0] }, name: locationName });
+    }, []
+  );
 
-  const handleCitySearch = (coordinates: { lat: number; lng: number }, cityName: string) => {
-    const smokeProperties = getSmokeDataForLocation({ lat: coordinates.lat, lng: coordinates.lng }, smokeData, currentLayerIndex);
-    setSearchedCity({ coordinates, name: cityName });
-    setSelectedLocation({ coordinates: [coordinates.lng, coordinates.lat], name: cityName, smokeData: smokeProperties });
-  };
+  const handleCitySearch = useMemo(() => 
+    (coordinates: { lat: number; lng: number }, cityName: string) => {
+      const smokeProperties = getSmokeDataForLocation({ lat: coordinates.lat, lng: coordinates.lng }, smokeData, currentLayerIndex);
+      setSearchedCity({ coordinates, name: cityName });
+      setSelectedLocation({ coordinates: [coordinates.lng, coordinates.lat], name: cityName, smokeData: smokeProperties });
+    }, [smokeData, currentLayerIndex]
+  );
 
   console.log('🚀 INDEX: Component rendering...');
 
@@ -195,7 +204,7 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           <div className="md:col-span-3 relative h-full min-h-[400px]">
             {isDataReady ? (
-              <SmokeMap 
+              <SmokeMapLazy 
                 onLocationSelect={handleLocationSelect}
                 onCitySearch={handleCitySearch}
                 selectedTime={currentLayer.timestamp}
