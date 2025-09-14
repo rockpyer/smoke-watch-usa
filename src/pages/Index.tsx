@@ -217,15 +217,25 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="block md:hidden mt-2 space-y-1 h-[85px]">
+          <div className="block md:hidden mt-2 space-y-1 h-[75px] pb-2">
             {searchedCity && isDataReady ? <CityForecast cityCoordinates={searchedCity?.coordinates} cityName={searchedCity?.name} selectedTime={currentLayer?.timestamp} compact /> : <ForecastSkeleton compact />}
             <TimeControls currentIndex={currentLayerIndex} onTimeChange={handleTimeChange} autoPlay={false} availableTimes={smokeLayers.map(layer => layer.timestamp)} timeZone={cityTimeZone} compact />
           </div>
         </div>
       </header>
 
-      <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
-        <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
+      <div className="relative z-10 md:h-[calc(100vh-88px)] pb-20 md:pb-0">
+        {/* Mobile: Calculate height to avoid header overlap */}
+        <div className="md:hidden h-[calc(100vh-180px)]">
+          <div className="h-full p-2">
+            {isDataReady ? <SmokeMapLazy onLocationSelect={handleLocationSelect} onCitySearch={handleCitySearch} selectedTime={currentLayer.timestamp} currentLayer={currentLayer} /> : <div className="w-full h-full flex items-center justify-center bg-muted rounded">
+                <MapSkeleton />
+              </div>}
+          </div>
+        </div>
+        
+        {/* Desktop: Grid layout */}
+        <div className="hidden md:grid md:grid-cols-4 h-full gap-4 p-4">
           <div className="md:col-span-3 relative h-full min-h-[400px]">
             {isDataReady ? <SmokeMapLazy onLocationSelect={handleLocationSelect} onCitySearch={handleCitySearch} selectedTime={currentLayer.timestamp} currentLayer={currentLayer} /> : <div className="absolute inset-0">
                 <MapSkeleton />
