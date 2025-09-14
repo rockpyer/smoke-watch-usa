@@ -273,10 +273,10 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       </div>
 
       {/* Combined scrolling container for date, forecast, and time */}
-      <div className="overflow-x-auto overflow-y-hidden flex-1 min-h-0 pb-1">
-        <div className="flex flex-col min-w-max h-full justify-center space-y-1">
+      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0">
+        <div className="flex flex-col min-w-max h-full justify-between py-1">
           {/* Date labels row */}
-          <div className="flex text-[9px] text-muted-foreground font-medium h-3 mb-1">
+          <div className="flex text-[9px] text-muted-foreground font-medium h-3 flex-shrink-0">
             {forecastData.map((f, i) => {
               const dateLabel = dateLabels.find(label => label.index === i);
               return (
@@ -291,7 +291,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           </div>
 
           {/* 48-hour single-line timeline with enhanced tooltips */}
-          <div className="flex items-center space-x-0.5 py-2">
+          <div className="flex items-center space-x-0.5 flex-1 justify-center">
             {forecastData.map((f, i) => {
               const category = concentrationToCategory(f.concentration);
               const colorClass = categoryClass[category] || 'bg-muted';
@@ -325,7 +325,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           </div>
 
           {/* Time scale (single line, small) */}
-          <div className="flex text-[10px] text-muted-foreground whitespace-nowrap mt-1">
+          <div className="flex text-[10px] text-muted-foreground whitespace-nowrap h-4 flex-shrink-0">
             {forecastData.map((f, i) => {
               const timeLabel = tickIndices.includes(i) ? formatLocal(f.timestamp) : '';
               return (
