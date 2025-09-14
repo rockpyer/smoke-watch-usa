@@ -4,12 +4,15 @@ import { AnalyticsMonitor } from '@/utils/analyticsMonitor';
 
 // Convert UTC timestamp to Mountain Time (proper timezone handling)
 const toMountainTime = (date: Date): Date => {
-  // Mountain Time is UTC-7 (MST) or UTC-6 (MDT during daylight saving time)
-  // Use proper timezone conversion that handles daylight saving automatically
-  const mountainTimeString = date.toLocaleString("en-US", { 
+  // Create a new date object that represents the same moment in Mountain Time
+  // This handles daylight saving time automatically
+  const utcTime = date.getTime();
+  const mountainOffset = new Date().toLocaleString("en-US", { 
     timeZone: "America/Denver" 
   });
-  return new Date(mountainTimeString);
+  // Use Intl API for proper timezone conversion
+  const mountainDate = new Date(utcTime);
+  return new Date(mountainDate.toLocaleString("en-US", { timeZone: "America/Denver" }));
 };
 
 export type AnalyticsEventType = 

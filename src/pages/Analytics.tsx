@@ -150,11 +150,12 @@ const Analytics = () => {
       // Hourly activity (convert to Mountain Time for proper hour calculation)
       const hourlyCount = Array.from({ length: 24 }, (_, i) => ({ hour: i, events: 0 }));
       events?.forEach(e => {
-        // Convert to Mountain Time properly
-        const mountainTime = new Date(e.timestamp).toLocaleString("en-US", { 
-          timeZone: "America/Denver" 
-        });
-        const hour = new Date(mountainTime).getHours();
+        // Use proper timezone conversion - get hour directly in Mountain Time
+        const hour = parseInt(new Date(e.timestamp).toLocaleString("en-US", { 
+          timeZone: "America/Denver",
+          hour: "numeric",
+          hour12: false
+        }));
         hourlyCount[hour].events++;
       });
 
