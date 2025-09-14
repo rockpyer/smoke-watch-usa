@@ -217,17 +217,21 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="block md:hidden mt-2 space-y-1 h-[75px] pb-2">
+          <div className="block md:hidden mt-2">
             {searchedCity && isDataReady ? <CityForecast cityCoordinates={searchedCity?.coordinates} cityName={searchedCity?.name} selectedTime={currentLayer?.timestamp} compact /> : <ForecastSkeleton compact />}
-            <TimeControls currentIndex={currentLayerIndex} onTimeChange={handleTimeChange} autoPlay={false} availableTimes={smokeLayers.map(layer => layer.timestamp)} timeZone={cityTimeZone} compact />
           </div>
         </div>
       </header>
 
+      {/* Mobile TimeControls Section - Separate from header */}
+      <div className="md:hidden bg-background border-b border-border p-2">
+        <TimeControls currentIndex={currentLayerIndex} onTimeChange={handleTimeChange} autoPlay={false} availableTimes={smokeLayers.map(layer => layer.timestamp)} timeZone={cityTimeZone} compact />
+      </div>
+
       <div className="relative z-10">
         {/* Mobile: Simple stacked layout */}
         <div className="md:hidden">
-          <div className="h-[calc(100vh-200px)] p-2">
+          <div className="h-[calc(100vh-280px)] p-2">
             {isDataReady ? <SmokeMapLazy onLocationSelect={handleLocationSelect} onCitySearch={handleCitySearch} selectedTime={currentLayer.timestamp} currentLayer={currentLayer} /> : <div className="w-full h-full flex items-center justify-center bg-muted rounded">
                 <MapSkeleton />
               </div>}
