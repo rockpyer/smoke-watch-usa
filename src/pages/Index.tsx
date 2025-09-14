@@ -158,16 +158,16 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-sky-gradient">
       <header className="relative z-20 bg-background/95 backdrop-blur-sm border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center space-x-2 flex-shrink-0">
-              <Cloud className="h-6 w-6 text-primary" />
-              <div>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 flex-shrink min-w-0">
+              <Cloud className="h-8 w-8 text-primary flex-shrink-0" />
+              <div className="min-w-0">
                 <div className="flex items-center space-x-3">
-                  <h1 className="text-sm md:text-lg font-bold text-foreground">Will smoke affect my biking/hiking/fishing plans?</h1>
+                  <h1 className="text-base md:text-xl font-bold text-foreground truncate">Will smoke affect my biking/hiking/fishing plans?</h1>
                   <Link 
                     to="/analytics" 
-                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center space-x-1"
+                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center space-x-1 flex-shrink-0"
                   >
                     <BarChart3 className="h-3 w-3" />
                     <span>Analytics</span>
@@ -177,7 +177,7 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="hidden md:block flex-1 min-h-[100px]">
+            <div className="hidden md:block flex-1 max-w-md ml-4 h-[80px] overflow-y-auto">
               {searchedCity && isDataReady ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
@@ -213,7 +213,7 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="relative z-10 h-[calc(100vh-140px)] pb-16 md:pb-0">
+      <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           <div className="md:col-span-3 relative h-full min-h-[400px]">
             {isDataReady ? (
