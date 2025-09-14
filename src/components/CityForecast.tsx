@@ -255,10 +255,10 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   const { tz, tzShort, concentrationToCategory, categoryClass, formatLocal, total, tickIndices, currentTimeIndex, dateLabels } = timelineData;
 
   return (
-    <Card className={`${compact ? 'p-2' : 'p-2'} bg-background/95 backdrop-blur-sm shadow-lg w-full`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className={`${compact ? 'text-xs' : 'text-xs'} font-semibold text-foreground truncate`}>
-          {cityName} • 48h Smoke Forecast <span className="text-[9px] text-muted-foreground">({tzShort})</span>
+    <Card className={`${compact ? 'p-1.5' : 'p-2'} bg-background/95 backdrop-blur-sm shadow-lg w-full h-full flex flex-col`}>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className={`${compact ? 'text-xs' : 'text-xs'} font-semibold text-foreground truncate flex-1 min-w-0`}>
+          {cityName} • 48h Forecast <span className="text-[9px] text-muted-foreground">({tzShort})</span>
         </h3>
         <Button
           variant="ghost"
@@ -273,8 +273,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       </div>
 
       {/* Combined scrolling container for date, forecast, and time */}
-      <div className="overflow-x-auto pb-2"> {/* Added padding-bottom for scrollbar */}
-        <div className="flex flex-col min-w-max"> {/* This ensures content takes minimum width */}
+      <div className="overflow-x-auto overflow-y-hidden flex-1 pb-1">
+        <div className="flex flex-col min-w-max h-full">
           {/* Date labels row */}
           <div className="flex text-[9px] text-muted-foreground font-medium h-3 mb-1">
             {forecastData.map((f, i) => {
