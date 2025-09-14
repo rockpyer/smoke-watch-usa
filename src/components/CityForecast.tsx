@@ -274,7 +274,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 
       {/* Combined scrolling container for date, forecast, and time */}
       <div className="overflow-x-auto overflow-y-hidden flex-1 min-h-0 pb-1">
-        <div className="flex flex-col min-w-max h-full">
+        <div className="flex flex-col min-w-max h-full justify-center space-y-1">
           {/* Date labels row */}
           <div className="flex text-[9px] text-muted-foreground font-medium h-3 mb-1">
             {forecastData.map((f, i) => {
@@ -291,7 +291,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           </div>
 
           {/* 48-hour single-line timeline with enhanced tooltips */}
-          <div className="flex items-center space-x-0.5 py-1">
+          <div className="flex items-center space-x-0.5 py-2">
             {forecastData.map((f, i) => {
               const category = concentrationToCategory(f.concentration);
               const colorClass = categoryClass[category] || 'bg-muted';

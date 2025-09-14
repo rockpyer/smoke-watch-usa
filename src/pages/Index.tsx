@@ -212,7 +212,7 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="hidden md:block flex-1 max-w-[600px] h-[80px] overflow-hidden">
+            <div className="hidden md:block flex-1 max-w-[600px] h-[120px] overflow-hidden">
               {searchedCity && isDataReady ? <CityForecast cityCoordinates={searchedCity?.coordinates} cityName={searchedCity?.name} selectedTime={currentLayer?.timestamp} compact={true} /> : <ForecastSkeleton />}
             </div>
           </div>
