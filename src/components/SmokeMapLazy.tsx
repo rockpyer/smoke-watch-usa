@@ -8,6 +8,7 @@ interface SmokeMapLazyProps {
   onCitySearch?: (coordinates: { lat: number; lng: number }, cityName: string) => void;
   selectedTime?: Date;
   currentLayer?: any;
+  smokeLayers?: any[];
 }
 
 const SmokeMapLazy: React.FC<SmokeMapLazyProps> = memo((props) => {

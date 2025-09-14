@@ -24,7 +24,9 @@ interface SmokeLayer {
 const timeSlicedProcess = <T>(
   items: T[],
   processor: (item: T, index: number) => void,
-  chunkSize: number = 100 // Increased chunk size for better performance
+  chunkSize: number = 100, // Increased chunk size for better performance
+  isMobile: boolean = false,
+  isFirstLayer: boolean = false
 ): Promise<void> => {
   return new Promise((resolve) => {
     let index = 0;
@@ -40,22 +42,26 @@ const timeSlicedProcess = <T>(
       }
       
       if (index < items.length) {
+        // Optimize mobile performance: reduce delays for first layer
+        const delay = isFirstLayer && isMobile ? 8 : 32;
+        
         // Use requestIdleCallback for non-blocking processing when available
-        if ('requestIdleCallback' in window) {
+        if ('requestIdleCallback' in window && !isFirstLayer) {
           requestIdleCallback(processChunk, { timeout: 100 });
         } else if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
-          (window as any).scheduler.postTask(processChunk, { priority: 'background' });
+          (window as any).scheduler.postTask(processChunk, { priority: isFirstLayer ? 'user-visible' : 'background' });
         } else {
-          // Reduced timeout for faster processing
-          setTimeout(processChunk, 32);
+          setTimeout(processChunk, delay);
         }
       } else {
         resolve();
       }
     };
     
-    // Start processing immediately if there's idle time, otherwise defer
-    if ('requestIdleCallback' in window) {
+    // Start processing immediately for first layer, otherwise defer
+    if (isFirstLayer) {
+      processChunk();
+    } else if ('requestIdleCallback' in window) {
       requestIdleCallback(processChunk, { timeout: 100 });
     } else if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
       (window as any).scheduler.postTask(processChunk, { priority: 'background' });
@@ -88,10 +94,13 @@ export const useSmokeData = () => {
       const data = await smokeDataService.fetchSmokeData();
       
       // Process data in time-sliced chunks to prevent blocking
+      // Detect mobile device
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
       const processedLayers: SmokeLayer[] = [];
-      await timeSlicedProcess(data, (layer) => {
+      await timeSlicedProcess(data, (layer, index) => {
         processedLayers.push(layer);
-      });
+      }, 100, isMobile, true); // First layer priority
       
       setSmokeLayers(processedLayers);
       console.log(`Loaded ${processedLayers.length} smoke forecast layers`);

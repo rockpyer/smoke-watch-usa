@@ -152,8 +152,10 @@ const Index = () => {
 
   console.log('🚀 INDEX: Component rendering...');
 
-  // Only render SmokeMap when selectedTime and currentLayer are both set
-  const isDataReady = !isLoading && smokeLayers.length > 0 && currentLayer !== undefined && currentLayer.timestamp !== undefined;
+  // Enhanced data ready check: ensure we have smoke data AND either current layer or at least one layer
+  const isDataReady = !isLoading && smokeLayers.length > 0 && 
+    (currentLayer !== undefined || smokeLayers.length > 0) &&
+    (currentLayer?.timestamp !== undefined || smokeLayers[0]?.timestamp !== undefined);
 
   return (
     <div className="min-h-screen bg-sky-gradient">
@@ -227,6 +229,7 @@ const Index = () => {
                 onCitySearch={handleCitySearch}
                 selectedTime={currentLayer.timestamp}
                 currentLayer={currentLayer}
+                smokeLayers={smokeLayers}
               />
             ) : (
               <div className="absolute inset-0">

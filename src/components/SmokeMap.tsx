@@ -21,13 +21,15 @@ interface SmokeMapProps {
   onCitySearch?: (coordinates: { lat: number; lng: number }, cityName: string) => void;
   selectedTime?: Date;
   currentLayer?: SmokeLayer | null;
+  smokeLayers?: SmokeLayer[];
 }
 
 const SmokeMap: React.FC<SmokeMapProps> = ({
   onLocationSelect,
   onCitySearch,
   selectedTime,
-  currentLayer
+  currentLayer,
+  smokeLayers = []
 }) => {
   const { trackLocationClick, trackCitySearch } = useAnalytics();
   // All state and ref declarations must be here, inside the function body but top level
@@ -520,18 +522,25 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   useEffect(() => {
     if (
       map.current &&
-      currentLayer &&
       isMapLoaded &&
       !isUpdatingLayers &&
       map.current.isStyleLoaded()
     ) {
-      const currentTimestamp = currentLayer.timestamp.toISOString();
-      if (lastProcessedTimestamp.current !== currentTimestamp) {
-        addSmokeLayer();
-        lastProcessedTimestamp.current = currentTimestamp;
+      // Fallback layer selection: use currentLayer if available, otherwise use the first layer
+      const layerToRender = currentLayer || (smokeLayers && smokeLayers.length > 0 ? smokeLayers[0] : null);
+      
+      if (layerToRender) {
+        const currentTimestamp = layerToRender.timestamp.toISOString();
+        if (lastProcessedTimestamp.current !== currentTimestamp) {
+          console.log('🗺️ SmokeMap: Rendering layer for timestamp:', currentTimestamp);
+          addSmokeLayer();
+          lastProcessedTimestamp.current = currentTimestamp;
+        }
+      } else {
+        console.log('🗺️ SmokeMap: No layer available to render');
       }
     }
-  }, [currentLayer, isMapLoaded, isUpdatingLayers, addSmokeLayer]);
+  }, [currentLayer, isMapLoaded, isUpdatingLayers, addSmokeLayer, smokeLayers]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
