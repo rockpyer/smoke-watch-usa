@@ -32,6 +32,12 @@ interface AnalyticsData {
     bounceRate: number;
     highEngagementSessions: number;
   };
+  visitorStats: {
+    uniqueVisitors: number;
+    userSessions: number;
+    developerSessions: number;
+    visitorSessionRatio: number;
+  };
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--destructive))'];
@@ -64,6 +70,34 @@ const Analytics = () => {
       // Process the data
       const sessions = new Set(events?.map(e => e.session_id)).size;
       const totalEvents = events?.length || 0;
+
+      // Calculate unique visitors using new fingerprinting
+      const uniqueVisitorIds = new Set();
+      const userSessionIds = new Set();
+      const developerSessionIds = new Set();
+      
+      events?.forEach(e => {
+        if (e.browser_session_id && e.visitor_hash) {
+          // Combine browser session ID and visitor hash for unique visitor identification
+          const visitorId = `${e.browser_session_id}_${e.visitor_hash}`;
+          uniqueVisitorIds.add(visitorId);
+        }
+        
+        if (e.session_id) {
+          if (e.is_developer) {
+            developerSessionIds.add(e.session_id);
+          } else {
+            userSessionIds.add(e.session_id);
+          }
+        }
+      });
+
+      const visitorStats = {
+        uniqueVisitors: uniqueVisitorIds.size,
+        userSessions: userSessionIds.size,
+        developerSessions: developerSessionIds.size,
+        visitorSessionRatio: uniqueVisitorIds.size > 0 ? Math.round((userSessionIds.size / uniqueVisitorIds.size) * 100) / 100 : 0
+      };
       
       // Calculate average session duration
       const sessionDurations = events?.filter(e => e.page_duration_seconds)
@@ -77,10 +111,10 @@ const Analytics = () => {
         .map(e => `${e.latitude},${e.longitude}`) || [];
       const uniqueLocations = new Set(locations).size;
 
-      // Top cities
+      // Top cities (exclude Boulder from analysis since it's the default)
       const cityCount: Record<string, number> = {};
       events?.forEach(e => {
-        if (e.city) {
+        if (e.city && e.city !== 'Boulder, CO') {
           cityCount[e.city] = (cityCount[e.city] || 0) + 1;
         }
       });
@@ -89,10 +123,10 @@ const Analytics = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
-      // Geographic distribution (top states/regions from cities)
+      // Geographic distribution (top states/regions from cities, exclude default Boulder)
       const stateCount: Record<string, number> = {};
       events?.forEach(e => {
-        if (e.city) {
+        if (e.city && e.city !== 'Boulder, CO') {
           // Extract state/region from city name (assuming format like "City, State")
           const parts = e.city.split(',');
           const state = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
@@ -240,7 +274,8 @@ const Analytics = () => {
         deviceTypes,
         userEngagement,
         sessionEngagement: sessionEngagement.slice(0, 20), // Top 20 sessions
-        engagementStats
+        engagementStats,
+        visitorStats
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -375,7 +410,10 @@ const Analytics = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data?.totalSessions || 0}</div>
+              <div className="text-2xl font-bold">{data?.visitorStats?.uniqueVisitors || 0}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {data?.visitorStats?.userSessions || 0} user sessions, {data?.visitorStats?.developerSessions || 0} dev sessions
+              </div>
             </CardContent>
           </Card>
         </div>

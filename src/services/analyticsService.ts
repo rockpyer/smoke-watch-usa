@@ -36,6 +36,12 @@ export interface AnalyticsEvent {
   session_start_time?: string;
   session_end_time?: string;
   page_duration_seconds?: number;
+  browser_session_id?: string;
+  is_developer?: boolean;
+  visitor_hash?: string;
+  user_agent_hash?: string;
+  viewport?: string;
+  timezone?: string;
 }
 
 class AnalyticsService {
@@ -43,6 +49,14 @@ class AnalyticsService {
   private sessionStartTime: Date;
   private eventQueue: AnalyticsEvent[] = [];
   private flushTimeout: NodeJS.Timeout | null = null;
+  private visitorFingerprint: {
+    browserSessionId: string;
+    isDeveloper: boolean;
+    visitorHash: string;
+    userAgentHash: string;
+    viewport: string;
+    timezone: string;
+  } | null = null;
   
   // Rate limiting and deduplication
   private lastEventTimes: Map<string, number> = new Map();
@@ -57,7 +71,9 @@ class AnalyticsService {
   constructor() {
     this.sessionId = crypto.randomUUID();
     this.sessionStartTime = new Date();
+    this.visitorFingerprint = this.generateVisitorFingerprint();
     console.log('📊 Analytics: Starting new session', this.sessionId);
+    console.log('📊 Analytics: Visitor fingerprint', this.visitorFingerprint);
     this.setupBeforeUnload();
     // Try to retry any failed events from previous sessions
     this.retryFailedEvents();
@@ -85,6 +101,78 @@ class AnalyticsService {
     }, 10000); // Flush every 10 seconds if there are pending events
   }
 
+  private generateVisitorFingerprint() {
+    // Get or create browser session ID from sessionStorage
+    let browserSessionId = sessionStorage.getItem('analytics_browser_session_id');
+    if (!browserSessionId) {
+      browserSessionId = crypto.randomUUID();
+      sessionStorage.setItem('analytics_browser_session_id', browserSessionId);
+    }
+
+    // Detect if this is likely a developer session
+    const isDeveloper = this.detectDeveloperSession();
+
+    // Create a visitor hash combining stable browser characteristics
+    const userAgent = navigator.userAgent;
+    const userAgentHash = this.hashString(userAgent);
+    const viewport = `${window.innerWidth}x${window.innerHeight}`;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    // Combine multiple factors for visitor fingerprint (excluding Boulder searches)
+    const visitorData = [
+      userAgentHash,
+      timezone,
+      navigator.language,
+      navigator.platform
+    ].join('|');
+    const visitorHash = this.hashString(visitorData);
+
+    return {
+      browserSessionId,
+      isDeveloper,
+      visitorHash,
+      userAgentHash,
+      viewport,
+      timezone
+    };
+  }
+
+  private detectDeveloperSession(): boolean {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const referrer = document.referrer.toLowerCase();
+    
+    // Check for development indicators
+    const devIndicators = [
+      // Referrer from localhost or lovable
+      referrer.includes('localhost'),
+      referrer.includes('lovable.dev'),
+      referrer.includes('127.0.0.1'),
+      
+      // User agent patterns common in development
+      userAgent.includes('chrome') && userAgent.includes('mac'),
+      
+      // Window location indicators
+      window.location.hostname === 'localhost',
+      window.location.hostname.includes('lovable'),
+      
+      // Development tools detection
+      window.outerHeight - window.innerHeight > 200 // DevTools likely open
+    ];
+
+    const score = devIndicators.filter(Boolean).length;
+    return score >= 2; // If 2 or more indicators, likely developer
+  }
+
+  private hashString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
+  }
+
   private getDeviceType(): string {
     const userAgent = navigator.userAgent;
     if (/tablet|ipad|playbook|silk/i.test(userAgent)) return 'tablet';
@@ -105,6 +193,12 @@ class AnalyticsService {
       user_agent: navigator.userAgent,
       referrer: document.referrer || undefined,
       session_start_time: toMountainTime(this.sessionStartTime).toISOString(),
+      browser_session_id: this.visitorFingerprint?.browserSessionId,
+      is_developer: this.visitorFingerprint?.isDeveloper,
+      visitor_hash: this.visitorFingerprint?.visitorHash,
+      user_agent_hash: this.visitorFingerprint?.userAgentHash,
+      viewport: this.visitorFingerprint?.viewport,
+      timezone: this.visitorFingerprint?.timezone,
       ...event
     };
 
@@ -199,6 +293,12 @@ class AnalyticsService {
         session_start_time: event.session_start_time || null,
         session_end_time: event.session_end_time || null,
         page_duration_seconds: event.page_duration_seconds,
+        browser_session_id: event.browser_session_id,
+        is_developer: event.is_developer,
+        visitor_hash: event.visitor_hash,
+        user_agent_hash: event.user_agent_hash,
+        viewport: event.viewport,
+        timezone: event.timezone,
         timestamp: toMountainTime(new Date()).toISOString()
       }));
 
@@ -267,6 +367,12 @@ class AnalyticsService {
         session_start_time: event.session_start_time || null,
         session_end_time: event.session_end_time || null,
         page_duration_seconds: event.page_duration_seconds,
+        browser_session_id: event.browser_session_id,
+        is_developer: event.is_developer,
+        visitor_hash: event.visitor_hash,
+        user_agent_hash: event.user_agent_hash,
+        viewport: event.viewport,
+        timezone: event.timezone,
         timestamp: toMountainTime(new Date()).toISOString()
       }));
 
@@ -297,7 +403,13 @@ class AnalyticsService {
       device_type: this.getDeviceType(),
       user_agent: navigator.userAgent,
       referrer: document.referrer || undefined,
-      session_start_time: toMountainTime(this.sessionStartTime).toISOString()
+      session_start_time: toMountainTime(this.sessionStartTime).toISOString(),
+      browser_session_id: this.visitorFingerprint?.browserSessionId,
+      is_developer: this.visitorFingerprint?.isDeveloper,
+      visitor_hash: this.visitorFingerprint?.visitorHash,
+      user_agent_hash: this.visitorFingerprint?.userAgentHash,
+      viewport: this.visitorFingerprint?.viewport,
+      timezone: this.visitorFingerprint?.timezone
     };
 
     this.eventQueue.push(event);
