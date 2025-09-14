@@ -147,10 +147,14 @@ const Analytics = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 8);
 
-      // Hourly activity
+      // Hourly activity (convert to Mountain Time for proper hour calculation)
       const hourlyCount = Array.from({ length: 24 }, (_, i) => ({ hour: i, events: 0 }));
       events?.forEach(e => {
-        const hour = new Date(e.timestamp).getHours();
+        // Convert to Mountain Time properly
+        const mountainTime = new Date(e.timestamp).toLocaleString("en-US", { 
+          timeZone: "America/Denver" 
+        });
+        const hour = new Date(mountainTime).getHours();
         hourlyCount[hour].events++;
       });
 

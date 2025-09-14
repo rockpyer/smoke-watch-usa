@@ -2,10 +2,14 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { AnalyticsMonitor } from '@/utils/analyticsMonitor';
 
-// Convert UTC timestamp to Mountain Time (UTC-6)
+// Convert UTC timestamp to Mountain Time (proper timezone handling)
 const toMountainTime = (date: Date): Date => {
-  const mountainTime = new Date(date.getTime() - (6 * 60 * 60 * 1000));
-  return mountainTime;
+  // Mountain Time is UTC-7 (MST) or UTC-6 (MDT during daylight saving time)
+  // Use proper timezone conversion that handles daylight saving automatically
+  const mountainTimeString = date.toLocaleString("en-US", { 
+    timeZone: "America/Denver" 
+  });
+  return new Date(mountainTimeString);
 };
 
 export type AnalyticsEventType = 
