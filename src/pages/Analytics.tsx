@@ -319,34 +319,36 @@ const Analytics = () => {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
           <div className="flex items-center space-x-4">
             <Link to="/" className="p-2 hover:bg-muted rounded-lg transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Analytics Dashboard</h1>
-              <p className="text-muted-foreground">Detailed insights from user interactions (Mountain Time)</p>
+              <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Analytics Dashboard</h1>
+              <p className="text-sm lg:text-base text-muted-foreground">Detailed insights from user interactions (Mountain Time)</p>
             </div>
           </div>
           
-          <Link to="/privacy-reality">
-            <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10">
-              Your data isn't private - read more
-            </Button>
-          </Link>
-          
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">Last 24 hours</SelectItem>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
+            <Link to="/privacy-reality" className="flex-shrink-0">
+              <Button variant="outline" className="w-full sm:w-auto border-destructive/50 text-destructive hover:bg-destructive/10 text-xs sm:text-sm">
+                Your data isn't private - read more
+              </Button>
+            </Link>
+            
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Last 24 hours</SelectItem>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Key Metrics */}
