@@ -255,8 +255,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   const { tz, tzShort, concentrationToCategory, categoryClass, formatLocal, total, tickIndices, currentTimeIndex, dateLabels } = timelineData;
 
   return (
-    <Card className={`${compact ? 'p-1.5' : 'p-2'} bg-background/95 backdrop-blur-sm shadow-lg w-full h-full flex flex-col`}>
-      <div className="flex items-center justify-between mb-1">
+    <Card className={`${compact ? 'p-1.5' : 'p-2'} bg-background/95 backdrop-blur-sm shadow-lg w-full flex flex-col min-h-0`} style={{ height: '100%' }}>
+      <div className="flex items-center justify-between mb-1 flex-shrink-0">
         <h3 className={`${compact ? 'text-xs' : 'text-xs'} font-semibold text-foreground truncate flex-1 min-w-0`}>
           {cityName} • 48h Forecast <span className="text-[9px] text-muted-foreground">({tzShort})</span>
         </h3>
@@ -265,7 +265,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           size="sm"
           onClick={refetch}
           disabled={smokeLoading || weatherLoading}
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 flex-shrink-0"
           aria-label="Refresh city forecast"
         >
           <RefreshCw className={`h-3 w-3 ${smokeLoading || weatherLoading ? 'animate-spin' : ''}`} />
@@ -273,7 +273,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       </div>
 
       {/* Combined scrolling container for date, forecast, and time */}
-      <div className="overflow-x-auto overflow-y-hidden flex-1 pb-1">
+      <div className="overflow-x-auto overflow-y-hidden flex-1 min-h-0 pb-1">
         <div className="flex flex-col min-w-max h-full">
           {/* Date labels row */}
           <div className="flex text-[9px] text-muted-foreground font-medium h-3 mb-1">
