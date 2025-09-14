@@ -177,7 +177,7 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="hidden md:block w-full md:w-auto mt-2 md:mt-0 h-[80px]">
+            <div className="hidden md:block flex-1 max-w-lg h-[80px]">
               {searchedCity && isDataReady ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}

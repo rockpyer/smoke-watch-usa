@@ -255,7 +255,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   const { tz, tzShort, concentrationToCategory, categoryClass, formatLocal, total, tickIndices, currentTimeIndex, dateLabels } = timelineData;
 
   return (
-    <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
+    <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg ${compact ? 'max-w-full' : 'max-w-2xl'}`}>
       <div className="flex items-center justify-between mb-2">
         <h3 className={`${compact ? 'text-xs' : 'text-sm'} font-semibold text-foreground whitespace-nowrap`}>
           {cityName} • 48h Smoke & Weather Forecast <span className="ml-1 text-[10px] text-muted-foreground">({tzShort})</span>
