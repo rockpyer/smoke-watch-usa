@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { smokeDataService } from '@/services/smokeDataService';
 
 interface SmokePolygon {
@@ -24,7 +24,7 @@ interface SmokeLayer {
 const timeSlicedProcess = <T>(
   items: T[],
   processor: (item: T, index: number) => void,
-  chunkSize: number = 25 // Reduced chunk size for better performance
+  chunkSize: number = 10 // Further reduced for better TTI
 ): Promise<void> => {
   return new Promise((resolve) => {
     let index = 0;
@@ -33,25 +33,31 @@ const timeSlicedProcess = <T>(
       const startTime = performance.now();
       const endIndex = Math.min(index + chunkSize, items.length);
       
-      // Process chunk but yield if taking too long
-      while (index < endIndex && (performance.now() - startTime) < 5) {
+      // Process chunk but yield more frequently (2ms instead of 5ms)
+      while (index < endIndex && (performance.now() - startTime) < 2) {
         processor(items[index], index);
         index++;
       }
       
       if (index < items.length) {
-        // Use scheduler.postTask if available, fallback to setTimeout
+        // Always use scheduler.postTask with background priority if available
         if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
           (window as any).scheduler.postTask(processChunk, { priority: 'background' });
         } else {
-          setTimeout(processChunk, 0);
+          // Use longer timeout to give more time for user interactions
+          setTimeout(processChunk, 16); // Next frame
         }
       } else {
         resolve();
       }
     };
     
-    processChunk();
+    // Start processing on next frame to not block initial render
+    if ('scheduler' in window && 'postTask' in (window as any).scheduler) {
+      (window as any).scheduler.postTask(processChunk, { priority: 'background' });
+    } else {
+      setTimeout(processChunk, 16);
+    }
   });
 };
 
@@ -180,9 +186,16 @@ export const useSmokeData = () => {
     }
   }, [selectedTime, smokeLayers]);
 
-  // Initial data fetch
+  // Initial data fetch - defer to avoid blocking TTI
   useEffect(() => {
-    fetchData();
+    // Defer initial fetch to allow page to become interactive first
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        fetchData();
+      });
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [fetchData]);
 
   const getCurrentLayer = (): SmokeLayer | null => {

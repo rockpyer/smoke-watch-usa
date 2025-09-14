@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import SmokeMapLazy from '@/components/SmokeMapLazy';
 import TimeControls from '@/components/TimeControls';
 import SmokeLegend from '@/components/SmokeLegend';
@@ -34,10 +34,12 @@ const Index = () => {
   const handleTimeChange = (time: Date, index: number, interactionType?: string) => {
     console.log(`🕐 INDEX: Time changed to ${time.toISOString()} (index ${index})`);
     
-    // Track time change event
-    if (currentLayer?.timestamp) {
-      trackTimeChange(currentLayer.timestamp, time, interactionType || 'unknown');
-    }
+    // Defer analytics to not block user interaction
+    setTimeout(() => {
+      if (currentLayer?.timestamp) {
+        trackTimeChange(currentLayer.timestamp, time, interactionType || 'unknown');
+      }
+    }, 100);
     
     setTime(time); // Tell the hook to change the time
   };
@@ -52,41 +54,52 @@ const Index = () => {
   useEffect(() => {
     if (searchedCity) return;
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setSearchedCity({
-            coordinates: { lat: latitude, lng: longitude },
-            name: 'Your Location'
-          });
-          console.log('🌍 Using user location:', latitude, longitude);
-          
-          // Track page load with user location
-          trackPageLoad(latitude, longitude);
-        },
-        (error) => {
-          console.log('🌍 Geolocation failed, using Boulder, CO default:', error);
+    // Defer geolocation to not block TTI
+    const timer = setTimeout(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            startTransition(() => {
+              setSearchedCity({
+                coordinates: { lat: latitude, lng: longitude },
+                name: 'Your Location'
+              });
+            });
+            console.log('🌍 Using user location:', latitude, longitude);
+            
+            // Defer analytics to not block interactions
+            setTimeout(() => trackPageLoad(latitude, longitude), 1000);
+          },
+          (error) => {
+            console.log('🌍 Geolocation failed, using Boulder, CO default:', error);
+            startTransition(() => {
+              setSearchedCity({
+                coordinates: { lat: 40.0150, lng: -105.2705 },
+                name: 'Boulder, CO'
+              });
+            });
+            
+            // Defer analytics to not block interactions
+            setTimeout(() => trackPageLoad(40.0150, -105.2705), 1000);
+          },
+          { timeout: 3000, enableHighAccuracy: false } // Reduced timeout
+        );
+      } else {
+        console.log('🌍 Geolocation not supported, using Boulder, CO default');
+        startTransition(() => {
           setSearchedCity({
             coordinates: { lat: 40.0150, lng: -105.2705 },
             name: 'Boulder, CO'
           });
-          
-          // Track page load with default location
-          trackPageLoad(40.0150, -105.2705);
-        },
-        { timeout: 5000, enableHighAccuracy: false }
-      );
-    } else {
-      console.log('🌍 Geolocation not supported, using Boulder, CO default');
-      setSearchedCity({
-        coordinates: { lat: 40.0150, lng: -105.2705 },
-        name: 'Boulder, CO'
-      });
-      
-      // Track page load with default location
-      trackPageLoad(40.0150, -105.2705);
-    }
+        });
+        
+        // Defer analytics to not block interactions
+        setTimeout(() => trackPageLoad(40.0150, -105.2705), 1000);
+      }
+    }, 200); // Defer geolocation to allow page to become interactive
+
+    return () => clearTimeout(timer);
   }, [searchedCity]);
 
   // Memoize timezone calculation to prevent unnecessary recalculations
