@@ -59,9 +59,12 @@ class AnalyticsService {
     timezone: string;
   } | null = null;
   
-  // Rate limiting and deduplication
+  // Rate limiting, deduplication, and session safeguards
   private lastEventTimes: Map<string, number> = new Map();
   private lastEventData: Map<string, string> = new Map();
+  private sessionEventCount: number = 0;
+  private maxEventsPerSession: number = 200; // Circuit breaker
+  private eventCountPerMinute: Map<number, number> = new Map();
   private pendingTimeChange: {
     timeout: NodeJS.Timeout | null;
     previousTime: Date;
@@ -182,10 +185,19 @@ class AnalyticsService {
   }
 
   async trackEvent(event: Partial<AnalyticsEvent>) {
+    // Circuit breaker: Stop tracking if session has too many events
+    if (this.sessionEventCount >= this.maxEventsPerSession) {
+      console.warn('📊 Analytics: Circuit breaker activated - too many events in session');
+      return;
+    }
+
     // Skip rate-limited or duplicate events
     if (!this.shouldTrackEvent(event)) {
       return;
     }
+
+    this.sessionEventCount++;
+    this.updateEventCountPerMinute();
 
     const analyticsEvent: AnalyticsEvent = {
       event_type: event.event_type!,
@@ -209,16 +221,27 @@ class AnalyticsService {
     this.scheduleFlush();
   }
 
+  private updateEventCountPerMinute() {
+    const currentMinute = Math.floor(Date.now() / 60000);
+    const count = this.eventCountPerMinute.get(currentMinute) || 0;
+    this.eventCountPerMinute.set(currentMinute, count + 1);
+    
+    // Alert if too many events per minute
+    if (count > 50) {
+      console.warn('📊 Analytics: High event rate detected:', count, 'events/minute');
+    }
+  }
+
   private shouldTrackEvent(event: Partial<AnalyticsEvent>): boolean {
     const eventKey = `${event.event_type}_${event.interaction_type || ''}`;
     const now = Date.now();
     
-    // Rate limiting per event type
+    // Enhanced rate limiting per event type with longer intervals
     const minIntervals = {
-      'time_change': 500, // Max 1 per 500ms
-      'forecast_view': 1000, // Max 1 per second  
-      'location_click': 200, // Max 1 per 200ms
-      'city_search': 300, // Max 1 per 300ms
+      'time_change': 1000, // Increased from 500ms to 1s
+      'forecast_view': 2000, // Increased from 1s to 2s  
+      'location_click': 500, // Increased from 200ms to 500ms
+      'city_search': 1000, // Increased from 300ms to 1s
       'page_load': 0 // No rate limiting
     };
     
@@ -226,17 +249,17 @@ class AnalyticsService {
     const lastTime = this.lastEventTimes.get(eventKey) || 0;
     
     if (now - lastTime < minInterval) {
-      console.log('📊 Analytics: Rate limited', eventKey);
+      console.log('📊 Analytics: Rate limited', eventKey, 'last:', Date.now() - lastTime, 'ms ago');
       return false;
     }
     
-    // Deduplication - skip identical consecutive events
+    // Enhanced deduplication - skip identical consecutive events
     const eventDataKey = JSON.stringify({
       type: event.event_type,
       interaction: event.interaction_type,
       city: event.city,
-      lat: event.latitude,
-      lng: event.longitude,
+      lat: Math.round((event.latitude || 0) * 1000) / 1000, // Round to avoid float precision issues
+      lng: Math.round((event.longitude || 0) * 1000) / 1000,
       time: event.new_time
     });
     
@@ -448,14 +471,14 @@ class AnalyticsService {
   }
 
   trackTimeChange(previousTime: Date, newTime: Date, interactionType: string) {
-    // Smart debouncing for slider interactions
+    // Enhanced debouncing for slider interactions
     if (interactionType === 'slider') {
       // Cancel any pending time change
       if (this.pendingTimeChange?.timeout) {
         clearTimeout(this.pendingTimeChange.timeout);
       }
       
-      // Store the latest values and debounce
+      // Store the latest values and debounce with longer delay
       this.pendingTimeChange = {
         timeout: setTimeout(() => {
           this.trackEvent({
@@ -465,7 +488,7 @@ class AnalyticsService {
             interaction_type: 'slider_final'
           });
           this.pendingTimeChange = null;
-        }, 300), // 300ms debounce for slider
+        }, 1000), // Increased from 300ms to 1s for better debouncing
         previousTime,
         newTime,
         interactionType
@@ -473,9 +496,20 @@ class AnalyticsService {
       return;
     }
     
-    // Track immediate actions (buttons, autoplay, etc.)
+    // Track immediate actions (buttons, autoplay, etc.) with rate limiting
     const significantActions = ['step_forward', 'step_back', 'reset', 'autoplay_reset'];
     if (significantActions.includes(interactionType)) {
+      // Additional rate limit for rapid button clicking
+      const buttonKey = `button_${interactionType}`;
+      const now = Date.now();
+      const lastButtonTime = this.lastEventTimes.get(buttonKey) || 0;
+      
+      if (now - lastButtonTime < 500) { // Prevent rapid button mashing
+        console.log('📊 Analytics: Button rate limited', interactionType);
+        return;
+      }
+      
+      this.lastEventTimes.set(buttonKey, now);
       this.trackEvent({
         event_type: 'time_change',
         previous_time: previousTime.toISOString(),
