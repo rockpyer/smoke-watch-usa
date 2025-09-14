@@ -109,7 +109,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_high_event_sessions: {
+        Args: { hours_back?: number; min_events?: number }
+        Returns: {
+          event_count: number
+          events_per_minute: number
+          first_event: string
+          is_developer: boolean
+          last_event: string
+          session_duration_minutes: number
+          session_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
