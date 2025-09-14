@@ -111,22 +111,22 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
           const feature = e.features[0];
           const props = feature.properties;
 
-          new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div class="p-3">
-                <h4 class="font-semibold text-lg flex items-center">
-                  🔥 Wildfire Incident
-                </h4>
-                <div class="mt-2 space-y-1">
-                  <p class="text-sm"><strong>Incident Name:</strong> ${props?.IncidentName || 'Not Available'}</p>
-                  <p class="text-sm"><strong>Start Date:</strong> ${props?.FireDiscoveryDateTime || 'Not Available'}</p>
-                  <p class="text-sm"><strong>Forest Type:</strong> ${props?.ForestTypeGroup || 'Not Available'}</p>
-                  <p class="text-sm"><strong>Percent Contained:</strong> ${props?.PercentContained !== undefined ? props.PercentContained + '%' : 'Not Available'}</p>
-                  <p class="text-sm"><strong>Acres:</strong> ${props?.DailyAcres !== undefined ? props.DailyAcres.toLocaleString() : 'Not Available'}</p>
+            new mapboxgl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div class="p-3 bg-background text-foreground">
+                  <h4 class="font-semibold text-lg flex items-center text-foreground">
+                    🔥 Wildfire Incident
+                  </h4>
+                  <div class="mt-2 space-y-1">
+                    <p class="text-sm text-foreground"><strong>Incident Name:</strong> ${props?.IncidentName || 'Not Available'}</p>
+                    <p class="text-sm text-foreground"><strong>Start Date:</strong> ${props?.FireDiscoveryDateTime || 'Not Available'}</p>
+                    <p class="text-sm text-foreground"><strong>Forest Type:</strong> ${props?.ForestTypeGroup || 'Not Available'}</p>
+                    <p class="text-sm text-foreground"><strong>Percent Contained:</strong> ${props?.PercentContained !== undefined ? props.PercentContained + '%' : 'Not Available'}</p>
+                    <p class="text-sm text-foreground"><strong>Acres:</strong> ${props?.DailyAcres !== undefined ? props.DailyAcres.toLocaleString() : 'Not Available'}</p>
+                  </div>
                 </div>
-              </div>
-            `)
+              `)
             .addTo(map.current!);
         }
       });
@@ -376,15 +376,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
             new mapboxgl.Popup()
               .setLngLat(e.lngLat)
               .setHTML(`
-                <div class="p-3">
-                  <h4 class="font-semibold text-lg">NOAA Smoke Forecast</h4>
+                <div class="p-3 bg-background text-foreground">
+                  <h4 class="font-semibold text-lg text-foreground">NOAA Smoke Forecast</h4>
                   <div class="mt-2 space-y-1">
-                    <p class="text-sm"><strong>Air Quality:</strong> ${aqiCategory}</p>
-                    <p class="text-sm"><strong>Concentration:</strong> ${concentration} μg/m³</p>
-                    <p class="text-sm"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
+                    <p class="text-sm text-foreground"><strong>Air Quality:</strong> ${aqiCategory}</p>
+                    <p class="text-sm text-foreground"><strong>Concentration:</strong> ${concentration} μg/m³</p>
+                    <p class="text-sm text-foreground"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
                   </div>
                   <div class="mt-3 p-2 bg-muted rounded">
-                    <p class="text-xs text-muted-foreground">${healthAdvice}</p>
+                    <p class="text-xs text-foreground">${healthAdvice}</p>
                   </div>
                 </div>
               `)
