@@ -59,12 +59,13 @@ const Analytics = () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
 
-      // Get base analytics - remove limit entirely to get all data
+      // Get base analytics - add explicit limit to override default 1000-row limit
       const { data: events, error } = await supabase
         .from('smokeusage')
         .select('*')
         .gte('timestamp', startDate.toISOString())
-        .order('timestamp', { ascending: false });
+        .order('timestamp', { ascending: false })
+        .limit(200000);
 
       if (error) throw error;
 
