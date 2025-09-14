@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
 import { ArrowLeft, Users, MousePointer, Clock, MapPin, TrendingUp } from 'lucide-react';
@@ -320,6 +321,12 @@ const Analytics = () => {
               <p className="text-muted-foreground">Detailed insights from user interactions (Mountain Time)</p>
             </div>
           </div>
+          
+          <Link to="/privacy-reality">
+            <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10">
+              Your data isn't private - read more
+            </Button>
+          </Link>
           
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-40">
