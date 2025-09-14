@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ExternalLink, Trash2, Shield, Eye, Fingerprint } from 'lucide-react';
+import { ExternalLink, Trash2, Shield, Eye, Fingerprint, ArrowLeft } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { analyticsService } from '@/services/analyticsService';
+import { Link } from 'react-router-dom';
 
 const PrivacyReality = () => {
   const [userFingerprint, setUserFingerprint] = useState<any>(null);
@@ -60,14 +61,21 @@ const PrivacyReality = () => {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-4">
+        
+        {/* Header with Back Button */}
+        <div className="flex items-center justify-between mb-6">
+          <Link to="/" className="p-2 hover:bg-muted rounded-lg transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="text-center space-y-4 flex-1">
           <h1 className="text-4xl font-bold text-foreground">
             Your Data Isn't Private
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Here's exactly what gets recorded about you right now. Most websites collect this and more - this site is just being honest about it.
           </p>
+          </div>
+          <div className="w-9"></div> {/* Spacer for centering */}
         </div>
 
         {/* Current Session Data */}

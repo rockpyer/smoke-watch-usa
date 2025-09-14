@@ -383,8 +383,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
                     <p class="text-sm"><strong>Concentration:</strong> ${concentration} μg/m³</p>
                     <p class="text-sm"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
                   </div>
-                  <div class="mt-3 p-2 bg-gray-50 rounded">
-                    <p class="text-xs text-gray-600">${healthAdvice}</p>
+                  <div class="mt-3 p-2 bg-muted rounded">
+                    <p class="text-xs text-muted-foreground">${healthAdvice}</p>
                   </div>
                 </div>
               `)
