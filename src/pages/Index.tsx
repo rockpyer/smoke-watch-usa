@@ -217,7 +217,7 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="block md:hidden mt-2 space-y-2 h-[120px]">
+          <div className="block md:hidden mt-2 space-y-1 h-[85px]">
             {searchedCity && isDataReady ? <CityForecast cityCoordinates={searchedCity?.coordinates} cityName={searchedCity?.name} selectedTime={currentLayer?.timestamp} compact /> : <ForecastSkeleton compact />}
             <TimeControls currentIndex={currentLayerIndex} onTimeChange={handleTimeChange} autoPlay={false} availableTimes={smokeLayers.map(layer => layer.timestamp)} timeZone={cityTimeZone} compact />
           </div>
@@ -239,6 +239,14 @@ const Index = () => {
 
             <SmokeLegend />
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Section - Only visible on mobile */}
+      <div className="md:hidden fixed bottom-16 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-t h-20 overflow-y-auto">
+        <div className="p-3 space-y-3">
+          <LocationInfo coordinates={selectedLocation?.coordinates} locationName={selectedLocation?.name} selectedTime={currentLayer?.timestamp} smokeData={selectedLocation?.smokeData} />
+          <SmokeLegend />
         </div>
       </div>
 

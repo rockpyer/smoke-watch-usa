@@ -99,10 +99,10 @@ const TimeControls: React.FC<TimeControlsProps> = ({
 
   return (
     <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
-      <div className={`${compact ? 'p-2' : 'p-3 md:p-4'} space-y-2 md:space-y-3`}>
+      <div className={`${compact ? 'p-1.5' : 'p-3 md:p-4'} ${compact ? 'space-y-1' : 'space-y-2 md:space-y-3'}`}>
         {/* Current Time Display */}
         <div className="text-center">
-          <div className="text-base md:text-lg font-bold text-foreground">
+          <div className={`${compact ? 'text-sm' : 'text-base md:text-lg'} font-bold text-foreground`}>
             {currentTime.toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',
@@ -112,7 +112,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
               timeZone: timeZone || 'America/Denver'
             })}
           </div>
-          <div className="text-xs md:text-sm text-muted-foreground">
+          <div className={`${compact ? 'text-[10px]' : 'text-xs md:text-sm'} text-muted-foreground`}>
             {isCurrentTime ? 'Current Conditions' : 'Forecast Time'}
           </div>
         </div>
@@ -136,14 +136,14 @@ const TimeControls: React.FC<TimeControlsProps> = ({
         </div>
 
         {/* Playback Controls */}
-        <div className="flex items-center justify-center space-x-1 md:space-x-2">
+        <div className={`flex items-center justify-center ${compact ? 'space-x-0.5' : 'space-x-1 md:space-x-2'}`}>
           <Button
             variant="outline"
             size="sm"
             onClick={handleReset}
-            className="h-7 w-7 md:h-8 md:w-8 p-0"
+            className={`${compact ? 'h-6 w-6' : 'h-7 w-7 md:h-8 md:w-8'} p-0`}
           >
-            <RotateCcw className="h-3 w-3 md:h-4 md:w-4" />
+            <RotateCcw className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3 md:h-4 md:w-4'}`} />
           </Button>
           
           <Button
@@ -151,21 +151,21 @@ const TimeControls: React.FC<TimeControlsProps> = ({
             size="sm"
             onClick={handleStepBack}
             disabled={currentIndex === 0}
-            className="h-7 w-7 md:h-8 md:w-8 p-0"
+            className={`${compact ? 'h-6 w-6' : 'h-7 w-7 md:h-8 md:w-8'} p-0`}
           >
-            <SkipBack className="h-3 w-3 md:h-4 md:w-4" />
+            <SkipBack className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3 md:h-4 md:w-4'}`} />
           </Button>
           
           <Button
             variant="default"
             size="sm"
             onClick={handlePlay}
-            className="h-7 w-10 md:h-8 md:w-12 p-0"
+            className={`${compact ? 'h-6 w-8' : 'h-7 w-10 md:h-8 md:w-12'} p-0`}
           >
             {isPlaying ? (
-              <Pause className="h-3 w-3 md:h-4 md:w-4" />
+              <Pause className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3 md:h-4 md:w-4'}`} />
             ) : (
-              <Play className="h-3 w-3 md:h-4 md:w-4 ml-0.5" />
+              <Play className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3 md:h-4 md:w-4'} ml-0.5`} />
             )}
           </Button>
           
@@ -174,9 +174,9 @@ const TimeControls: React.FC<TimeControlsProps> = ({
             size="sm"
             onClick={handleStepForward}
             disabled={currentIndex === availableTimes.length - 1}
-            className="h-7 w-7 md:h-8 md:w-8 p-0"
+            className={`${compact ? 'h-6 w-6' : 'h-7 w-7 md:h-8 md:w-8'} p-0`}
           >
-            <SkipForward className="h-3 w-3 md:h-4 md:w-4" />
+            <SkipForward className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3 md:h-4 md:w-4'}`} />
           </Button>
         </div>
 
