@@ -109,7 +109,7 @@ const Index = () => {
   );
   
   useEffect(() => {
-    document.title = 'RideClear - Will smoke affect my biking plans? – Real-time Forecast';
+    document.title = 'Will smoke affect my outdoor plans? – Real-time Forecast';
     const desc = 'Real-time NOAA HRRR smoke forecast with wildfire locations and air quality.';
     let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (!meta) {
@@ -164,7 +164,7 @@ const Index = () => {
               <Cloud className="h-6 w-6 text-primary flex-shrink-0" />
               <div className="min-w-0">
                 <div className="flex items-center space-x-2">
-                  <h1 className="text-sm lg:text-base font-bold text-foreground truncate">RideClear - Will smoke affect my biking plans?</h1>
+                  <h1 className="text-sm lg:text-base font-bold text-foreground truncate">TrailSmoke</h1>
                   <Link 
                     to="/analytics" 
                     className="text-xs px-1.5 py-0.5 bg-muted hover:bg-muted/80 rounded transition-colors flex items-center space-x-1 flex-shrink-0"
