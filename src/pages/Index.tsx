@@ -159,25 +159,25 @@ const Index = () => {
     <div className="min-h-screen bg-sky-gradient">
       <header className="relative z-20 bg-background/95 backdrop-blur-sm border-b border-border shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 flex-shrink min-w-0">
-              <Cloud className="h-8 w-8 text-primary flex-shrink-0" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center space-x-2 flex-shrink-0 max-w-[300px] lg:max-w-[400px]">
+              <Cloud className="h-6 w-6 text-primary flex-shrink-0" />
               <div className="min-w-0">
-                <div className="flex items-center space-x-3">
-                  <h1 className="text-base md:text-xl font-bold text-foreground truncate">Will smoke affect my biking/hiking/fishing plans?</h1>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-sm lg:text-base font-bold text-foreground truncate">Will smoke affect my plans?</h1>
                   <Link 
                     to="/analytics" 
-                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center space-x-1 flex-shrink-0"
+                    className="text-xs px-1.5 py-0.5 bg-muted hover:bg-muted/80 rounded transition-colors flex items-center space-x-1 flex-shrink-0"
                   >
                     <BarChart3 className="h-3 w-3" />
-                    <span>Analytics</span>
+                    <span className="hidden sm:inline">Analytics</span>
                   </Link>
                 </div>
-                <p className="text-xs text-muted-foreground">48 hour wildfire smoke forecasting</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground truncate">48h wildfire smoke forecasting</p>
               </div>
             </div>
             
-            <div className="hidden md:block flex-1 max-w-md ml-4 h-[80px] overflow-y-auto">
+            <div className="hidden md:block flex-1 h-[80px]">
               {searchedCity && isDataReady ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
