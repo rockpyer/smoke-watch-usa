@@ -158,13 +158,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-sky-gradient">
       <header className="relative z-20 bg-background/95 backdrop-blur-sm border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Cloud className="h-8 w-8 text-primary" />
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <Cloud className="h-6 w-6 text-primary" />
               <div>
                 <div className="flex items-center space-x-3">
-                  <h1 className="text-lg md:text-2xl font-bold text-foreground">Will smoke affect my biking/hiking/fishing plans?</h1>
+                  <h1 className="text-sm md:text-lg font-bold text-foreground">Will smoke affect my biking/hiking/fishing plans?</h1>
                   <Link 
                     to="/analytics" 
                     className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center space-x-1"
@@ -173,19 +173,17 @@ const Index = () => {
                     <span>Analytics</span>
                   </Link>
                 </div>
-                <p className="text-xs md:text-sm text-muted-foreground">48 hour wildfire smoke forecasting</p>
+                <p className="text-xs text-muted-foreground">48 hour wildfire smoke forecasting</p>
               </div>
             </div>
             
-            <div className="hidden md:block flex-1 max-w-lg h-[80px] overflow-hidden">
+            <div className="hidden md:block flex-1 min-h-[100px]">
               {searchedCity && isDataReady ? (
-                <div className="w-full h-full">
-                  <CityForecast 
-                    cityCoordinates={searchedCity?.coordinates}
-                    cityName={searchedCity?.name}
-                    selectedTime={currentLayer?.timestamp}
-                  />
-                </div>
+                <CityForecast 
+                  cityCoordinates={searchedCity?.coordinates}
+                  cityName={searchedCity?.name}
+                  selectedTime={currentLayer?.timestamp}
+                />
               ) : (
                 <ForecastSkeleton />
               )}
@@ -215,7 +213,7 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
+      <div className="relative z-10 h-[calc(100vh-140px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           <div className="md:col-span-3 relative h-full min-h-[400px]">
             {isDataReady ? (
