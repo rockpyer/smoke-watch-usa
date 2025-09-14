@@ -59,16 +59,17 @@ const Analytics = () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
 
-      // Get base analytics - using service role to bypass RLS for admin analytics
+      // Get base analytics - remove limit entirely to get all data
       const { data: events, error } = await supabase
         .from('smokeusage')
         .select('*')
         .gte('timestamp', startDate.toISOString())
-        .order('timestamp', { ascending: false })
-        .limit(200000); // Increased limit to handle large datasets
+        .order('timestamp', { ascending: false });
 
       if (error) throw error;
 
+      console.log(`📊 Analytics: Fetched ${events?.length || 0} events for ${timeRange} days`);
+      
       // Process the data
       const sessions = new Set(events?.map(e => e.session_id)).size;
       const totalEvents = events?.length || 0;
