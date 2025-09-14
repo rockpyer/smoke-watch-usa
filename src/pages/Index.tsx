@@ -177,7 +177,7 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="hidden md:block flex-1 max-w-[600px] h-[80px] overflow-hidden">
+            <div className="hidden md:block flex-1 max-w-[600px] min-h-[80px]">
               {searchedCity && isDataReady ? (
                 <CityForecast 
                   cityCoordinates={searchedCity?.coordinates}
@@ -191,7 +191,7 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="block md:hidden mt-2 space-y-2 h-[120px]">
+          <div className="block md:hidden mt-2">
             {searchedCity && isDataReady ? (
               <CityForecast 
                 cityCoordinates={searchedCity?.coordinates}
@@ -202,19 +202,23 @@ const Index = () => {
             ) : (
               <ForecastSkeleton compact />
             )}
-            <TimeControls 
-              currentIndex={currentLayerIndex}
-              onTimeChange={handleTimeChange}
-              autoPlay={false}
-              availableTimes={smokeLayers.map(layer => layer.timestamp)}
-              timeZone={cityTimeZone}
-              compact
-            />
           </div>
         </div>
       </header>
 
-      <div className="relative z-10 h-[calc(100vh-88px)] pb-16 md:pb-0">
+      {/* Mobile Time Controls Section */}
+      <div className="block md:hidden bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10">
+        <TimeControls 
+          currentIndex={currentLayerIndex}
+          onTimeChange={handleTimeChange}
+          autoPlay={false}
+          availableTimes={smokeLayers.map(layer => layer.timestamp)}
+          timeZone={cityTimeZone}
+          compact
+        />
+      </div>
+
+      <div className="relative z-10 h-[calc(100vh-240px)] md:h-[calc(100vh-88px)] pb-16 md:pb-0">
         <div className="grid grid-cols-1 md:grid-cols-4 h-full gap-4 p-4">
           <div className="md:col-span-3 relative h-full min-h-[400px]">
             {isDataReady ? (
