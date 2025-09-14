@@ -64,7 +64,8 @@ const Analytics = () => {
         .from('smokeusage')
         .select('*')
         .gte('timestamp', startDate.toISOString())
-        .order('timestamp', { ascending: false });
+        .order('timestamp', { ascending: false })
+        .limit(10000); // Increase limit to handle more data
 
       if (error) throw error;
 
