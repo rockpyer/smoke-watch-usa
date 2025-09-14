@@ -38,10 +38,15 @@ interface ArcGISResponse {
   };
 }
 
+interface CacheEntry {
+  data: SmokeLayer[];
+  timestamp: number;
+}
+
 export class SmokeDataService {
   private static instance: SmokeDataService;
-  private cache = new Map<string, SmokeLayer[]>();
-  private readonly CACHE_DURATION = 1 * 60 * 1000; // 1 minute for more frequent updates
+  private cache = new Map<string, CacheEntry>();
+  private readonly CACHE_DURATION = 15 * 60 * 1000; // 15 minutes for better performance
   private readonly ARCGIS_ENDPOINT = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/NDGD_SmokeForecast_v1/FeatureServer/0';
 
   static getInstance(): SmokeDataService {
@@ -53,11 +58,12 @@ export class SmokeDataService {
 
   async fetchSmokeData(): Promise<SmokeLayer[]> {
     const cacheKey = 'noaa_smoke_forecast';
-    const cached = this.cache.get(cacheKey);
     
-    if (cached && this.isCacheValid(cacheKey)) {
+    // Check enhanced cache first (memory + localStorage)
+    const cachedData = this.getCachedData(cacheKey);
+    if (cachedData) {
       console.log('Returning cached NOAA smoke data');
-      return cached;
+      return cachedData;
     }
 
     try {
@@ -100,7 +106,9 @@ export class SmokeDataService {
 
       // Process combined feature set
       const smokeData = this.processArcGISData({ features: allFeatures });
-      this.cache.set(cacheKey, smokeData);
+      
+      // Use enhanced caching
+      this.setCachedData(cacheKey, smokeData);
       return smokeData;
 
     } catch (error) {
@@ -324,8 +332,55 @@ export class SmokeDataService {
   }
 
   private isCacheValid(key: string): boolean {
-    // For now, always fetch fresh data to get latest forecasts
-    return false;
+    const cached = this.cache.get(key);
+    if (!cached) return false;
+    
+    // 15-minute cache duration for smoke data
+    const cacheAge = Date.now() - cached.timestamp;
+    return cacheAge < 15 * 60 * 1000; // 15 minutes
+  }
+
+  // Enhanced caching with localStorage backup
+  private getCachedData(key: string): any {
+    // Check memory cache first
+    const memoryCache = this.cache.get(key);
+    if (memoryCache && this.isCacheValid(key)) {
+      return memoryCache.data;
+    }
+
+    // Check localStorage cache
+    try {
+      const stored = localStorage.getItem(`smoke_cache_${key}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const age = Date.now() - parsed.timestamp;
+        
+        // Use localStorage cache for up to 1 hour if memory cache is empty
+        if (age < 60 * 60 * 1000) {
+          // Restore to memory cache
+          this.cache.set(key, parsed);
+          return parsed.data;
+        }
+      }
+    } catch (error) {
+      console.warn('Error reading smoke data from localStorage:', error);
+    }
+
+    return null;
+  }
+
+  private setCachedData(key: string, data: any): void {
+    const cacheEntry = { data, timestamp: Date.now() };
+    
+    // Set memory cache
+    this.cache.set(key, cacheEntry);
+    
+    // Set localStorage cache
+    try {
+      localStorage.setItem(`smoke_cache_${key}`, JSON.stringify(cacheEntry));
+    } catch (error) {
+      console.warn('Error storing smoke data to localStorage:', error);
+    }
   }
 
   // Convert concentration to color for visualization - NOAA standard colors
