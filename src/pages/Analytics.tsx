@@ -65,7 +65,7 @@ const Analytics = () => {
         .select('*')
         .gte('timestamp', startDate.toISOString())
         .order('timestamp', { ascending: false })
-        .limit(10000); // Increase limit to handle more data
+        .limit(200000); // Increased limit to handle large datasets
 
       if (error) throw error;
 
