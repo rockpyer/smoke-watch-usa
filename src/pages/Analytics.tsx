@@ -76,21 +76,26 @@ const Analytics = () => {
       const userSessionIds = new Set();
       const developerSessionIds = new Set();
       
-      events?.forEach(e => {
-        if (e.browser_session_id && e.visitor_hash) {
-          // Combine browser session ID and visitor hash for unique visitor identification
-          const visitorId = `${e.browser_session_id}_${e.visitor_hash}`;
-          uniqueVisitorIds.add(visitorId);
-        }
-        
-        if (e.session_id) {
-          if (e.is_developer) {
-            developerSessionIds.add(e.session_id);
-          } else {
-            userSessionIds.add(e.session_id);
-          }
-        }
-      });
+       events?.forEach(e => {
+         // Use optional chaining for new fields that may not exist yet
+         const browserId = (e as any).browser_session_id || e.session_id;
+         const visitorHash = (e as any).visitor_hash || e.user_agent;
+         
+         if (browserId && visitorHash) {
+           // Combine browser session ID and visitor hash for unique visitor identification
+           const visitorId = `${browserId}_${visitorHash}`;
+           uniqueVisitorIds.add(visitorId);
+         }
+         
+         if (e.session_id) {
+           const isDeveloper = (e as any).is_developer || false;
+           if (isDeveloper) {
+             developerSessionIds.add(e.session_id);
+           } else {
+             userSessionIds.add(e.session_id);
+           }
+         }
+       });
 
       const visitorStats = {
         uniqueVisitors: uniqueVisitorIds.size,
