@@ -272,24 +272,9 @@ export const CityForecast: React.FC<CityForecastProps> = ({
         </Button>
       </div>
 
-      {/* Combined scrolling container for date, forecast, and time */}
+      {/* Combined scrolling container for forecast and date/time labels */}
       <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0">
         <div className="flex flex-col min-w-max h-full justify-between py-1">
-          {/* Date labels row */}
-          <div className="flex text-[9px] text-muted-foreground font-medium h-3 flex-shrink-0">
-            {forecastData.map((f, i) => {
-              const dateLabel = dateLabels.find(label => label.index === i);
-              return (
-                <div 
-                  key={`date-${i}`} 
-                  className="flex-shrink-0 w-[14px] text-center" // Adjusted width to match forecast item slot
-                >
-                  {dateLabel && dateLabel.date}
-                </div>
-              );
-            })}
-          </div>
-
           {/* 48-hour single-line timeline with enhanced tooltips */}
           <div className="flex items-center space-x-0.5 flex-1 justify-center">
             {forecastData.map((f, i) => {
@@ -324,16 +309,29 @@ export const CityForecast: React.FC<CityForecastProps> = ({
             })}
           </div>
 
-          {/* Time scale (single line, small) */}
-          <div className="flex text-[10px] text-muted-foreground whitespace-nowrap h-4 flex-shrink-0">
+          {/* Combined date and time labels at bottom */}
+          <div className="flex text-[9px] text-muted-foreground whitespace-nowrap h-6 flex-shrink-0">
             {forecastData.map((f, i) => {
+              const dateLabel = dateLabels.find(label => label.index === i);
               const timeLabel = tickIndices.includes(i) ? formatLocal(f.timestamp) : '';
+              
               return (
                 <div 
-                  key={`time-${i}`} 
-                  className="flex-shrink-0 w-[14px] text-center" // Adjusted width to match forecast item slot
+                  key={`datetime-${i}`} 
+                  className="flex-shrink-0 w-[14px] text-center flex flex-col justify-end" // Match forecast item width
                 >
-                  {timeLabel}
+                  {/* Date label on top line (only when there's a date change) */}
+                  {dateLabel && (
+                    <div className="text-[8px] font-medium leading-tight text-muted-foreground/80">
+                      {dateLabel.date}
+                    </div>
+                  )}
+                  {/* Time label on bottom line (at tick marks) */}
+                  {timeLabel && (
+                    <div className="text-[9px] leading-tight">
+                      {timeLabel}
+                    </div>
+                  )}
                 </div>
               );
             })}
