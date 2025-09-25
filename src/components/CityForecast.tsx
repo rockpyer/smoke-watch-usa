@@ -272,8 +272,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       </div>
 
       {/* Combined scrolling container for forecast and date/time labels */}
-      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0 pb-8 py-[10px]"> {/* Added bottom padding for scrollbar */}
-        <div className="flex flex-col min-w-max h-full justify-between py-1">
+      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0 pb-8 py-[6px]"> {/* Added bottom padding for scrollbar */}
+        <div className="flex flex-col min-w-max h-full justify-between py-[2px]">
           {/* 48-hour single-line timeline with enhanced tooltips */}
           <div className="flex items-center space-x-0.5 flex-1 justify-center relative">
             {forecastData.map((f, i) => {
@@ -310,8 +310,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
             const dateLabel = dateLabels.find(label => label.index === i);
             const timeLabel = tickIndices.includes(i) ? formatLocal(f.timestamp) : '';
             const isMidnight = f.timestamp.getHours() === 0;
-            return <div key={`datetime-${i}`} className="flex-shrink-0 w-[14px] text-center flex flex-col justify-end relative" // Match forecast item width
-            >
+            return <div key={`datetime-${i}`} className="flex-shrink-0 w-[14px] text-center flex flex-col justify-end relative py-0">
                   {/* Midnight separator line extending up */}
                   {isMidnight && i > 0 && <div className="absolute left-[-2px] bottom-0 top-[-8px] w-0.5 bg-border/40" />}
                   
