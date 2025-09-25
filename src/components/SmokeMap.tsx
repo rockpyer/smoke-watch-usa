@@ -9,6 +9,7 @@ import { fireDataService } from '../services/fireDataService';
 import { config, hasValidMapboxToken } from '@/utils/config';
 import { sanitizeSearchInput, validateSearchInput, debounce } from '@/utils/inputValidation';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { useIsMobile } from '@/hooks/use-mobile';
 import MapboxTokenInput from './MapboxTokenInput';
 /// test test after gemini///
 interface SmokeLayer {
@@ -32,6 +33,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   smokeLayers = []
 }) => {
   const { trackLocationClick, trackCitySearch } = useAnalytics();
+  const isMobile = useIsMobile();
   // All state and ref declarations must be here, inside the function body but top level
   const [needsToken, setNeedsToken] = useState(false);
   const [smokeLayerReady, setSmokeLayerReady] = useState(false);
@@ -518,6 +520,26 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
+  // Re-fetch fire data when map moves on mobile to fix loading issue
+  useEffect(() => {
+    if (!map.current || !isMapLoaded || !isMobile) return;
+
+    const handleMapMove = debounce(() => {
+      if (fireDataLoaded && map.current) {
+        // Reset fire data loaded state to trigger re-fetch with new bounds
+        setFireDataLoaded(false);
+      }
+    }, 1000);
+
+    map.current.on('moveend', handleMapMove);
+    
+    return () => {
+      if (map.current) {
+        map.current.off('moveend', handleMapMove);
+      }
+    };
+  }, [isMapLoaded, isMobile, fireDataLoaded]);
+
   // Unified effect: Render polygons as soon as map, smoke data, and currentLayer are ready
   useEffect(() => {
     if (
@@ -666,7 +688,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
                 {isInitializing ? 'Initializing map...' :
                  'Loading map...'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Fetching real government data</p>
+              <p className="text-xs text-muted-foreground mt-1">Fetching NOAA HRRR data</p>
             </div>
           </Card>
         </div>
@@ -709,18 +731,25 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         }} 
       />
 
-      {/* Map Instructions */}
-      <div className="absolute bottom-24 left-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-3 text-xs text-muted-foreground max-w-xs">
+      {/* Map Instructions - Responsive sizing */}
+      <div className={`absolute bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border text-xs text-muted-foreground ${
+        isMobile 
+          ? 'bottom-4 left-4 right-4 p-2 max-w-none' 
+          : 'bottom-24 left-4 p-3 max-w-xs'
+      }`}>
         {isMapLoaded ? (
           <div className="space-y-1">
             {currentLayer ? 
-              <div>Showing NOAA smoke forecast for {currentLayer.timestamp.toLocaleString()} with {currentLayer.data.length} polygon areas</div> :
-              <div>No smoke forecast data available for selected time</div>
+              <div className={isMobile ? 'text-xs' : ''}>
+                NOAA forecast {isMobile ? currentLayer.timestamp.toLocaleDateString() : currentLayer.timestamp.toLocaleString()} 
+                {isMobile ? ` (${currentLayer.data.length} areas)` : ` with ${currentLayer.data.length} polygon areas`}
+              </div> :
+              <div>No smoke forecast data available</div>
             }
             {fireDataLoaded && (
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span>Active fire sources displayed</span>
+                <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
+                <span className={isMobile ? 'text-xs' : ''}>Active fire sources</span>
               </div>
             )}
           </div>
