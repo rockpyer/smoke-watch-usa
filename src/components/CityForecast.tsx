@@ -273,21 +273,29 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       </div>
 
       {/* Combined scrolling container for forecast and date/time labels */}
-      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0">
+      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0 pb-8"> {/* Added bottom padding for scrollbar */}
         <div className="flex flex-col min-w-max h-full justify-between py-1">
           {/* 48-hour single-line timeline with enhanced tooltips */}
-          <div className="flex items-center space-x-0.5 flex-1 justify-center">
+          <div className="flex items-center space-x-0.5 flex-1 justify-center relative">
             {forecastData.map((f, i) => {
               const category = concentrationToCategory(f.concentration);
               const colorClass = categoryClass[category] || 'bg-muted';
               const airQualityDesc = getAirQualityDescription(f.concentration);
               const isCurrentTime = i === currentTimeIndex;
               
+              // Check if this is midnight (start of new day) for tick marks
+              const isMidnight = f.timestamp.getHours() === 0;
+              
               return (
                 <div
                   key={`forecast-${i}`}
-                  className="flex flex-col items-center flex-shrink-0" // Added flex-shrink-0
+                  className="flex flex-col items-center flex-shrink-0 relative" // Added relative for positioning
                 >
+                  {/* Midnight separator tick */}
+                  {isMidnight && i > 0 && (
+                    <div className="absolute left-[-2px] top-0 bottom-0 w-0.5 bg-border/60 z-10" />
+                  )}
+                  
                   {f.weatherCode !== undefined && <WeatherIcon code={f.weatherCode} />}
                   <div
                     className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${
@@ -309,26 +317,38 @@ export const CityForecast: React.FC<CityForecastProps> = ({
             })}
           </div>
 
-          {/* Combined date and time labels at bottom */}
-          <div className="flex text-[9px] text-muted-foreground whitespace-nowrap h-6 flex-shrink-0">
+          {/* Combined date and time labels at bottom with visual ticks */}
+          <div className="flex text-muted-foreground whitespace-nowrap flex-shrink-0 relative mt-2">
             {forecastData.map((f, i) => {
               const dateLabel = dateLabels.find(label => label.index === i);
               const timeLabel = tickIndices.includes(i) ? formatLocal(f.timestamp) : '';
+              const isMidnight = f.timestamp.getHours() === 0;
               
               return (
                 <div 
                   key={`datetime-${i}`} 
-                  className="flex-shrink-0 w-[14px] text-center flex flex-col justify-end" // Match forecast item width
+                  className="flex-shrink-0 w-[14px] text-center flex flex-col justify-end relative" // Match forecast item width
                 >
+                  {/* Midnight separator line extending up */}
+                  {isMidnight && i > 0 && (
+                    <div className="absolute left-[-2px] bottom-0 top-[-8px] w-0.5 bg-border/40" />
+                  )}
+                  
+                  {/* Small tick mark for time alignment */}
+                  {timeLabel && (
+                    <div className="absolute left-1/2 transform -translate-x-1/2 bottom-[28px] w-0.5 h-2 bg-muted-foreground/30" />
+                  )}
+                  
                   {/* Date label on top line (only when there's a date change) */}
                   {dateLabel && (
-                    <div className="text-[8px] font-medium leading-tight text-muted-foreground/80">
+                    <div className="text-[10px] font-medium leading-tight text-muted-foreground/90 mb-1">
                       {dateLabel.date}
                     </div>
                   )}
+                  
                   {/* Time label on bottom line (at tick marks) */}
                   {timeLabel && (
-                    <div className="text-[9px] leading-tight">
+                    <div className="text-[11px] leading-tight font-medium">
                       {timeLabel}
                     </div>
                   )}
