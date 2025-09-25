@@ -65,13 +65,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         map.current.removeSource('fire-data');
       }
 
-      const bounds = map.current.getBounds();
-      const fireData = await fireDataService.fetchFireData({
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest()
-      });
+      // Fetch ALL wildfire data (no bounds filtering for comprehensive US coverage)
+      const fireData = await fireDataService.fetchFireData();
 
       const fireFeatures = fireData.incidents.map(incident => ({
         type: 'Feature' as const,
@@ -520,25 +515,6 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded, addFireLayer]);
 
-  // Re-fetch fire data when map moves on mobile to fix loading issue
-  useEffect(() => {
-    if (!map.current || !isMapLoaded || !isMobile) return;
-
-    const handleMapMove = debounce(() => {
-      if (fireDataLoaded && map.current) {
-        // Reset fire data loaded state to trigger re-fetch with new bounds
-        setFireDataLoaded(false);
-      }
-    }, 1000);
-
-    map.current.on('moveend', handleMapMove);
-    
-    return () => {
-      if (map.current) {
-        map.current.off('moveend', handleMapMove);
-      }
-    };
-  }, [isMapLoaded, isMobile, fireDataLoaded]);
 
   // Unified effect: Render polygons as soon as map, smoke data, and currentLayer are ready
   useEffect(() => {

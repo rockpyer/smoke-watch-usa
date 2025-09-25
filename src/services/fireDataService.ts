@@ -51,14 +51,15 @@ export class FireDataService {
   }
 
   async fetchFireData(bounds?: { north: number; south: number; east: number; west: number }): Promise<FireData> {
-    const cacheKey = `fire-data-${JSON.stringify(bounds)}`;
+    // Use a global cache key when no bounds specified for comprehensive data
+    const cacheKey = bounds ? `fire-data-${JSON.stringify(bounds)}` : 'fire-data-global';
     
     if (this.isCacheValid(cacheKey)) {
       return this.cache.get(cacheKey)!;
     }
 
     try {
-      // Convert WGS84 bounds to Web Mercator for ArcGIS query
+      // Convert WGS84 bounds to Web Mercator for ArcGIS query (only if bounds provided)
       const webMercatorBounds = bounds ? this.wgs84ToWebMercator(bounds) : null;
 
       // Fetch both incident points and perimeter polygons
