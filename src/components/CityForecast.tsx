@@ -262,7 +262,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   return <Card className={`${compact ? 'p-1.5' : 'p-2'} bg-background/95 backdrop-blur-sm shadow-lg w-full flex flex-col min-h-0`} style={{
     height: '100%'
   }}>
-      <div className="flex items-center justify-between mb-1 flex-shrink-0">
+      <div className="flex items-center justify-between mb-1 flex-shrink-0 py-0 my-0">
         <h3 className={`${compact ? 'text-xs' : 'text-xs'} font-semibold text-foreground truncate flex-1 min-w-0`}>
           {cityName} • 48h Forecast <span className="text-[9px] text-muted-foreground">({tzShort})</span>
         </h3>
@@ -273,7 +273,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
 
       {/* Combined scrolling container for forecast and date/time labels */}
       <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0 pb-8 py-[6px]"> {/* Added bottom padding for scrollbar */}
-        <div className="flex flex-col min-w-max h-full justify-between py-[2px]">
+        <div className="flex flex-col min-w-max h-full justify-between py-0">
           {/* 48-hour single-line timeline with enhanced tooltips */}
           <div className="flex items-center space-x-0.5 flex-1 justify-center relative">
             {forecastData.map((f, i) => {
@@ -305,7 +305,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           </div>
 
           {/* Combined date and time labels at bottom with visual ticks */}
-          <div className="flex text-muted-foreground whitespace-nowrap flex-shrink-0 relative mt-2 rounded-none">
+          <div className="flex text-muted-foreground whitespace-nowrap flex-shrink-0 relative mt-2 rounded-none py-0 my-[4px]">
             {forecastData.map((f, i) => {
             const dateLabel = dateLabels.find(label => label.index === i);
             const timeLabel = tickIndices.includes(i) ? formatLocal(f.timestamp) : '';

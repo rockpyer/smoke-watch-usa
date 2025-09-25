@@ -196,13 +196,13 @@ const Index = () => {
   const isDataReady = !isLoading && smokeLayers.length > 0 && (currentLayer !== undefined || smokeLayers.length > 0) && (currentLayer?.timestamp !== undefined || smokeLayers[0]?.timestamp !== undefined);
   return <div className="min-h-screen bg-sky-gradient">
       <header className="relative z-20 bg-background/95 backdrop-blur-sm border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
+        <div className="container mx-auto py-[7px] px-[13px]">
+          <div className="flex items-center justify-between gap-4 my-0 py-0 px-[78px]">
             <div className="flex items-center space-x-2 flex-shrink-0 max-w-[300px] lg:max-w-[400px]">
               <Cloud className="h-6 w-6 text-primary flex-shrink-0" />
               <div className="min-w-0">
                 <div className="flex items-center space-x-2">
-                  <h1 className="text-sm font-bold text-foreground truncate lg:text-2xl">TrailSmoke</h1>
+                  <h1 className="font-bold text-foreground truncate lg:text-2xl text-lg">TrailSmoke</h1>
                   <Link to="/analytics" className="text-xs px-1.5 py-0.5 bg-muted hover:bg-muted/80 rounded transition-colors flex items-center space-x-1 flex-shrink-0">
                     <BarChart3 className="h-3 w-3" />
                     <span className="hidden sm:inline">Analytics</span>
@@ -224,7 +224,7 @@ const Index = () => {
       </header>
 
       {/* Mobile Time Controls Section */}
-      <div className="block md:hidden bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10">
+      <div className="block md:hidden bg-background/95 backdrop-blur-sm border-b border-border p-4 z-10 px-[15px] py-[12px]">
         <TimeControls currentIndex={currentLayerIndex} onTimeChange={handleTimeChange} autoPlay={false} availableTimes={smokeLayers.map(layer => layer.timestamp)} timeZone={cityTimeZone} compact />
       </div>
 
@@ -254,7 +254,7 @@ const Index = () => {
               <span>Updated: Real-time</span>
             </div>
             <div className="mt-1 sm:mt-0">
-              <span>For outdoor activity planning and health awareness</span>
+              <span></span>
             </div>
           </div>
         </div>
