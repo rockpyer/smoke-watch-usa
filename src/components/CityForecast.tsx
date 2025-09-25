@@ -272,7 +272,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       </div>
 
       {/* Combined scrolling container for forecast and date/time labels */}
-      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0 pb-8 py-[6px]"> {/* Added bottom padding for scrollbar */}
+      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0 pb-2 md:pb-8 py-[6px]"> {/* Reduced bottom padding on mobile */}
         <div className="flex flex-col min-w-max h-full justify-between py-0">
           {/* 48-hour single-line timeline with enhanced tooltips */}
           <div className="flex items-center space-x-0.5 flex-1 justify-center relative">
