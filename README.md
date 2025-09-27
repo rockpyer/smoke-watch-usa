@@ -1,6 +1,6 @@
-# Smoke Watch USA
+# TrailSmoke
 
-Smoke Watch USA is a modern web application for visualizing wildfire smoke forecasts and active fire incidents across North America. It provides interactive mapping, city-level smoke forecasts, and real-time fire metadata, making it a valuable tool for air quality awareness and wildfire monitoring.
+TrailSmoke is a modern web application for visualizing wildfire smoke forecasts and active fire incidents across North America. It provides interactive mapping, city-level smoke forecasts, and real-time fire metadata, making it a valuable tool for air quality awareness and wildfire monitoring.
 
 ## Features
 
