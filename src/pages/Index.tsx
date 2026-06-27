@@ -229,8 +229,11 @@ const Index = () => {
           <span className="hidden md:inline text-xs text-muted-foreground leading-none">· 48h smoke forecast</span>
         </div>
 
-        {/* Top-center CityForecast strip */}
-        <div className="absolute top-14 md:top-3 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] md:w-auto md:max-w-[640px] pointer-events-auto">
+        {/* CityForecast strip — mobile: top-center; desktop: below the top chrome, inset to avoid search (left) and details sidebar (right) */}
+        <div
+          className="absolute pointer-events-auto top-14 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] md:top-16 md:left-3 md:translate-x-0 md:w-auto"
+          style={!isMobile ? { right: sidebarCollapsed ? '3.25rem' : '21rem' } : undefined}
+        >
           {searchedCity && isDataReady ? (
             <CityForecast
               cityCoordinates={searchedCity?.coordinates}
