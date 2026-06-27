@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Wind, Eye, Thermometer } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 interface SmokeData {
   concentration_ugm3: number;
@@ -17,13 +17,15 @@ interface LocationInfoProps {
   locationName?: string;
   selectedTime?: Date;
   smokeData?: SmokeData;
+  edgeless?: boolean;
 }
 
 const LocationInfo: React.FC<LocationInfoProps> = ({ 
   coordinates, 
   locationName, 
   selectedTime,
-  smokeData 
+  smokeData,
+  edgeless = false
 }) => {
   // Convert concentration to AQI (simplified conversion)
   const concentrationToAQI = (concentration: number): number => {
@@ -38,20 +40,20 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
   
   if (!coordinates || !locationName) {
     return (
-      <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
+      <Wrapper edgeless={edgeless}>
         <div className="p-4 text-center">
           <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">
             Search for a location to view smoke forecast
           </p>
         </div>
-      </Card>
+      </Wrapper>
     );
   }
 
   if (!smokeData) {
     return (
-      <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
+      <Wrapper edgeless={edgeless}>
         <div className="p-4 space-y-4">
           <div className="flex items-start space-x-2">
             <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
@@ -70,7 +72,7 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
             </p>
           </div>
         </div>
-      </Card>
+      </Wrapper>
     );
   }
 
@@ -91,7 +93,7 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
   const smokeLevel = getSmokeLevel(c);
 
   return (
-    <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
+    <Wrapper edgeless={edgeless}>
       <div className="p-4 space-y-4">
         {/* Location Header */}
         <div className="flex items-start space-x-2">
@@ -161,8 +163,15 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
           </div>
         </div>
       </div>
-    </Card>
+    </Wrapper>
   );
+};
+
+const Wrapper: React.FC<{ edgeless: boolean; children: React.ReactNode }> = ({ edgeless, children }) => {
+  if (edgeless) {
+    return <div className="bg-transparent">{children}</div>;
+  }
+  return <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">{children}</Card>;
 };
 
 export default LocationInfo;
