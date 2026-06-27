@@ -150,6 +150,22 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     }
   }, [isMapLoaded, fireDataLoaded]);
 
+  // Fly to a focus location (e.g. default Boulder or geolocated user position),
+  // centered slightly WEST so the typical west-to-east smoke plume is visible
+  // downwind of the location.
+  const lastFocusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!map.current || !isMapLoaded || !focusLocation) return;
+    const key = `${focusLocation.lat.toFixed(4)},${focusLocation.lng.toFixed(4)}`;
+    if (lastFocusRef.current === key) return;
+    lastFocusRef.current = key;
+    map.current.flyTo({
+      center: [focusLocation.lng - 3, focusLocation.lat],
+      zoom: 6,
+      duration: 1500
+    });
+  }, [focusLocation, isMapLoaded]);
+
   // Map initialization logic, now after all dependencies and using no hooks inside
   // Stable addSmokeLayer: only depends on map.current
   const addSmokeLayer = useCallback(() => {
