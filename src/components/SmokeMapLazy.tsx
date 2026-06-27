@@ -9,6 +9,7 @@ interface SmokeMapLazyProps {
   selectedTime?: Date;
   currentLayer?: any;
   smokeLayers?: any[];
+  focusLocation?: { lat: number; lng: number } | null;
 }
 
 const SmokeMapLazy: React.FC<SmokeMapLazyProps> = memo((props) => {
