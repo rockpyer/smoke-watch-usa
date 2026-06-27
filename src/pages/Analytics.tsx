@@ -333,7 +333,7 @@ const Analytics = () => {
           <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
             <Link to="/privacy-reality" className="flex-shrink-0">
               <Button variant="outline" className="w-full sm:w-auto border-destructive/50 text-destructive hover:bg-destructive/10 text-xs sm:text-sm">
-                Your data isn't private - read more
+                Read the TrailSmoke privacy reality check
               </Button>
             </Link>
             
