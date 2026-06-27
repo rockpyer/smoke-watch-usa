@@ -98,8 +98,8 @@ const SmokeLegend: React.FC<SmokeLegendProps> = ({ edgeless = false }) => {
           <p className="text-xs text-muted-foreground">
             Based on EPA Air Quality Index standards. Real-time data from NOAA HRRR-Smoke model.
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Developed by <a href="https://ryweller.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Ryan</a>
+          <p className="text-xs text-foreground/70 mt-1">
+            Developed by <a href="https://ryweller.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Ryan Weller</a>
           </p>
         </div>
       </div>
