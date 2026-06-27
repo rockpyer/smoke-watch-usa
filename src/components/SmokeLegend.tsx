@@ -68,12 +68,11 @@ const SmokeLegend: React.FC<SmokeLegendProps> = ({ edgeless = false }) => {
     edgeless ? <div className="bg-transparent">{children}</div> : <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">{children}</Card>;
   return (
     <Wrap>
-      <div className="p-4">
-        <h3 className="font-semibold text-sm mb-3 text-foreground">
+      <div className="px-3 py-2">
+        <h3 className="font-semibold text-sm mb-2 text-foreground">
           EPA Air Quality Index - Smoke
         </h3>
-        
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {smokeLevels.map((level) => (
             <div key={level.level} className="flex items-center space-x-3">
               <div className={`w-4 h-4 rounded ${level.color} flex-shrink-0`} />
@@ -86,15 +85,14 @@ const SmokeLegend: React.FC<SmokeLegendProps> = ({ edgeless = false }) => {
                     {level.concentration}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground leading-tight">
+                <p className="text-xs text-muted-foreground leading-snug">
                   {level.description}
                 </p>
               </div>
             </div>
           ))}
         </div>
-        
-        <div className="mt-4 pt-3 border-t border-border">
+        <div className="mt-3 pt-2 border-t border-border">
           <p className="text-xs text-muted-foreground">
             Based on EPA Air Quality Index standards. Real-time data from NOAA HRRR-Smoke model.
           </p>
