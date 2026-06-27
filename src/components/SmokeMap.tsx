@@ -684,28 +684,28 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         </div>
       )}
 
-      {/* Search Controls */}
-      <div className="absolute top-4 left-4 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border">
-        <div className="flex items-center p-2">
+      {/* Search Controls — offset right to leave room for the floating wordmark chip */}
+      <div className="absolute top-3 left-36 md:left-44 right-3 md:right-auto z-10 bg-background/70 backdrop-blur-md rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.2)]">
+        <div className="flex items-center pl-3 pr-1 py-1">
           <div className="flex items-center flex-1 min-w-0">
-            <Search className="h-4 w-4 text-muted-foreground mr-2" />
+            <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
             <Input
-              placeholder="Search city, ZIP code..."
+              placeholder="Search city..."
               value={searchValue}
               onChange={handleSearchInputChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-7 px-0 text-sm"
               disabled={!isMapLoaded}
               maxLength={100}
             />
           </div>
-          <Button 
-            size="sm" 
-            onClick={handleSearch} 
-            className="ml-2"
+          <Button
+            size="sm"
+            onClick={handleSearch}
+            className="ml-1 h-7 w-7 p-0 rounded-full"
             disabled={!isMapLoaded || !searchValue.trim()}
           >
-            <MapPin className="h-4 w-4" />
+            <MapPin className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
