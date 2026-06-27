@@ -8,8 +8,7 @@ import { ForecastSkeleton, MapSkeleton } from '@/components/LoadingSkeleton';
 import { useSmokeData } from '@/hooks/useSmokeDataOptimized';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { getSmokeDataForLocation } from '@/utils/aqi';
-import { Cloud, BarChart3 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Cloud } from 'lucide-react';
 import tzLookup from 'tz-lookup';
 const Index = () => {
   // The useSmokeData hook is now the single source of truth for the current time.
@@ -201,13 +200,7 @@ const Index = () => {
             <div className="flex items-center space-x-2 flex-shrink-0 max-w-[300px] lg:max-w-[400px]">
               <Cloud className="h-6 w-6 text-primary flex-shrink-0" />
               <div className="min-w-0">
-                <div className="flex items-center space-x-2">
-                  <h1 className="font-bold text-foreground truncate text-xl lg:text-4xl">TrailSmoke</h1>
-                  <Link to="/analytics" className="text-xs px-1.5 py-0.5 bg-muted hover:bg-muted/80 rounded transition-colors flex items-center space-x-1 flex-shrink-0">
-                    <BarChart3 className="h-3 w-3" />
-                    <span className="hidden sm:inline">Analytics</span>
-                  </Link>
-                </div>
+                <h1 className="font-bold text-foreground truncate text-xl lg:text-4xl">TrailSmoke</h1>
                 <p className="text-xs text-muted-foreground truncate lg:text-base">48h wildfire smoke forecasting</p>
               </div>
             </div>

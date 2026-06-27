@@ -67,14 +67,10 @@ export class SmokeDataService {
     }
 
     try {
-      console.log('Fetching NOAA smoke forecast data with pagination...');
+      console.log('Fetching NOAA smoke forecast data...');
 
-      const allFeatures: ArcGISFeature[] = [];
       const pageSize = 2000;
-      let offset = 0;
-      let page = 0;
-
-      while (true) {
+      const fetchPage = async (offset: number): Promise<ArcGISResponse> => {
         const params = new URLSearchParams({
           f: 'json',
           where: '1=1',
@@ -84,30 +80,37 @@ export class SmokeDataService {
           resultRecordCount: String(pageSize),
           resultOffset: String(offset)
         });
-
         const url = `${this.ARCGIS_ENDPOINT}/query?${params}`;
-        console.log(`Page ${page}: GET ${url}`);
         const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`ArcGIS API error: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`ArcGIS API error: ${res.status}`);
+        return res.json();
+      };
 
-        const data: ArcGISResponse = await res.json();
-        const count = data.features?.length || 0;
-        allFeatures.push(...(data.features || []));
-        console.log(`Page ${page}: received ${count} features, total so far ${allFeatures.length}, exceededTransferLimit=${data.exceededTransferLimit}`);
+      // Fetch the first page to learn whether more pages exist.
+      const first = await fetchPage(0);
+      const allFeatures: ArcGISFeature[] = [...(first.features || [])];
+      console.log(`Page 0: ${first.features?.length || 0} features, exceededTransferLimit=${first.exceededTransferLimit}`);
 
-        if (!data.exceededTransferLimit || count === 0) {
-          break;
+      // If the server says there is more, fetch up to N additional pages in parallel.
+      // NOAA NDGD typically returns < 10k polygons total — capping at 9 extra pages
+      // (≈ 20k records) is a safe bound that avoids runaway requests.
+      if (first.exceededTransferLimit && (first.features?.length || 0) > 0) {
+        const MAX_EXTRA_PAGES = 9;
+        const offsets = Array.from({ length: MAX_EXTRA_PAGES }, (_, i) => (i + 1) * pageSize);
+        const results = await Promise.all(offsets.map(o => fetchPage(o).catch(err => {
+          console.warn('Smoke page fetch failed at offset', o, err);
+          return { features: [] } as ArcGISResponse;
+        })));
+        for (const r of results) {
+          if (r.features && r.features.length) allFeatures.push(...r.features);
+          // Stop appending once we hit a page that did NOT exceed the limit;
+          // anything past that point would just be empty.
+          if (!r.exceededTransferLimit) break;
         }
-        offset += pageSize;
-        page += 1;
+        console.log(`Total features after parallel pagination: ${allFeatures.length}`);
       }
 
-      // Process combined feature set
       const smokeData = this.processArcGISData({ features: allFeatures });
-      
-      // Use enhanced caching
       this.setCachedData(cacheKey, smokeData);
       return smokeData;
 
@@ -219,116 +222,12 @@ export class SmokeDataService {
     return layers;
   }
 
-  private ensureFullForecastRange(layers: SmokeLayer[]): SmokeLayer[] {
-    if (layers.length === 0) {
-      return this.generateFallbackSmokeData();
-    }
-
-    console.log(`Starting with ${layers.length} actual data layers`);
-    
-    // If we have actual forecast data, use it as the base and extend around it
-    const actualTimestamps = layers.map(l => l.timestamp).sort((a, b) => a.getTime() - b.getTime());
-    const earliestForecast = actualTimestamps[0];
-    const latestForecast = actualTimestamps[actualTimestamps.length - 1];
-    
-    console.log(`Actual forecast range: ${earliestForecast.toISOString()} to ${latestForecast.toISOString()}`);
-    
-    // Create a 48-hour range starting from the earliest forecast time
-    const startTime = new Date(earliestForecast);
-    const endTime = new Date(startTime.getTime() + (47 * 60 * 60 * 1000)); // 48 hours total
-    
-    const fullLayers: SmokeLayer[] = [];
-    
-    // Generate hourly time slots for 48 hours starting from actual forecast data
-    for (let time = new Date(startTime); time <= endTime; time = new Date(time.getTime() + (60 * 60 * 1000))) {
-      // Look for existing layer within 6 hours (much more flexible matching)
-      const existingLayer = layers.find(layer => 
-        Math.abs(layer.timestamp.getTime() - time.getTime()) < (6 * 60 * 60 * 1000) // Within 6 hours
-      );
-      
-      if (existingLayer) {
-        fullLayers.push({
-          timestamp: new Date(time), // Use the generated time slot
-          data: existingLayer.data   // But use the actual polygon data
-        });
-        console.log(`✓ Matched slot ${time.toISOString()} with data from ${existingLayer.timestamp.toISOString()}`);
-      } else {
-        // If we only have one timestamp, extend that data to nearby time slots (within 12 hours)
-        if (layers.length === 1 && Math.abs(layers[0].timestamp.getTime() - time.getTime()) < (12 * 60 * 60 * 1000)) {
-          fullLayers.push({
-            timestamp: new Date(time),
-            data: layers[0].data // Reuse the single forecast data
-          });
-          console.log(`✓ Extended single forecast to slot ${time.toISOString()}`);
-        } else {
-          // Create empty layer for missing time slot
-          fullLayers.push({
-            timestamp: new Date(time),
-            data: []
-          });
-          console.log(`○ Empty slot ${time.toISOString()}`);
-        }
-      }
-    }
-    
-    const layersWithData = fullLayers.filter(l => l.data.length > 0);
-    console.log(`Final result: ${fullLayers.length} total layers, ${layersWithData.length} with polygon data`);
-    
-    return fullLayers;
-  }
-
   // Convert Web Mercator (EPSG:3857) to WGS84 (EPSG:4326)
   private webMercatorToWGS84(x: number, y: number): [number, number] {
     const lng = (x / 20037508.34) * 180;
     let lat = (y / 20037508.34) * 180;
     lat = 180 / Math.PI * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
     return [lng, lat];
-  }
-
-  private smokeClassToConcentration(smokeClass: number): number {
-    // Convert smoke class to approximate μg/m³ concentration
-    switch (smokeClass) {
-      case 1: return 12;   // Light smoke
-      case 2: return 35;   // Moderate smoke
-      case 3: return 55;   // Heavy smoke
-      case 4: return 150;  // Very heavy smoke
-      case 5: return 250;  // Extreme smoke
-      default: return 0;
-    }
-  }
-
-  private generateFallbackSmokeData(): SmokeLayer[] {
-    // Generate fallback polygon data for when API is unavailable
-    const layers: SmokeLayer[] = [];
-    const baseTime = new Date();
-    
-    for (let hour = 0; hour < 24; hour++) {
-      const timestamp = new Date(baseTime.getTime() + hour * 60 * 60 * 1000);
-      const data: SmokePolygon[] = [
-        {
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [-122.5, 37.7],
-              [-122.3, 37.7],
-              [-122.3, 37.9],
-              [-122.5, 37.9],
-              [-122.5, 37.7]
-            ]]
-          },
-          properties: {
-            smoke_class: 2,
-            smoke_classdesc: 'Moderate',
-            concentration_ugm3: 35,
-            todate: timestamp.toISOString(),
-            referencedate: baseTime.toISOString()
-          }
-        }
-      ];
-      layers.push({ timestamp, data });
-    }
-    
-    return layers;
   }
 
   private isCacheValid(key: string): boolean {

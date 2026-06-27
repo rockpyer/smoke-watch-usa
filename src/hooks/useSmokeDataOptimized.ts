@@ -84,26 +84,19 @@ export const useSmokeData = () => {
   const lastSyncedIndexRef = useRef<number>(-1);
   const initializedRef = useRef<boolean>(false);
 
-  // Optimized fetch with time-sliced processing
+  // Fetch and publish layers in a single transition — the prior time-sliced
+  // loop only shaped already-shaped objects and added unnecessary latency.
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       console.log('Fetching NOAA smoke polygon data...');
       const data = await smokeDataService.fetchSmokeData();
-      
-      // Process data in time-sliced chunks to prevent blocking
-      // Detect mobile device
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      const processedLayers: SmokeLayer[] = [];
-      await timeSlicedProcess(data, (layer, index) => {
-        processedLayers.push(layer);
-      }, 100, isMobile, true); // First layer priority
-      
-      setSmokeLayers(processedLayers);
-      console.log(`Loaded ${processedLayers.length} smoke forecast layers`);
+      startTransition(() => {
+        setSmokeLayers(data);
+      });
+      console.log(`Loaded ${data.length} smoke forecast layers`);
     } catch (err) {
       console.error('Failed to fetch NOAA smoke data:', err);
       setError('Failed to load NOAA smoke forecast data');
@@ -199,16 +192,11 @@ export const useSmokeData = () => {
     }
   }, [selectedTime, smokeLayers]);
 
-  // Initial data fetch - defer to avoid blocking TTI
+  // Initial data fetch — kick off immediately so polygons appear on first
+  // load (especially important on mobile). React will still keep the UI
+  // responsive thanks to startTransition inside fetchData.
   useEffect(() => {
-    // Defer initial fetch to allow page to become interactive first
-    const timer = setTimeout(() => {
-      startTransition(() => {
-        fetchData();
-      });
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    fetchData();
   }, [fetchData]);
 
   const getCurrentLayer = (): SmokeLayer | null => {
