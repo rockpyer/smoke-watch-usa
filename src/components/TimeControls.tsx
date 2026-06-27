@@ -177,7 +177,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
         </div>
 
         {/* Timeline Slider */}
-        <div className="space-y-1 md:space-y-2">
+        <div className={`space-y-1 md:space-y-2 ${floating ? 'flex-1 min-w-[140px] md:min-w-[280px]' : ''}`}>
           <Slider
             value={[currentIndex]}
             onValueChange={handleSliderChange}
