@@ -12,6 +12,7 @@ interface TimeControlsProps {
   timeZone?: string;
   compact?: boolean;
   currentIndex?: number; // ADDED: Receive index from parent
+  floating?: boolean;
 }
 
 const TimeControls: React.FC<TimeControlsProps> = ({ 
@@ -20,7 +21,8 @@ const TimeControls: React.FC<TimeControlsProps> = ({
   availableTimes = [], 
   timeZone, 
   compact = false,
-  currentIndex = 0 // ADDED: Use parent-provided index
+  currentIndex = 0,
+  floating = false
 }) => {
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   
@@ -97,9 +99,16 @@ const TimeControls: React.FC<TimeControlsProps> = ({
   const latestTime = availableTimes[availableTimes.length - 1];
   const totalHours = Math.round((latestTime.getTime() - earliestTime.getTime()) / (1000 * 60 * 60));
 
+  const wrapperClass = floating
+    ? 'bg-background/70 backdrop-blur-md rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.25)] border-0 px-3 py-2'
+    : 'bg-background/95 backdrop-blur-sm border shadow-lg rounded-lg';
+  const innerClass = floating
+    ? 'flex items-center gap-3'
+    : `${compact ? 'p-1.5 space-y-1' : 'p-3 md:p-4 space-y-2 md:space-y-3'}`;
+
   return (
-    <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
-      <div className={`${compact ? 'p-1.5' : 'p-3 md:p-4'} ${compact ? 'space-y-1' : 'space-y-2 md:space-y-3'}`}>
+    <div className={wrapperClass}>
+      <div className={innerClass}>
         {/* Current Time Display and Controls - Side by side on mobile */}
         <div className={`${compact ? 'flex items-center justify-between' : 'space-y-2 md:space-y-3'}`}>
           {/* Current Time Display */}
