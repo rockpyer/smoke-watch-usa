@@ -248,7 +248,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 };
 
