@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import { analyticsService } from '@/services/analyticsService';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 
 const PrivacyReality = () => {
   const [userFingerprint, setUserFingerprint] = useState<any>(null);
@@ -117,6 +118,14 @@ const PrivacyReality = () => {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <Helmet>
+        <title>Privacy Reality Check — TrailSmoke</title>
+        <meta name="description" content="See exactly what TrailSmoke records about your visit, clear your data, and learn how to improve your browsing privacy." />
+        <link rel="canonical" href="https://trailsmoke.lovable.app/privacy-reality" />
+        <meta property="og:title" content="Privacy Reality Check — TrailSmoke" />
+        <meta property="og:description" content="What TrailSmoke records, how to clear it, and tools to improve your privacy." />
+        <meta property="og:url" content="https://trailsmoke.lovable.app/privacy-reality" />
+      </Helmet>
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header with Back Button */}
@@ -131,6 +140,7 @@ const PrivacyReality = () => {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Here's exactly what gets recorded about you right now. Most websites collect this and more - this site is just being honest about it.
           </p>
+          <h2 className="sr-only">Privacy details, recorded data, and tools to improve privacy</h2>
           </div>
           <div className="w-9"></div> {/* Spacer for centering */}
         </div>
@@ -149,32 +159,32 @@ const PrivacyReality = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <h4 className="font-semibold">Browser Session ID</h4>
+                <h3 className="font-semibold">Browser Session ID</h3>
                 <p className="text-sm font-mono bg-muted p-2 rounded">{userFingerprint?.browserSessionId}</p>
               </div>
               
               <div className="space-y-2">
-                <h4 className="font-semibold">Visitor Hash</h4>
+                <h3 className="font-semibold">Visitor Hash</h3>
                 <p className="text-sm font-mono bg-muted p-2 rounded">{userFingerprint?.visitorHash}</p>
               </div>
               
               <div className="space-y-2">
-                <h4 className="font-semibold">Device Info</h4>
+                <h3 className="font-semibold">Device Info</h3>
                 <p className="text-sm bg-muted p-2 rounded">{sessionData?.platform}</p>
               </div>
               
               <div className="space-y-2">
-                <h4 className="font-semibold">Screen Size</h4>
+                <h3 className="font-semibold">Screen Size</h3>
                 <p className="text-sm bg-muted p-2 rounded">{sessionData?.viewport}</p>
               </div>
               
               <div className="space-y-2">
-                <h4 className="font-semibold">Location</h4>
+                <h3 className="font-semibold">Location</h3>
                 <p className="text-sm bg-muted p-2 rounded">{sessionData?.timezone}</p>
               </div>
               
               <div className="space-y-2">
-                <h4 className="font-semibold">Language</h4>
+                <h3 className="font-semibold">Language</h3>
                 <p className="text-sm bg-muted p-2 rounded">{sessionData?.language}</p>
               </div>
             </div>
@@ -196,42 +206,42 @@ const PrivacyReality = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-3 border rounded-lg">
-                <h4 className="font-semibold text-sm">Location Data</h4>
+                <h3 className="font-semibold text-sm">Location Data</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   When you click the map or search for cities
                 </p>
               </div>
               
               <div className="p-3 border rounded-lg">
-                <h4 className="font-semibold text-sm">Time Interactions</h4>
+                <h3 className="font-semibold text-sm">Time Interactions</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   Every time you change the forecast time
                 </p>
               </div>
               
               <div className="p-3 border rounded-lg">
-                <h4 className="font-semibold text-sm">Search Queries</h4>
+                <h3 className="font-semibold text-sm">Search Queries</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   What cities and places you search for
                 </p>
               </div>
               
               <div className="p-3 border rounded-lg">
-                <h4 className="font-semibold text-sm">Session Length</h4>
+                <h3 className="font-semibold text-sm">Session Length</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   How long you spend on the site
                 </p>
               </div>
               
               <div className="p-3 border rounded-lg">
-                <h4 className="font-semibold text-sm">Device Details</h4>
+                <h3 className="font-semibold text-sm">Device Details</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   Browser, OS, screen size, timezone
                 </p>
               </div>
               
               <div className="p-3 border rounded-lg">
-                <h4 className="font-semibold text-sm">Referrer Info</h4>
+                <h3 className="font-semibold text-sm">Referrer Info</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   Where you came from: {sessionData?.referrer}
                 </p>
@@ -329,7 +339,7 @@ const PrivacyReality = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 border rounded-lg">
-                <h4 className="font-semibold">Use a VPN</h4>
+                <h3 className="font-semibold">Use a VPN</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Hides your real location from all websites
                 </p>
@@ -344,7 +354,7 @@ const PrivacyReality = () => {
               </div>
               
               <div className="p-4 border rounded-lg">
-                <h4 className="font-semibold">Firefox with Privacy Settings</h4>
+                <h3 className="font-semibold">Firefox with Privacy Settings</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Enable strict tracking protection
                 </p>
@@ -359,7 +369,7 @@ const PrivacyReality = () => {
               </div>
               
               <div className="p-4 border rounded-lg">
-                <h4 className="font-semibold">uBlock Origin</h4>
+                <h3 className="font-semibold">uBlock Origin</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Blocks trackers and ads on most sites
                 </p>
@@ -374,7 +384,7 @@ const PrivacyReality = () => {
               </div>
               
               <div className="p-4 border rounded-lg">
-                <h4 className="font-semibold">DuckDuckGo</h4>
+                <h3 className="font-semibold">DuckDuckGo</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Search engine that doesn't track you
                 </p>
@@ -392,7 +402,7 @@ const PrivacyReality = () => {
             <Separator />
             
             <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold">The Reality</h4>
+              <h3 className="font-semibold">The Reality</h3>
               <p className="text-sm text-muted-foreground mt-2">
                 This site can't make you private - only YOU can do that. Most websites collect way more data than this 
                 and sell it to advertisers. At least this site tells you what gets collected and lets you delete it.

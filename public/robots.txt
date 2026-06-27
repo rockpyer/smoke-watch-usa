@@ -8,9 +8,11 @@ User-agent: Twitterbot
 Allow: /
 
 User-agent: *
-User-agent: *
+Allow: /
 Disallow: /facebook
 Disallow: /x
 Disallow: /twitter
 Disallow: /meta
+
+Sitemap: https://trailsmoke.lovable.app/sitemap.xml
 

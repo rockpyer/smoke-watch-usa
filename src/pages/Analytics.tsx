@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Helmet } from 'react-helmet-async';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -317,6 +318,14 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6">
+      <Helmet>
+        <title>Analytics Dashboard — TrailSmoke</title>
+        <meta name="description" content="Engagement metrics and session insights for the TrailSmoke wildfire smoke forecast app." />
+        <link rel="canonical" href="https://trailsmoke.lovable.app/analytics" />
+        <meta property="og:title" content="Analytics Dashboard — TrailSmoke" />
+        <meta property="og:description" content="Engagement metrics and session insights for TrailSmoke." />
+        <meta property="og:url" content="https://trailsmoke.lovable.app/analytics" />
+      </Helmet>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
@@ -327,13 +336,14 @@ const Analytics = () => {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Analytics Dashboard</h1>
               <p className="text-sm lg:text-base text-muted-foreground">Detailed insights from user interactions (Mountain Time)</p>
+              <h2 className="sr-only">Engagement metrics, activity trends, and audience breakdowns</h2>
             </div>
           </div>
           
           <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
             <Link to="/privacy-reality" className="flex-shrink-0">
               <Button variant="outline" className="w-full sm:w-auto border-destructive/50 text-destructive hover:bg-destructive/10 text-xs sm:text-sm">
-                Your data isn't private - read more
+                Read the TrailSmoke privacy reality check
               </Button>
             </Link>
             

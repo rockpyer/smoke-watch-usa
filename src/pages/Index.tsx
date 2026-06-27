@@ -12,6 +12,7 @@ import { getSmokeDataForLocation } from '@/utils/aqi';
 import { Cloud, Info, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Helmet } from 'react-helmet-async';
 import tzLookup from 'tz-lookup';
 const Index = () => {
   // The useSmokeData hook is now the single source of truth for the current time.
@@ -205,6 +206,14 @@ const Index = () => {
 
   return (
     <div className="fixed inset-0 bg-background overflow-hidden">
+      <Helmet>
+        <title>TrailSmoke — Real-time 48h USA Wildfire Smoke Forecast Map</title>
+        <meta name="description" content="Interactive NOAA HRRR wildfire smoke forecast map for the USA. See 48-hour smoke conditions and active wildfire locations." />
+        <link rel="canonical" href="https://trailsmoke.lovable.app/" />
+        <meta property="og:title" content="TrailSmoke — Real-time USA Wildfire Smoke Forecast" />
+        <meta property="og:url" content="https://trailsmoke.lovable.app/" />
+      </Helmet>
+      <h1 className="sr-only">TrailSmoke — Real-time 48-hour USA Wildfire Smoke Forecast Map</h1>
       {/* Base map fills the entire viewport */}
       <div className="absolute inset-0">
         {isDataReady ? (
