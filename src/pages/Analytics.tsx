@@ -318,6 +318,14 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6">
+      <Helmet>
+        <title>Analytics Dashboard — TrailSmoke</title>
+        <meta name="description" content="Engagement metrics and session insights for the TrailSmoke wildfire smoke forecast app." />
+        <link rel="canonical" href="https://trailsmoke.lovable.app/analytics" />
+        <meta property="og:title" content="Analytics Dashboard — TrailSmoke" />
+        <meta property="og:description" content="Engagement metrics and session insights for TrailSmoke." />
+        <meta property="og:url" content="https://trailsmoke.lovable.app/analytics" />
+      </Helmet>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">

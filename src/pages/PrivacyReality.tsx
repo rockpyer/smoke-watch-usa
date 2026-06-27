@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import { analyticsService } from '@/services/analyticsService';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 
 const PrivacyReality = () => {
   const [userFingerprint, setUserFingerprint] = useState<any>(null);
@@ -117,6 +118,14 @@ const PrivacyReality = () => {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <Helmet>
+        <title>Privacy Reality Check — TrailSmoke</title>
+        <meta name="description" content="See exactly what TrailSmoke records about your visit, clear your data, and learn how to improve your browsing privacy." />
+        <link rel="canonical" href="https://trailsmoke.lovable.app/privacy-reality" />
+        <meta property="og:title" content="Privacy Reality Check — TrailSmoke" />
+        <meta property="og:description" content="What TrailSmoke records, how to clear it, and tools to improve your privacy." />
+        <meta property="og:url" content="https://trailsmoke.lovable.app/privacy-reality" />
+      </Helmet>
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header with Back Button */}
