@@ -122,3 +122,9 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+/* Always-visible thin scrollbar for the 48h forecast strip so the scroll cue is discoverable */
+.forecast-scroll::-webkit-scrollbar { height: 6px; }
+.forecast-scroll::-webkit-scrollbar-track { background: hsl(var(--muted) / 0.3); border-radius: 9999px; }
+.forecast-scroll::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); border-radius: 9999px; }
+.forecast-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.75); }
+.forecast-scroll { scrollbar-width: thin; scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--muted) / 0.3); }
