@@ -277,8 +277,8 @@ export const CityForecast: React.FC<CityForecastProps> = ({
         </Button>
       </div>
 
-      {/* Combined scrolling container for forecast and date/time labels */}
-      <div className="overflow-x-auto overflow-y-visible flex-1 min-h-0 pb-2 md:pb-3 py-[6px]">
+      {/* Combined scrolling container for forecast and date/time labels — force visible scrollbar as a scroll cue */}
+      <div className="forecast-scroll overflow-x-scroll overflow-y-visible flex-1 min-h-0 pb-2 md:pb-3 py-[6px]">
         <div className="flex flex-col min-w-max h-full justify-between py-0">
           {/* 48-hour single-line timeline with enhanced tooltips */}
           <div className="flex items-center space-x-0.5 flex-1 justify-center relative">

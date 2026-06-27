@@ -684,8 +684,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         </div>
       )}
 
-      {/* Search Controls — offset right to leave room for the floating wordmark chip */}
-      <div className="absolute top-3 left-36 md:left-44 right-3 md:right-auto z-10 bg-background/70 backdrop-blur-md rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.2)]">
+      {/* Search Controls — offset right to clear the floating wordmark chip (incl. desktop subtitle) */}
+      <div className="absolute top-3 left-36 md:left-[19rem] right-3 md:right-auto md:w-[300px] z-10 bg-background/70 backdrop-blur-md rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.2)]">
         <div className="flex items-center pl-3 pr-1 py-1">
           <div className="flex items-center flex-1 min-w-0">
             <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />

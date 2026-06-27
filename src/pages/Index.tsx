@@ -312,7 +312,7 @@ const Index = () => {
                 >
                   <Info className="h-4 w-4 text-primary" />
                   <span className="text-xs font-medium max-w-[120px] truncate">
-                    {selectedCityShort || 'Details'}
+                    Legend
                   </span>
                 </Button>
               </SheetTrigger>
