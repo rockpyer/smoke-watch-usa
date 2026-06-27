@@ -140,6 +140,7 @@ const PrivacyReality = () => {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Here's exactly what gets recorded about you right now. Most websites collect this and more - this site is just being honest about it.
           </p>
+          <h2 className="sr-only">Privacy details, recorded data, and tools to improve privacy</h2>
           </div>
           <div className="w-9"></div> {/* Spacer for centering */}
         </div>

@@ -336,6 +336,7 @@ const Analytics = () => {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Analytics Dashboard</h1>
               <p className="text-sm lg:text-base text-muted-foreground">Detailed insights from user interactions (Mountain Time)</p>
+              <h2 className="sr-only">Engagement metrics, activity trends, and audience breakdowns</h2>
             </div>
           </div>
           
