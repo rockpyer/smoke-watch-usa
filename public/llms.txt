@@ -1,0 +1,14 @@
+# TrailSmoke
+
+> Real-time 48-hour wildfire smoke forecast map for the USA, powered by NOAA HRRR data and active wildfire incident layers.
+
+TrailSmoke shows interactive smoke plume forecasts and current wildfire locations so outdoor enthusiasts and health-conscious users can plan around poor air quality.
+
+## Pages
+
+- [Smoke Forecast Map](/): Interactive NOAA HRRR 48-hour wildfire smoke forecast with active fire incidents and per-city forecasts.
+- [Privacy Reality Check](/privacy-reality): What data is recorded, how to clear it, and tools to improve browsing privacy.
+
+## Optional
+
+- [Analytics Dashboard](/analytics): Public engagement metrics for the TrailSmoke app.
