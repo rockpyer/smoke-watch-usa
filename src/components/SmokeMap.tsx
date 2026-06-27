@@ -23,6 +23,7 @@ interface SmokeMapProps {
   selectedTime?: Date;
   currentLayer?: SmokeLayer | null;
   smokeLayers?: SmokeLayer[];
+  focusLocation?: { lat: number; lng: number } | null;
 }
 
 const SmokeMap: React.FC<SmokeMapProps> = ({
@@ -30,7 +31,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   onCitySearch,
   selectedTime,
   currentLayer,
-  smokeLayers = []
+  smokeLayers = [],
+  focusLocation
 }) => {
   const { trackLocationClick, trackCitySearch } = useAnalytics();
   const isMobile = useIsMobile();
