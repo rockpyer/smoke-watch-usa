@@ -160,8 +160,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
     if (lastFocusRef.current === key) return;
     lastFocusRef.current = key;
     map.current.flyTo({
-      center: [focusLocation.lng - 3, focusLocation.lat],
-      zoom: 6,
+      center: [focusLocation.lng - 1, focusLocation.lat],
+      zoom: 5,
       duration: 1500
     });
   }, [focusLocation, isMapLoaded]);
