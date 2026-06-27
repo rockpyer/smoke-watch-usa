@@ -1,45 +1,64 @@
-## What to change
+## Unified edgeless, map‑first redesign (mobile + desktop)
 
-### 1. Remove the Analytics link from the home page
-In `src/pages/Index.tsx`, remove the `<Link to="/analytics">` chip next to the TrailSmoke title (and its `BarChart3` / `Link` imports if no longer used). The `/analytics` route itself can stay in `App.tsx` for now so nothing breaks if you bookmark it — just no UI entry from the home page.
+One design language across both form factors: the map is the canvas, controls float as translucent chips with `backdrop-blur`, and bordered "AI dashboard" cards are gone. Desktop keeps a sidebar but it adopts the same edgeless chrome.
 
-### 2. Stop the disconnected‑Supabase analytics traffic
-The network log shows the app firing a POST to the (now disconnected) Supabase `smokeusage` table every ~10s, each failing with `NetworkError`. On mobile this competes for bandwidth and main‑thread time during the first paint, which makes the initial polygon load feel broken.
+### A. Shared design tokens (apply everywhere)
 
-Make all analytics calls no‑ops while the backend is disconnected:
+- **Chip style**: `bg-background/70 backdrop-blur-md rounded-2xl` (or `rounded-full` for single‑row controls). No `border`, no `shadow-lg`. Subtle `shadow-[0_2px_12px_rgba(0,0,0,0.15)]` only where contrast over the map needs help.
+- **Card style** inside the details sheet / desktop sidebar: plain padded `div`s with a hairline `border-border/30` divider between sections instead of stacked bordered cards.
+- **Colors**: only semantic tokens (`bg-background/70`, `text-foreground`, `border-border/30`). No hardcoded hex.
+- **Icon‑first**: small `lucide-react` icons inside chips; labels appear inline only at `md+` widths where there's room.
 
-- In `src/services/analyticsService.ts`, add a top‑level `ANALYTICS_ENABLED` flag (default `false`) and short‑circuit every public method (`trackPageLoad`, `trackCitySearch`, `trackLocationClick`, `trackTimeChange`, `trackForecastView`, plus the periodic flush/heartbeat timer) when the flag is off. Also clear any existing `setInterval` flush loop so no background timer keeps firing.
-- Leave the `useAnalytics` hook API unchanged so call sites in `Index.tsx`, `CityForecast.tsx`, and `PrivacyReality.tsx` don't need edits.
+### B. Header
 
-This single flag is what we flip back when Lovable Cloud is reconnected.
+- **Mobile**: replace the full‑width header with a floating top‑left wordmark chip — `Cloud` icon + `TrailSmoke` in `text-sm font-semibold`, no card background, just `drop-shadow`. Tapping it opens the details sheet.
+- **Desktop**: same wordmark moves to top‑left as a chip too (no full‑width header bar). Subtitle "48h wildfire smoke forecasting" sits as `text-xs text-muted-foreground` inline next to the wordmark. This frees ~70px of vertical space across desktop and unifies the visual language.
 
-### 3. Fix mobile "no polygons on initial load"
-Root cause in `src/components/SmokeMap.tsx`: the unified render effect only fires when one of its dependencies changes, but it gates on `map.current.isStyleLoaded()`. On slower mobile devices the style isn't loaded yet when `currentLayer` first arrives, the effect bails, and nothing re‑triggers it until the user pans the map (which is exactly the reported symptom — polygons appear after the first map interaction).
+### C. CityForecast strip
 
-Fixes:
+- Render as a **transparent strip** on both mobile and desktop when used as the top overlay: `bg-transparent shadow-none border-0`. The colored bars + weather glyphs are the visible UI.
+- Position: floating top‑center over the map on both breakpoints, `max-w-[640px]` desktop, full‑width minus 16px padding on mobile.
+- Fix the clipped "9 P" with `pr-3` on the inner `min-w-max` wrapper.
+- Position date labels absolutely above their matching time column so `Jun 27` no longer collides with the prior day's `9 PM`.
+- **Tappable bars** (both breakpoints): each colored bar is a `<button>` with `aria-label="3 PM, light smoke"` that calls a new optional `onTimeSelect` prop. `Index.tsx` wires `handleTimeChange` so a tap jumps the time slider + repaints map polygons.
+- Replace the invisible `ring-2 ring-black` active indicator with a small `▼` caret in `text-foreground` above the active bar — visible on every smoke color and in both themes.
 
-- After `new mapboxgl.Map(...)`, attach `map.current.on('styledata', ...)` and `map.current.on('idle', ...)` handlers that bump a `styleReadyTick` state. Add that tick to the render effect's dependency array so the effect re‑runs as soon as the style is actually ready.
-- In the render effect, when `map.current.isStyleLoaded()` is false but a `layerToRender` exists, schedule one retry via `map.current.once('idle', addSmokeLayer)` instead of silently returning.
-- Remove `isUpdatingLayers` from `addSmokeLayer`'s `useCallback` deps and from the render effect deps — it's a transient flag the same callback sets, so including it causes redundant re‑creations and missed renders. Keep the in‑function guard.
-- Keep the existing "fit to bounds on first render" behavior; just make sure it runs after the retry path too.
+### D. TimeControls
 
-### 4. Smaller speed/reliability wins (low risk, no functional change)
+- **Mobile** and **desktop**: a single floating pill at the bottom of the map. Inline order: ⟲ ◀ ▶/⏸ ▶ • slider • time label. `rounded-full`, no border, `backdrop-blur-md`.
+- Drop the "Frame N of M" and "Current Conditions / Forecast Time" sub‑labels — redundant given the time label.
+- This deletes the desktop sidebar `TimeControls` block entirely; the sidebar shrinks to just details + legend.
 
-- `src/services/smokeDataService.ts`: the paginated fetch is sequential. After the first page returns `exceededTransferLimit`, fire pages 2..N in parallel with `Promise.all` using the known `pageSize`. This typically cuts cold‑load time from ~4 sequential round‑trips to ~1.
-- `src/services/smokeDataService.ts`: drop the unused `ensureFullForecastRange` and `generateFallbackSmokeData` helpers (per your "no simulated data" rule). Removes ~110 lines and prevents accidental future use.
-- `src/hooks/useSmokeDataOptimized.ts`: the `timeSlicedProcess` call on initial load just pushes layers into an array — it doesn't actually slice any heavy work and adds a `setTimeout`/`requestIdleCallback` ladder. Replace with a direct `setSmokeLayers(data)` inside `startTransition`. Faster TTI, same result.
-- `src/components/SmokeMap.tsx`: the polygon "process features in chunks" loop is just shaping objects — for typical NOAA frame sizes this is sub‑millisecond, but wrapping it in `setTimeout(0)` chains delays the first paint by ~30–80ms on mobile. Replace with a synchronous map; keep the Promise return shape so call sites don't change.
-- `src/components/SmokeMap.tsx`: the bare `setTimeout(() => initializeMap(), 100)` before map init is a leftover. Initialize on mount directly.
+### E. Map chrome
 
-### 5. Things I am NOT changing (calling out so you can confirm)
+- **Search**: collapsed `Search` icon chip top‑left on both breakpoints. Tap expands inline to `max-w-[260px]` (mobile) / `max-w-[360px]` (desktop) with input + locate button. Auto‑collapses on blur.
+- **NOAA forecast date chip**: shrink to `text-[10px] py-1 px-2 bottom-2 left-2 rounded-full bg-background/70 backdrop-blur` on both breakpoints.
+- Hide the fixed bottom footer on mobile; on desktop keep it but restyle as a slim translucent chip bottom‑right with just "NOAA HRRR‑Smoke · Real‑time". No more full‑width bordered bar.
 
-- Not removing the `/analytics` route or `src/pages/Analytics.tsx` — only the home‑page link. Say the word and I'll delete the route too.
-- Not touching `useWeatherData`, `fireDataService`, `CityForecast`, or the time‑slider UI.
-- Not adding any fabricated/fallback smoke data.
+### F. Details + Legend
 
-## Verification plan
+- **Mobile**: floating chip bottom‑right of the map showing `Info` icon + truncated city name. Tap opens a `Sheet side="bottom"` with `LocationInfo` + `SmokeLegend` + data‑source footer. Chip pulses once when a new location is selected.
+- **Desktop**: keep the right sidebar but restyle it edgeless — single `bg-background/70 backdrop-blur-md rounded-2xl` panel containing `LocationInfo` + a thin divider + `SmokeLegend`. No nested cards. The sidebar narrows from `col-span-1 of 4` to a fixed `w-[300px]` panel floating over the map (`absolute right-4 top-20 bottom-20`), so the map takes the full width underneath. Add a small collapse chevron to hide the panel.
 
-- Hard‑reload on mobile (DuckDuckGo + Firefox) and confirm polygons appear without panning.
-- Confirm the network panel no longer shows repeated POSTs to `…/smokeusage`.
-- Confirm cold load time to first polygon paint drops on a throttled "Fast 3G" run in DevTools.
-- Confirm the time slider, city search, fire dots, and CityForecast still behave exactly as before.
+### G. Layout shift
+
+- `Index.tsx` becomes: full‑viewport `<SmokeMapLazy />` as the base layer, everything else (`wordmark`, `search`, `CityForecast`, `TimeControls`, details chip/panel, NOAA chip) absolutely positioned over it. No more grid columns or stacked sections on either breakpoint.
+- `useIsMobile()` only toggles where the details panel lives (right‑side floating panel on desktop, bottom sheet on mobile) and the wordmark/subtitle inline behavior.
+
+### What stays the same
+
+- No changes to data services, smoke/fire fetching, polygon rendering, the weather hook, or analytics.
+- No new dependencies. Uses existing `Sheet`, `Button`, `lucide-react`, `useIsMobile`.
+- No changes to `/analytics` or `/privacy-reality` pages.
+
+### Technical notes
+
+- All overlays sit in a `pointer-events-none` absolute layer with `pointer-events-auto` on each chip so the map stays pannable in the gaps between controls.
+- `onTimeSelect` is additive on `CityForecast`; existing call sites work unchanged.
+- The desktop sidebar collapse state lives in `Index.tsx` `useState`, not persisted.
+
+### Verification
+
+- **Mobile** (390×844): map fills ~90% of viewport. Wordmark, search icon, forecast strip, time pill, details chip all float without bordered cards. Tap forecast bar → time updates. Tap details chip → bottom sheet opens.
+- **Desktop** (1280×800): same overlay language. Right‑side details panel is a single translucent rounded panel, collapsible. Tap forecast bar → time updates. Time pill sits at bottom‑center over the map.
+- No clipped labels in the forecast strip; active‑hour caret visible on every smoke color in both themes.
