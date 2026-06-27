@@ -721,12 +721,21 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         }} 
       />
 
-      {/* Map Instructions - Responsive sizing */}
-      <div className={`absolute bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border text-xs text-muted-foreground ${
-        isMobile 
-          ? 'bottom-4 left-4 right-4 p-2 max-w-none' 
-          : 'bottom-24 left-4 p-3 max-w-xs'
-      }`}>
+      {/* Fire-sources chip — bottom-left, small. Hidden on mobile (the floating time pill owns the bottom) */}
+      {!isMobile && fireDataLoaded && (
+        <div className="absolute bottom-4 left-4 z-10 bg-background/70 backdrop-blur-md rounded-full px-3 py-1.5 shadow-[0_2px_12px_rgba(0,0,0,0.18)] text-[11px] text-muted-foreground flex items-center gap-2">
+          <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
+          <span>Active fire sources</span>
+        </div>
+      )}
+      {/* Loading hint while map data isn't ready (replaces the verbose info chip) */}
+      {!isMapLoaded && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 bg-background/80 backdrop-blur-md rounded-full px-3 py-1.5 text-[11px] text-muted-foreground shadow">
+          Loading NOAA smoke forecast…
+        </div>
+      )}
+      {/* Hidden legacy block kept for parity (intentionally empty) */}
+      <div className="hidden">
         {isMapLoaded ? (
           <div className="space-y-1">
             {currentLayer ? 
