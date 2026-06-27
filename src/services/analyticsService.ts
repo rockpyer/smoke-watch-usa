@@ -2,6 +2,10 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { AnalyticsMonitor } from '@/utils/analyticsMonitor';
 
+// Analytics backend is currently disconnected. Set to true to re-enable tracking
+// once Lovable Cloud / Supabase is reconnected.
+const ANALYTICS_ENABLED = false;
+
 // Convert UTC timestamp to Mountain Time (proper timezone handling)
 const toMountainTime = (date: Date): Date => {
   // Create a new date object that represents the same moment in Mountain Time
@@ -82,6 +86,11 @@ class AnalyticsService {
   constructor() {
     this.sessionId = crypto.randomUUID();
     this.sessionStartTime = new Date();
+    if (!ANALYTICS_ENABLED) {
+      // Backend disconnected — do not generate fingerprints, listeners, or
+      // periodic flush timers. All public tracking methods short‑circuit below.
+      return;
+    }
     this.visitorFingerprint = this.generateVisitorFingerprint();
     console.log('📊 Analytics: Starting new session', this.sessionId);
     console.log('📊 Analytics: Visitor fingerprint', this.visitorFingerprint);
@@ -192,6 +201,7 @@ class AnalyticsService {
   }
 
   async trackEvent(event: Partial<AnalyticsEvent>) {
+    if (!ANALYTICS_ENABLED) return;
     // Circuit breaker: Stop tracking if session has too many events
     if (this.sessionEventCount >= this.maxEventsPerSession) {
       console.warn('📊 Analytics: Circuit breaker activated - too many events in session');
@@ -451,6 +461,7 @@ class AnalyticsService {
 
   // Public methods for specific tracking events
   trackPageLoad(latitude?: number, longitude?: number) {
+    if (!ANALYTICS_ENABLED) return;
     this.trackEvent({
       event_type: 'page_load',
       latitude,
@@ -459,6 +470,7 @@ class AnalyticsService {
   }
 
   trackCitySearch(query: string, city?: string, latitude?: number, longitude?: number) {
+    if (!ANALYTICS_ENABLED) return;
     this.trackEvent({
       event_type: 'city_search',
       search_query: query,
@@ -469,6 +481,7 @@ class AnalyticsService {
   }
 
   trackLocationClick(latitude: number, longitude: number, zoomLevel?: number) {
+    if (!ANALYTICS_ENABLED) return;
     this.trackEvent({
       event_type: 'location_click',
       latitude,
@@ -478,6 +491,7 @@ class AnalyticsService {
   }
 
   trackTimeChange(previousTime: Date, newTime: Date, interactionType: string) {
+    if (!ANALYTICS_ENABLED) return;
     // Enhanced debouncing for slider interactions
     if (interactionType === 'slider') {
       // Cancel any pending time change
@@ -527,6 +541,7 @@ class AnalyticsService {
   }
 
   trackForecastView(city: string, forecastAvailable: boolean, latitude?: number, longitude?: number) {
+    if (!ANALYTICS_ENABLED) return;
     // Only track forecast views from deliberate user actions, not cascaded from time changes
     this.trackEvent({
       event_type: 'forecast_view',

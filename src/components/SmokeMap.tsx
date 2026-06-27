@@ -43,6 +43,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   const [mapError, setMapError] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
   const [fireDataLoaded, setFireDataLoaded] = useState(false);
+  // Bumped whenever the Mapbox style becomes ready (load/styledata/idle).
+  // The polygon-render effect depends on this so it re-runs as soon as the
+  // style is actually queryable — fixes the mobile "no polygons until I
+  // pan" race where currentLayer arrived before isStyleLoaded() was true.
+  const [styleReadyTick, setStyleReadyTick] = useState(0);
 
   // Refs
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -451,6 +456,15 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
           setIsMapLoaded(true);
           setIsInitializing(false);
         }
+        setStyleReadyTick(t => t + 1);
+      });
+      map.current.on('styledata', () => {
+        if (map.current?.isStyleLoaded()) {
+          setStyleReadyTick(t => t + 1);
+        }
+      });
+      map.current.once('idle', () => {
+        setStyleReadyTick(t => t + 1);
       });
       map.current.on('error', (e) => {
         clearTimeout(loadTimeout);
@@ -492,10 +506,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   // Only run map initialization on mount or token change
   useEffect(() => {
     if (!needsToken) {
-      const timer = setTimeout(() => {
-        initializeMap();
-      }, 100);
-      return () => clearTimeout(timer);
+      initializeMap();
     }
     return () => {
       if (initTimeoutRef.current) {
@@ -520,25 +531,28 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   useEffect(() => {
     if (
       map.current &&
-      isMapLoaded &&
-      !isUpdatingLayers &&
-      map.current.isStyleLoaded()
+      isMapLoaded
     ) {
       // Fallback layer selection: use currentLayer if available, otherwise use the first layer
       const layerToRender = currentLayer || (smokeLayers && smokeLayers.length > 0 ? smokeLayers[0] : null);
-      
-      if (layerToRender) {
-        const currentTimestamp = layerToRender.timestamp.toISOString();
-        if (lastProcessedTimestamp.current !== currentTimestamp) {
-          console.log('🗺️ SmokeMap: Rendering layer for timestamp:', currentTimestamp);
-          addSmokeLayer();
-          lastProcessedTimestamp.current = currentTimestamp;
-        }
-      } else {
-        console.log('🗺️ SmokeMap: No layer available to render');
+
+      if (!layerToRender) return;
+      const currentTimestamp = layerToRender.timestamp.toISOString();
+      if (lastProcessedTimestamp.current === currentTimestamp) return;
+
+      // If the style isn't actually queryable yet, retry on the next idle
+      // instead of silently bailing. This is the key mobile fix.
+      if (!map.current.isStyleLoaded()) {
+        console.log('🗺️ SmokeMap: style not ready, retrying on idle');
+        map.current.once('idle', () => setStyleReadyTick(t => t + 1));
+        return;
       }
+
+      console.log('🗺️ SmokeMap: Rendering layer for timestamp:', currentTimestamp);
+      lastProcessedTimestamp.current = currentTimestamp;
+      addSmokeLayer();
     }
-  }, [currentLayer, isMapLoaded, isUpdatingLayers, addSmokeLayer, smokeLayers]);
+  }, [currentLayer, isMapLoaded, smokeLayers, styleReadyTick, addSmokeLayer]);
 
   const reverseGeocode = async (lng: number, lat: number): Promise<string> => {
     try {
