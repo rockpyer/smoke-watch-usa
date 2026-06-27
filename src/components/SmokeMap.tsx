@@ -684,28 +684,28 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         </div>
       )}
 
-      {/* Search Controls */}
-      <div className="absolute top-4 left-4 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border">
-        <div className="flex items-center p-2">
+      {/* Search Controls — offset right to leave room for the floating wordmark chip */}
+      <div className="absolute top-3 left-36 md:left-44 right-3 md:right-auto z-10 bg-background/70 backdrop-blur-md rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.2)]">
+        <div className="flex items-center pl-3 pr-1 py-1">
           <div className="flex items-center flex-1 min-w-0">
-            <Search className="h-4 w-4 text-muted-foreground mr-2" />
+            <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
             <Input
-              placeholder="Search city, ZIP code..."
+              placeholder="Search city..."
               value={searchValue}
               onChange={handleSearchInputChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-7 px-0 text-sm"
               disabled={!isMapLoaded}
               maxLength={100}
             />
           </div>
-          <Button 
-            size="sm" 
-            onClick={handleSearch} 
-            className="ml-2"
+          <Button
+            size="sm"
+            onClick={handleSearch}
+            className="ml-1 h-7 w-7 p-0 rounded-full"
             disabled={!isMapLoaded || !searchValue.trim()}
           >
-            <MapPin className="h-4 w-4" />
+            <MapPin className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
@@ -721,12 +721,21 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
         }} 
       />
 
-      {/* Map Instructions - Responsive sizing */}
-      <div className={`absolute bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border text-xs text-muted-foreground ${
-        isMobile 
-          ? 'bottom-4 left-4 right-4 p-2 max-w-none' 
-          : 'bottom-24 left-4 p-3 max-w-xs'
-      }`}>
+      {/* Fire-sources chip — bottom-left, small. Hidden on mobile (the floating time pill owns the bottom) */}
+      {!isMobile && fireDataLoaded && (
+        <div className="absolute bottom-4 left-4 z-10 bg-background/70 backdrop-blur-md rounded-full px-3 py-1.5 shadow-[0_2px_12px_rgba(0,0,0,0.18)] text-[11px] text-muted-foreground flex items-center gap-2">
+          <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
+          <span>Active fire sources</span>
+        </div>
+      )}
+      {/* Loading hint while map data isn't ready (replaces the verbose info chip) */}
+      {!isMapLoaded && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 bg-background/80 backdrop-blur-md rounded-full px-3 py-1.5 text-[11px] text-muted-foreground shadow">
+          Loading NOAA smoke forecast…
+        </div>
+      )}
+      {/* Hidden legacy block kept for parity (intentionally empty) */}
+      <div className="hidden">
         {isMapLoaded ? (
           <div className="space-y-1">
             {currentLayer ? 

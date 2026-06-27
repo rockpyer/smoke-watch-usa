@@ -16,6 +16,8 @@ interface CityForecastProps {
   cityName?: string;
   compact?: boolean;
   selectedTime?: Date;
+  edgeless?: boolean;
+  onTimeSelect?: (time: Date, index: number, interactionType?: string) => void;
 }
 interface ForecastData {
   timestamp: Date;
@@ -41,7 +43,9 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   cityCoordinates,
   cityName,
   compact = false,
-  selectedTime
+  selectedTime,
+  edgeless = false,
+  onTimeSelect
 }) => {
   const {
     smokeLayers,
@@ -233,8 +237,12 @@ export const CityForecast: React.FC<CityForecastProps> = ({
   if (!cityCoordinates || !cityName) {
     return null;
   }
+  const wrapperClass = edgeless
+    ? 'bg-background/70 backdrop-blur-md rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.18)] border-0'
+    : 'bg-background/95 backdrop-blur-sm shadow-lg border';
+
   if (!forecastData.length || !timelineData) {
-    return <Card className={`${compact ? 'p-2' : 'p-3'} bg-background/95 backdrop-blur-sm shadow-lg max-w-2xl`}>
+    return <div className={`${compact ? 'p-2' : 'p-3'} ${wrapperClass} max-w-2xl`}>
         <div className="flex items-center justify-between mb-2">
           <h3 className={`${compact ? 'text-xs' : 'text-sm'} font-semibold text-foreground whitespace-nowrap`}>
             {cityName} • 48h Smoke Forecast
@@ -246,7 +254,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
         <div className="text-[11px] text-muted-foreground">
           {smokeLoading ? 'Loading forecast…' : 'No smoke forecast data for this location yet.'}
         </div>
-      </Card>;
+      </div>;
   }
   const {
     tz,
@@ -259,9 +267,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     currentTimeIndex,
     dateLabels
   } = timelineData;
-  return <Card className={`${compact ? 'p-1.5' : 'p-2'} bg-background/95 backdrop-blur-sm shadow-lg w-full flex flex-col min-h-0`} style={{
-    height: '100%'
-  }}>
+  return <div className={`${compact ? 'p-1.5' : 'p-2'} ${wrapperClass} w-full flex flex-col min-h-0`}>
       <div className="flex items-center justify-between mb-1 flex-shrink-0 py-0 my-0">
         <h3 className={`${compact ? 'text-xs' : 'text-xs'} font-semibold text-foreground truncate flex-1 min-w-0`}>
           {cityName} • 48h Forecast <span className="text-[9px] text-muted-foreground">({tzShort})</span>
@@ -290,7 +296,15 @@ export const CityForecast: React.FC<CityForecastProps> = ({
                   {isMidnight && i > 0 && <div className="absolute left-[-2px] top-0 bottom-0 w-0.5 bg-border/60 z-10" />}
                   
                   {f.weatherCode !== undefined && <WeatherIcon code={f.weatherCode} />}
-                  <div className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${isCurrentTime ? 'ring-2 ring-black ring-inset' : ''}`} title={`${f.timestamp.toLocaleString('en-US', {
+                  {/* Active caret indicator above the bar */}
+                  {isCurrentTime && (
+                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-foreground z-20" />
+                  )}
+                   <button
+                    type="button"
+                    onClick={() => onTimeSelect?.(f.timestamp, i, 'forecast_bar')}
+                    className={`${colorClass} h-3 sm:h-4 w-2 sm:w-2.5 rounded flex-shrink-0 cursor-pointer transition-all hover:scale-110 hover:z-10 relative group ${isCurrentTime ? 'ring-2 ring-foreground ring-inset' : ''} ${onTimeSelect ? '' : 'pointer-events-none'}`}
+                    title={`${f.timestamp.toLocaleString('en-US', {
                 month: 'short',
                 day: 'numeric',
                 hour: 'numeric',
@@ -298,7 +312,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
                 timeZone: tz
               })} • ${f.concentration.toFixed(1)} μg/m³ • ${airQualityDesc}`}>
                     <Info className="h-2 w-2 text-white/70 absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  </div>
+                  </button>
                   {f.temperature !== undefined && <span className="text-[10px]">{f.temperature.toFixed(0)}°</span>}
                 </div>;
           })}
@@ -331,5 +345,5 @@ export const CityForecast: React.FC<CityForecastProps> = ({
           </div>
         </div>
       </div>
-    </Card>;
+    </div>;
 };

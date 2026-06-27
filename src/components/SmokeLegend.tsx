@@ -62,9 +62,12 @@ const smokeLevels: SmokeLevel[] = [
   }
 ];
 
-const SmokeLegend: React.FC = () => {
+interface SmokeLegendProps { edgeless?: boolean }
+const SmokeLegend: React.FC<SmokeLegendProps> = ({ edgeless = false }) => {
+  const Wrap: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+    edgeless ? <div className="bg-transparent">{children}</div> : <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">{children}</Card>;
   return (
-    <Card className="bg-background/95 backdrop-blur-sm border shadow-lg">
+    <Wrap>
       <div className="p-4">
         <h3 className="font-semibold text-sm mb-3 text-foreground">
           EPA Air Quality Index - Smoke
@@ -97,7 +100,7 @@ const SmokeLegend: React.FC = () => {
           </p>
         </div>
       </div>
-    </Card>
+    </Wrap>
   );
 };
 
