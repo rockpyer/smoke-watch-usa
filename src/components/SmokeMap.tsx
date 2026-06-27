@@ -23,6 +23,7 @@ interface SmokeMapProps {
   selectedTime?: Date;
   currentLayer?: SmokeLayer | null;
   smokeLayers?: SmokeLayer[];
+  focusLocation?: { lat: number; lng: number } | null;
 }
 
 const SmokeMap: React.FC<SmokeMapProps> = ({
@@ -30,7 +31,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
   onCitySearch,
   selectedTime,
   currentLayer,
-  smokeLayers = []
+  smokeLayers = [],
+  focusLocation
 }) => {
   const { trackLocationClick, trackCitySearch } = useAnalytics();
   const isMobile = useIsMobile();
@@ -147,6 +149,22 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
       console.error('Error adding fire data:', error);
     }
   }, [isMapLoaded, fireDataLoaded]);
+
+  // Fly to a focus location (e.g. default Boulder or geolocated user position),
+  // centered slightly WEST so the typical west-to-east smoke plume is visible
+  // downwind of the location.
+  const lastFocusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!map.current || !isMapLoaded || !focusLocation) return;
+    const key = `${focusLocation.lat.toFixed(4)},${focusLocation.lng.toFixed(4)}`;
+    if (lastFocusRef.current === key) return;
+    lastFocusRef.current = key;
+    map.current.flyTo({
+      center: [focusLocation.lng - 3, focusLocation.lat],
+      zoom: 6,
+      duration: 1500
+    });
+  }, [focusLocation, isMapLoaded]);
 
   // Map initialization logic, now after all dependencies and using no hooks inside
   // Stable addSmokeLayer: only depends on map.current
@@ -593,7 +611,7 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
               .setLngLat([lng, lat])
               .addTo(map.current);
             map.current.flyTo({
-              center: [lng, lat],
+              center: [lng - 3, lat],
               zoom: 6,
               duration: 2000
             });

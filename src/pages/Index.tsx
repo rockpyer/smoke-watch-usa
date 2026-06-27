@@ -223,6 +223,7 @@ const Index = () => {
             selectedTime={currentLayer.timestamp}
             currentLayer={currentLayer}
             smokeLayers={smokeLayers}
+            focusLocation={searchedCity?.coordinates}
           />
         ) : (
           <MapSkeleton />
