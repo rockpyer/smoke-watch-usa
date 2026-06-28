@@ -267,7 +267,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
     currentTimeIndex,
     dateLabels
   } = timelineData;
-  return <div className={`${compact ? 'p-1.5' : 'p-2'} ${wrapperClass} w-full flex flex-col min-h-0`}>
+  return <div className={`${compact ? 'p-1.5' : 'p-2'} ${wrapperClass} w-full flex flex-col min-h-0 overflow-hidden`}>
       <div className="flex items-center justify-between mb-1 flex-shrink-0 py-0 my-0">
         <h3 className={`${compact ? 'text-xs' : 'text-xs'} font-semibold text-foreground truncate flex-1 min-w-0`}>
           {cityName} • 48h Forecast <span className="text-[9px] text-muted-foreground">({tzShort})</span>
@@ -278,7 +278,7 @@ export const CityForecast: React.FC<CityForecastProps> = ({
       </div>
 
       {/* Combined scrolling container for forecast and date/time labels — force visible scrollbar as a scroll cue */}
-      <div className="forecast-scroll overflow-x-scroll overflow-y-visible flex-1 min-h-0 pb-2 md:pb-3 py-[6px]">
+      <div className="forecast-scroll overflow-x-auto overflow-y-hidden flex-1 min-h-0 pb-2 md:pb-3 py-[6px]">
         <div className="flex flex-col min-w-max h-full justify-between py-0">
           {/* 48-hour single-line timeline with enhanced tooltips */}
           <div className="flex items-center space-x-0.5 flex-1 justify-center relative">
