@@ -80,10 +80,9 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
   const aqi = concentrationToAQI(c);
 
   const getSmokeLevel = (c: number) => {
-    if (c < 3) return { label: 'No Smoke', color: 'bg-smoke-none', textColor: 'text-white' };
-    if (c <= 12) return { label: 'Light Smoke', color: 'bg-smoke-light', textColor: 'text-black' };
+    if (c <= 12) return { label: 'Hazy', color: 'bg-smoke-light', textColor: 'text-black' };
     const aqiVal = concentrationToAQI(c);
-    if (aqiVal <= 100) return { label: 'Moderate', color: 'bg-smoke-moderate', textColor: 'text-black' };
+    if (aqiVal <= 100) return { label: 'Moderate Smoke', color: 'bg-smoke-moderate', textColor: 'text-black' };
     if (aqiVal <= 150) return { label: 'Unhealthy for Sensitive Groups', color: 'bg-smoke-unhealthy-sensitive', textColor: 'text-white' };
     if (aqiVal <= 200) return { label: 'Unhealthy', color: 'bg-smoke-unhealthy', textColor: 'text-white' };
     if (aqiVal <= 300) return { label: 'Very Unhealthy', color: 'bg-smoke-very-unhealthy', textColor: 'text-white' };
@@ -111,11 +110,11 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
         {/* Air Quality Status */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">Air Quality</span>
+            <span className="text-sm font-medium text-foreground">Smoke PM2.5</span>
             <Badge 
               className={`${smokeLevel.color} ${smokeLevel.textColor} border-0`}
             >
-              AQI {aqi}
+              ~AQI {aqi}
             </Badge>
           </div>
           
@@ -124,6 +123,9 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
               {smokeLevel.label}
             </div>
           </div>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Forecast smoke only. AQI is estimated from PM2.5 and excludes ozone, dust, and local sources.
+          </p>
         </div>
 
         {/* Forecast Details */}
@@ -154,8 +156,7 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
           <h4 className="text-sm font-semibold text-foreground mb-2">Recommendations</h4>
           <div className="text-xs text-muted-foreground leading-relaxed">
             {(() => {
-              if (c < 3) return "No smoke detected.";
-              if (c <= 12) return "Light Smoke — Limited air quality impact.";
+              if (c <= 12) return "Hazy — light smoke possible. Real air quality may be worse from other sources.";
               if (aqi <= 100) return "Moderate air quality. Most people can continue normal activities.";
               if (aqi <= 150) return "Sensitive groups should limit outdoor activities. Consider moving activities indoors.";
               return "Limit outdoor activities. Consider postponing outdoor events.";
