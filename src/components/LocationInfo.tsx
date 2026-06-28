@@ -160,40 +160,30 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
           </p>
         </div>
 
-        {/* Observed AQI from AirNow */}
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">Observed AQI (AirNow)</span>
-            {observed && observed.length > 0 && observed[0].reportingArea && (
-              <span className="text-[11px] text-muted-foreground truncate ml-2">
-                {observed[0].reportingArea}, {observed[0].stateCode}
-              </span>
+        {/* Observed AQI from AirNow — compact single line */}
+        {(observedLoading || (observed && observed.length > 0) || observed === null) && (
+          <div className="pt-1">
+            {observedLoading && (
+              <p className="text-[11px] text-muted-foreground">Loading nearest AirNow monitor…</p>
+            )}
+            {!observedLoading && observed && observed.length > 0 && (() => {
+              const worst = [...observed].sort((a, b) => b.aqi - a.aqi)[0];
+              return (
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Nearest monitor{worst.reportingArea ? ` (${worst.reportingArea}, ${worst.stateCode})` : ''}:{' '}
+                  <span className="text-foreground font-medium">AQI {worst.aqi}</span>{' '}
+                  <span className="opacity-80">({worst.parameter}{observed.length > 1 ? ` +${observed.length - 1}` : ''})</span>
+                  {' '}— all pollutants, not just smoke.
+                </p>
+              );
+            })()}
+            {!observedLoading && (!observed || observed.length === 0) && (
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                No AirNow monitor within 25 miles.
+              </p>
             )}
           </div>
-          {observedLoading && (
-            <p className="text-xs text-muted-foreground">Loading observed data…</p>
-          )}
-          {!observedLoading && (!observed || observed.length === 0) && (
-            <p className="text-[11px] text-muted-foreground leading-snug">
-              No AirNow monitor reporting within 25 miles.
-            </p>
-          )}
-          {!observedLoading && observed && observed.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {observed.map((o) => (
-                <Badge
-                  key={o.parameter}
-                  className={`${aqiBandColor(o.aqi)} border-0`}
-                >
-                  {o.parameter} {o.aqi}
-                </Badge>
-              ))}
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground leading-snug">
-            Observed AQI reflects all pollutants measured at the nearest monitor (PM2.5, ozone, etc.) and may differ from the smoke-only forecast.
-          </p>
-        </div>
+        )}
 
         {/* Forecast Details */}
         <div className="space-y-3">
