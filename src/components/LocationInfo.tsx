@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin } from 'lucide-react';
+import { fetchObservedAQI, AirNowObservation } from '@/services/airnowService';
 
 interface SmokeData {
   concentration_ugm3: number;
@@ -27,6 +28,37 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
   smokeData,
   edgeless = false
 }) => {
+  const [observed, setObserved] = useState<AirNowObservation[] | null>(null);
+  const [observedLoading, setObservedLoading] = useState(false);
+
+  useEffect(() => {
+    if (!coordinates) {
+      setObserved(null);
+      return;
+    }
+    let cancelled = false;
+    setObservedLoading(true);
+    fetchObservedAQI(coordinates[1], coordinates[0])
+      .then((res) => {
+        if (!cancelled) setObserved(res);
+      })
+      .finally(() => {
+        if (!cancelled) setObservedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [coordinates?.[0], coordinates?.[1]]);
+
+  const aqiBandColor = (aqi: number) => {
+    if (aqi <= 50) return 'bg-smoke-light text-black';
+    if (aqi <= 100) return 'bg-smoke-moderate text-black';
+    if (aqi <= 150) return 'bg-smoke-unhealthy-sensitive text-white';
+    if (aqi <= 200) return 'bg-smoke-unhealthy text-white';
+    if (aqi <= 300) return 'bg-smoke-very-unhealthy text-white';
+    return 'bg-smoke-hazardous text-white';
+  };
+
   // Convert concentration to AQI (simplified conversion)
   const concentrationToAQI = (concentration: number): number => {
     // Simplified PM2.5 to AQI conversion
@@ -125,6 +157,41 @@ const LocationInfo: React.FC<LocationInfoProps> = ({
           </div>
           <p className="text-[11px] text-muted-foreground leading-snug">
             Forecast smoke only. AQI is estimated from PM2.5 and excludes ozone, dust, and local sources.
+          </p>
+        </div>
+
+        {/* Observed AQI from AirNow */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">Observed AQI (AirNow)</span>
+            {observed && observed.length > 0 && observed[0].reportingArea && (
+              <span className="text-[11px] text-muted-foreground truncate ml-2">
+                {observed[0].reportingArea}, {observed[0].stateCode}
+              </span>
+            )}
+          </div>
+          {observedLoading && (
+            <p className="text-xs text-muted-foreground">Loading observed data…</p>
+          )}
+          {!observedLoading && (!observed || observed.length === 0) && (
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              No AirNow monitor reporting within 25 miles.
+            </p>
+          )}
+          {!observedLoading && observed && observed.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {observed.map((o) => (
+                <Badge
+                  key={o.parameter}
+                  className={`${aqiBandColor(o.aqi)} border-0`}
+                >
+                  {o.parameter} {o.aqi}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Observed AQI reflects all pollutants measured at the nearest monitor (PM2.5, ozone, etc.) and may differ from the smoke-only forecast.
           </p>
         </div>
 
