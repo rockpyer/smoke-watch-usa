@@ -113,7 +113,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
         <div className={`${compact ? 'flex items-center justify-between' : 'space-y-2 md:space-y-3'}`}>
           {/* Current Time Display */}
           <div className={`${compact ? 'flex-1' : 'text-center'}`}>
-            <div className={`${compact ? 'text-sm' : 'text-base md:text-lg'} font-bold text-foreground`}>
+            <div className={`${compact ? 'text-xs whitespace-nowrap' : 'text-base md:text-lg'} font-bold text-foreground`}>
               {currentTime.toLocaleString('en-US', {
                 month: 'short',
                 day: 'numeric',
@@ -123,7 +123,7 @@ const TimeControls: React.FC<TimeControlsProps> = ({
                 timeZone: timeZone || 'America/Denver'
               })}
             </div>
-            <div className={`${compact ? 'text-[10px]' : 'text-xs md:text-sm'} text-muted-foreground`}>
+            <div className={`${compact ? 'text-[10px] whitespace-nowrap' : 'text-xs md:text-sm'} text-muted-foreground`}>
               {isCurrentTime ? 'Current Conditions' : 'Forecast Time'}
             </div>
           </div>
