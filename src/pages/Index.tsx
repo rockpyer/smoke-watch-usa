@@ -46,7 +46,11 @@ const Index = () => {
       lng: number;
     };
     name: string;
-  } | null>(null);
+  } | null>({
+    coordinates: { lat: 40.0150, lng: -105.2705 },
+    name: 'Boulder, CO',
+  });
+  const [hasUserOverride, setHasUserOverride] = useState(false);
 
   // ...existing code...
   const handleTimeChange = (time: Date, index: number, interactionType?: string) => {
@@ -73,9 +77,9 @@ const Index = () => {
     }
   }, [currentLayerIndex]);
   useEffect(() => {
-    if (searchedCity) return;
+    if (hasUserOverride) return;
 
-    // Defer geolocation to not block TTI
+    // Defer geolocation to not block TTI; Boulder is shown immediately, upgrade if geo resolves.
     const timer = setTimeout(() => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
@@ -93,47 +97,22 @@ const Index = () => {
             });
           });
           console.log('🌍 Using user location:', latitude, longitude);
-
-          // Defer analytics to not block interactions
           setTimeout(() => trackPageLoad(latitude, longitude), 1000);
         }, error => {
-          console.log('🌍 Geolocation failed, using Boulder, CO default:', error);
-          startTransition(() => {
-            setSearchedCity({
-              coordinates: {
-                lat: 40.0150,
-                lng: -105.2705
-              },
-              name: 'Boulder, CO'
-            });
-          });
-
-          // Defer analytics to not block interactions
+          console.log('🌍 Geolocation failed, keeping Boulder, CO default:', error);
           setTimeout(() => trackPageLoad(40.0150, -105.2705), 1000);
         }, {
-          timeout: 3000,
+          timeout: 5000,
           enableHighAccuracy: false
-        } // Reduced timeout
-        );
+        });
       } else {
         console.log('🌍 Geolocation not supported, using Boulder, CO default');
-        startTransition(() => {
-          setSearchedCity({
-            coordinates: {
-              lat: 40.0150,
-              lng: -105.2705
-            },
-            name: 'Boulder, CO'
-          });
-        });
-
-        // Defer analytics to not block interactions
         setTimeout(() => trackPageLoad(40.0150, -105.2705), 1000);
       }
-    }, 200); // Defer geolocation to allow page to become interactive
+    }, 200);
 
     return () => clearTimeout(timer);
-  }, [searchedCity]);
+  }, [hasUserOverride]);
 
   // Memoize timezone calculation to prevent unnecessary recalculations
   const cityTimeZone = useMemo(() => searchedCity ? tzLookup(searchedCity.coordinates.lat, searchedCity.coordinates.lng) : undefined, [searchedCity?.coordinates.lat, searchedCity?.coordinates.lng]);
@@ -165,6 +144,7 @@ const Index = () => {
 
   // Memoize handlers to prevent unnecessary re-renders
   const handleLocationSelect = useMemo(() => (coordinates: [number, number], locationName: string, smokeData?: any) => {
+    setHasUserOverride(true);
     setSelectedLocation({
       coordinates,
       name: locationName,
@@ -182,6 +162,7 @@ const Index = () => {
     lat: number;
     lng: number;
   }, cityName: string) => {
+    setHasUserOverride(true);
     const smokeProperties = getSmokeDataForLocation({
       lat: coordinates.lat,
       lng: coordinates.lng
