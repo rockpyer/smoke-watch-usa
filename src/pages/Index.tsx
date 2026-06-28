@@ -265,7 +265,7 @@ const Index = () => {
               <ChevronLeft className="h-4 w-4 text-foreground" />
             </button>
           ) : (
-            <aside className="absolute top-16 right-3 bottom-20 w-[320px] pointer-events-auto rounded-2xl bg-background/75 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.2)] flex flex-col overflow-hidden">
+            <aside className="absolute top-16 right-3 w-[320px] max-h-[calc(100vh-9rem)] pointer-events-auto rounded-2xl bg-background/75 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.2)] flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Details</span>
                 <button
