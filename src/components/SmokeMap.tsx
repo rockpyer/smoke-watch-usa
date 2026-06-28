@@ -361,8 +361,8 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
           if (e.features && e.features[0]) {
             const feature = e.features[0];
             const props = feature.properties;
-            let aqiCategory = 'Good';
-            let healthAdvice = 'Air quality is good. Enjoy outdoor activities!';
+            let aqiCategory = 'Hazy';
+            let healthAdvice = 'Hazy — light smoke possible. Real air quality may be worse from other sources.';
             const concentration = props?.concentration || 0;
             if (concentration > 250) {
               aqiCategory = 'Hazardous';
@@ -377,8 +377,28 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
               aqiCategory = 'Unhealthy for Sensitive Groups';
               healthAdvice = 'Sensitive individuals should limit outdoor activities.';
             } else if (concentration > 12) {
-              aqiCategory = 'Moderate';
-              healthAdvice = 'Moderate air quality. Most people can continue normal activities.';
+              aqiCategory = 'Moderate Smoke';
+              healthAdvice = 'Sensitive groups may feel effects. Most people are fine outside.';
+            }
+            // Local time for the clicked location based on the layer's valid_time
+            let localTimeLabel = '';
+            try {
+              const tz = tzLookup(e.lngLat.lat, e.lngLat.lng);
+              const validMs = props?.valid_time
+                ? Number(props.valid_time)
+                : (selectedTime ? selectedTime.getTime() : Date.now());
+              const d = new Date(validMs);
+              localTimeLabel = d.toLocaleString('en-US', {
+                timeZone: tz,
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short',
+              });
+            } catch {
+              localTimeLabel = new Date().toLocaleString();
             }
             if (onLocationSelect) {
               reverseGeocode(e.lngLat.lng, e.lngLat.lat).then((locationName) => {
@@ -399,11 +419,11 @@ const SmokeMap: React.FC<SmokeMapProps> = ({
               .setLngLat(e.lngLat)
               .setHTML(`
                 <div class="p-3 bg-background text-foreground">
-                  <h4 class="font-semibold text-lg text-foreground">NOAA Smoke Forecast</h4>
+                  <h4 class="font-semibold text-lg text-foreground">Smoke PM2.5 (forecast)</h4>
                   <div class="mt-2 space-y-1">
-                    <p class="text-sm text-foreground"><strong>Air Quality:</strong> ${aqiCategory}</p>
+                    <p class="text-sm text-foreground"><strong>Category:</strong> ${aqiCategory}</p>
                     <p class="text-sm text-foreground"><strong>Concentration:</strong> ${concentration} μg/m³</p>
-                    <p class="text-sm text-foreground"><strong>Forecast Hour:</strong> +${props?.forecast_hour || 0}h</p>
+                    <p class="text-sm text-foreground"><strong>Forecast time:</strong> ${localTimeLabel}</p>
                   </div>
                   <div class="mt-3 p-2 bg-muted rounded">
                     <p class="text-xs text-foreground">${healthAdvice}</p>
