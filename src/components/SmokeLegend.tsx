@@ -13,23 +13,16 @@ interface SmokeLevel {
 const smokeLevels: SmokeLevel[] = [
   {
     level: 'good',
-    label: 'Good',
-    color: 'bg-green-500',
-    description: 'Air quality is good. Enjoy outdoor activities!',
-    concentration: '0-3 μg/m³'
-  },
-  {
-    level: 'light-smoke',
-    label: 'Light Smoke',
-    color: 'bg-blue-500',
-    description: 'Minimal smoke impact. Air quality is still acceptable.',
-    concentration: '3-12 μg/m³'
+    label: 'Hazy',
+    color: 'bg-blue-300',
+    description: 'Some smoke detected aloft or at surface. Often noticeable but limited impact.',
+    concentration: '1-12 μg/m³'
   },
   {
     level: 'moderate',
-    label: 'Moderate',
+    label: 'Moderate Smoke',
     color: 'bg-yellow-500',
-    description: 'Air quality is acceptable for most people.',
+    description: 'Sensitive groups may feel effects. Most people are fine outside.',
     concentration: '13-35 μg/m³'
   },
   {
@@ -70,7 +63,7 @@ const SmokeLegend: React.FC<SmokeLegendProps> = ({ edgeless = false }) => {
     <Wrap>
       <div className="px-3 py-2">
         <h3 className="font-semibold text-sm mb-2 text-foreground">
-          EPA Air Quality Index - Smoke
+          Smoke PM2.5 (forecast)
         </h3>
         <div className="space-y-1.5">
           {smokeLevels.map((level) => (
@@ -94,7 +87,7 @@ const SmokeLegend: React.FC<SmokeLegendProps> = ({ edgeless = false }) => {
         </div>
         <div className="mt-3 pt-2 border-t border-border">
           <p className="text-xs text-muted-foreground">
-            Based on EPA Air Quality Index standards. Real-time data from NOAA HRRR-Smoke model.
+            Forecast wildfire smoke PM2.5 from the NOAA HRRR-Smoke model. This is not a full AQI — ozone, dust, and local sources are not included, so actual air may be worse than shown.
           </p>
           <p className="text-xs text-foreground/70 mt-1">
             Developed by <a href="https://ryweller.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Ryan Weller</a>
