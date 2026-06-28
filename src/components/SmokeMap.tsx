@@ -11,6 +11,7 @@ import { sanitizeSearchInput, validateSearchInput, debounce } from '@/utils/inpu
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useIsMobile } from '@/hooks/use-mobile';
 import MapboxTokenInput from './MapboxTokenInput';
+import tzLookup from 'tz-lookup';
 /// test test after gemini///
 interface SmokeLayer {
   timestamp: Date;
